@@ -1,0 +1,583 @@
+import axios from 'axios'
+import util from './util'
+import Snow from 'expo-snowui'
+
+const JOB_PROPERTIES = [
+    ['targetKind', 'target_kind'],
+    ['targetId', 'target_id'],
+    ['targetDirectory', 'target_directory'],
+    ['metadataId', 'metadata_id'],
+    ['metadataSource', 'metadata_source'],
+    ['seasonOrder', 'season_order'],
+    ['episodeOrder', 'episode_order'],
+    ['updateMetadata', 'update_metadata'],
+    ['updateImages', 'update_images'],
+    ['updateVideos', 'update_videos'],
+    ['skipExisting', 'skip_existing'],
+    ['extractOnly', 'extract_only'],
+]
+
+export class ApiClient {
+    constructor(details) {
+        this.webApiUrl = details.webApiUrl
+        this.hasAdmin = details.isAdmin
+        this.onApiError = details.onApiError
+        this.onLogout = details.onLogout
+        this.apiErrorSent = false
+        this.createClient(details)
+    }
+
+    createClient = (details) => {
+        this.baseURL = details.webApiUrl + '/api'
+        this.authToken = details.authToken
+        if (this.authToken) {
+            this.httpClient = axios.create({
+                baseURL: this.baseURL,
+                headers: {
+                    Authorization: 'Bearer ' + this.authToken,
+                },
+            })
+        } else {
+            this.httpClient = axios.create({
+                baseURL: this.baseURL,
+            })
+        }
+    }
+
+    handleError = (err) => {
+        util.log({ err })
+        if (err) {
+            if (err.response && err.response.status === 401) {
+                this.onLogout?.()
+            }
+            try {
+                let stringed = Snow.stringifySafe(err)
+                if (stringed?.includes('401')) {
+                    this.onLogout?.()
+                }
+            }
+            catch (swallow) { }
+            if (err?.code === 'ERR_NETWORK') {
+                if (!this.apiErrorSent) {
+                    this.onApiError(err)
+                }
+                this.apiErrorSent = true
+            }
+        }
+    }
+
+    get = async (url, params, silent) => {
+        if (silent === undefined) {
+            silent = true
+        }
+        let queryParams = null
+        if (params) {
+            queryParams = { params: params }
+        }
+        return this.httpClient
+            .get(url, queryParams)
+            .then((response) => {
+                return response.data
+            })
+            .catch((err) => {
+                this.handleError(err)
+                if (silent === false) {
+                    throw { err, url, payload }
+                }
+            })
+    }
+
+    post = async (url, payload, silent) => {
+        if (silent === undefined) {
+            silent = true
+        }
+        return this.httpClient
+            .post(url, payload)
+            .then((response) => {
+                return response.data
+            })
+            .catch((err) => {
+                this.handleError(err)
+                if (silent === false) {
+                    throw { err, url, payload }
+                }
+            })
+    }
+
+    delete = async (url) => {
+        return this.httpClient
+            .delete(url)
+            .then((response) => {
+                return response.data
+            })
+            .catch((err) => {
+                this.handleError(err)
+            })
+    }
+
+    isAuthenticated = () => {
+        return this.authToken !== null
+    }
+
+    login = (payload) => {
+        return new Promise(resolve => {
+            return this.httpClient
+                .postForm('/login', {
+                    username: payload.username,
+                    password: payload.password,
+                    device_name: payload.deviceId,
+                })
+                .then((data) => {
+                    if (data && data.data && data.data.access_token) {
+                        this.authToken = data.data.access_token
+                        this.permissions = data.data.permissions
+                        this.hasAdmin = this.permissions.includes('admin')
+                        this.createClient({ webApiUrl: this.webApiUrl, authToken: this.authToken })
+                        this.displayName = data.data.display_name
+                    }
+                    return resolve({
+                        authToken: this.authToken,
+                        isAdmin: this.hasAdmin,
+                        displayName: this.displayName
+                    })
+                })
+                .catch((err) => {
+                    return resolve({ failed: true, err: err })
+                })
+        })
+    }
+
+    heartbeat = () => {
+        return this.get('/heartbeat')
+    }
+
+    createScopedJob = (name, details) => {
+        let payload = { name }
+        if (details) {
+            payload.input = {}
+            for (const prop of JOB_PROPERTIES) {
+                if (details.hasOwnProperty(prop[0])) {
+                    payload.input[prop[1]] = details[prop[0]]
+                }
+            }
+        }
+        return this.post('/job', payload)
+    }
+
+    createJobApplyDirectoryTag = (details) => { return this.createScopedJob('apply_directory_tag', details) }
+    createJobChannelGuideRefresh = (details) => { return this.createScopedJob('channel_guide_refresh', details) }
+    createJobCleanFileRecords = (details) => { return this.createScopedJob('clean_file_records', details) }
+    createJobDeleteMediaRecords = (details) => { return this.createScopedJob('delete_media_records', details) }
+    createJobIdentifyUnknownMedia = (details) => { return this.createScopedJob('identify_unknown_media', details) }
+    createJobReadMediaFiles = (details) => { return this.createScopedJob('read_media_files', details) }
+    createJobSanitizeFileProperties = (details) => { return this.createScopedJob('sanitize_file_properties', details) }
+    createJobShelvesScan = (details) => { return this.createScopedJob('scan_shelves_content', details) }
+    createJobStreamSourcesRefresh = (details) => { return this.createScopedJob('stream_sources_refresh', details) }
+    createJobUpdateMediaFiles = (details) => { return this.createScopedJob('update_media_files', details) }
+
+    getJobList = (showComplete, limit) => {
+        let query = `/job/list?show_complete=${showComplete}`
+        if (limit) {
+            query += `&limit=${limit}`
+        }
+        return this.get(query)
+    }
+
+    getJob = (jobId) => {
+        return this.get(`/job?job_id=${jobId}`)
+    }
+
+    getLogPaths = () => {
+        return this.get('/log/list')
+    }
+
+    getLog = (logIndex, logPath) => {
+        if (logIndex !== undefined && logIndex !== null) {
+            return this.get(`/log?log_index=${logIndex}`)
+        }
+        return this.get(`/log?transcode_log_path=${logPath}`)
+    }
+
+    createStreamSource = (payload) => {
+        return this.post('/stream/source', {
+            url: payload.url,
+            username: payload.username,
+            password: payload.password,
+            kind: payload.kind,
+            name: payload.name,
+        })
+    }
+
+    getStreamSourceList = () => {
+        return this.get(`/stream/source/list`)
+    }
+
+    getStreamSource = (streamSourceId) => {
+        return this.get('/stream/source', { stream_source_id: streamSourceId })
+    }
+
+    saveStreamSource = (payload) => {
+        return this.post('/stream/source', payload, false)
+    }
+
+    deleteStreamSource = (stream_source_id) => {
+        return this.delete(`/stream/source/${stream_source_id}`)
+    }
+
+    saveStreamable = (payload) => {
+        return this.post('/streamable', {
+            id: payload.id,
+            name_display: payload.nameDisplay,
+            group_display: payload.groupDisplay
+        }, false)
+    }
+
+    getChannelGuideSourceList = () => {
+        return this.get('/channel/guide/source/list')
+    }
+
+    getChannelGuideSource = (guideSourceId) => {
+        return this.get(`/channel/guide/source?channel_guide_source_id=${guideSourceId}`)
+    }
+
+    saveChannelGuideSource = (payload) => {
+        return this.post('/channel/guide/source', payload, false)
+    }
+
+    saveChannel = (payload) => {
+        if (payload.editedNumber === '') {
+            payload.editedNumber = null
+        }
+        return this.post('/channel', {
+            id: payload.id,
+            edited_name: payload.editedName,
+            edited_number: payload.editedNumber,
+            edited_id: payload.editedId,
+            streamable_id: payload.streamableId
+        }, false)
+    }
+
+    deleteChannelGuideSource = (channel_guide_source_id) => {
+        return this.delete(`/channel/guide/source/${channel_guide_source_id}`)
+    }
+
+    getStreamable = (streamableId, deviceProfile) => {
+        return this.get('/streamable', {
+            streamable_id: streamableId,
+            device_profile: deviceProfile
+        })
+    }
+
+    getStreamableList = () => {
+        return this.get('/streamable/list')
+    }
+
+    saveShelf = (payload) => {
+        return this.post('/shelf', payload, false)
+    }
+
+    deleteShelf = (shelfId) => {
+        return this.delete(`/shelf/${shelfId}`)
+    }
+
+    getShelfList = () => {
+        return this.get('/shelf/list')
+    }
+
+    getShelf = (shelfId) => {
+        return this.get('/shelf', { shelf_id: shelfId })
+    }
+
+    getMovieList = (shelfId, showPlaylisted) => {
+        return this.get('/movie/list', { shelf_id: shelfId, show_playlisted: showPlaylisted })
+    }
+
+    getMovie = (movieId, deviceProfile) => {
+        return this.get(`/movie?movie_id=${movieId}&device_profile=${deviceProfile}`)
+    }
+
+    getShowList = (shelfId, showPlaylisted) => {
+        return this.get('/show/list', { shelf_id: shelfId, show_playlisted: showPlaylisted })
+    }
+
+    getSeasonList = (showId) => {
+        return this.get('/show/season/list', { show_id: showId })
+    }
+
+    getEpisodeList = (shelfId, seasonId) => {
+        return this.get('/show/season/episode/list', { shelf_id: shelfId, show_season_id: seasonId })
+    }
+
+    getEpisode = (episodeId, deviceProfile) => {
+        return this.get(`/show/season/episode?episode_id=${episodeId}&device_profile=${deviceProfile}`)
+    }
+
+    getUserList = (deviceName) => {
+        return this.get(`/user/list?device_name=${deviceName}`)
+    }
+
+    getUser = (userId) => {
+        return this.get('/user', { user_id: userId })
+    }
+
+    saveUser = (details) => {
+        let payload = { ...details }
+        if (details.password) {
+            payload.raw_password = details.password
+            payload.set_password = true
+            delete payload.password
+        }
+        return this.post('/user', payload, false)
+    }
+
+    deleteUser = (userId) => {
+        return this.delete(`/user/${userId}`)
+    }
+
+    saveUserAccess = (payload) => {
+        return this.post('/user/access', {
+            user_id: payload.userId,
+            tag_ids: payload.tagIds,
+            shelf_ids: payload.shelfIds,
+            stream_source_ids: payload.streamSourceIds
+        }, false)
+    }
+
+    getTag = (tagId) => {
+        return this.get('/tag', { tag_id: tagId })
+    }
+
+    getTagList = () => {
+        return this.get('/tag/list')
+    }
+
+    saveTag = (payload) => {
+        return this.post('/tag', payload, false)
+    }
+
+    deleteTag = (tagId) => {
+        return this.delete(`/tag/${tagId}`)
+    }
+
+    getDeviceProfileList = () => {
+        return this.get('/device/profile/list')
+    }
+
+    createVideoFileTranscodeSession = (payload) => {
+        let requestUrl = `/transcode/session?video_file_id=${payload.videoFileId}&device_profile=${payload.deviceProfile}&player_kind=${payload.playerKind}`
+        if (payload.audioTrackIndex !== -1) {
+            requestUrl += `&audio_track_index=${payload.audioTrackIndex}`
+        }
+        if (payload.subtitleTrackIndex !== -1) {
+            requestUrl += `&subtitle_track_index=${payload.subtitleTrackIndex}`
+        }
+        if (payload.seekToSeconds) {
+            requestUrl += `&seek_to_seconds=${Math.floor(payload.seekToSeconds)}`
+        }
+        return this.post(requestUrl)
+    }
+
+    createStreamableTranscodeSession = (payload) => {
+        let requestUrl = `/transcode/session?streamable_id=${payload.streamableId}&device_profile=${payload.deviceProfile}&player_kind=${payload.playerKind}`
+        if (payload.seekToSeconds) {
+            requestUrl += `&seek_to_seconds=${Math.floor(payload.seekToSeconds)}`
+        }
+        return this.post(requestUrl)
+    }
+
+    closeTranscodeSession = (transcodeId) => {
+        return this.delete(`/transcode/session?transcode_session_id=${transcodeId}`)
+    }
+
+    closeAllTranscodeSessions = () => {
+        return this.delete(`/transcode/session`)
+    }
+
+    setShelfWatchStatus = (shelfId, watched) => {
+        return this.post('/watch/status', { shelf_id: shelfId, status: watched })
+    }
+
+    toggleMovieShelfWatchStatus = (shelfId) => {
+        return this.post(`/shelf/watched/toggle?movie_shelf_id=${shelfId}`)
+    }
+
+    toggleShowShelfWatchStatus = (shelfId) => {
+        return this.post(`/shelf/watched/toggle?show_shelf_id=${shelfId}`)
+    }
+
+    toggleMovieWatchStatus = (movieId) => {
+        return this.post(`/movie/watched/toggle?movie_id=${movieId}`)
+    }
+
+    toggleShowWatchStatus = (showId) => {
+        return this.post(`/show/watched/toggle?show_id=${showId}`)
+    }
+
+    toggleSeasonWatchStatus = (seasonId) => {
+        return this.post(`/show/season/watched/toggle?season_id=${seasonId}`)
+    }
+
+    toggleEpisodeWatchStatus = (episodeId) => {
+        return this.post(`/show/season/episode/watched/toggle?episode_id=${episodeId}`)
+    }
+
+    setEpisodeWatchProgress = (episodeId, playedSeconds, durationSeconds) => {
+        return this.post(`/show/season/episode/progress`, {
+            show_episode_id: episodeId,
+            played_seconds: playedSeconds,
+            duration_seconds: durationSeconds
+        })
+    }
+
+    setMovieWatchProgress = (movieId, playedSeconds, durationSeconds) => {
+        return this.post(`/movie/progress`, {
+            movie_id: movieId,
+            played_seconds: playedSeconds,
+            duration_seconds: durationSeconds
+        })
+    }
+
+    getContinueWatchingList = () => {
+        return this.get('/continue/watching')
+    }
+
+    search = (query) => {
+        return this.get('/search', { query })
+    }
+
+    getPlaylistList = () => {
+        return this.get('/playlist/list')
+    }
+
+    getPlaylist = (tagId) => {
+        return this.get('/playlist', { tag_id: tagId })
+    }
+
+    getPlayingQueue = (details) => {
+        if (details.showId) {
+            return this.get(`/playing/queue?shelf_id=${details.shelfId}&show_id=${details.showId}&shuffle=${!!details.shuffle}`)
+        }
+        else if (details.seasonId) {
+            return this.get(`/playing/queue?shelf_id=${details.shelfId}&show_season_id=${details.seasonId}&shuffle=${!!details.shuffle}`)
+        }
+        else if (details.tagId) {
+            return this.get(`/playing/queue?tag_id=${details.tagId}&shuffle=${!!details.shuffle}`)
+        }
+        else if (details.source) {
+            return this.get(`/playing/queue?source=${details.source}`)
+        }
+        else {
+            util.log("Unhandled playing queue")
+            util.log({ details })
+        }
+    }
+
+    updatePlayingQueue = (source, progress) => {
+        return this.post(`/playing/queue?source=${source}&progress=${progress}`)
+    }
+
+    increaseShowEpisodeWatchCount = (episodeId) => {
+        return this.post(`/show/season/episode/watch_count?show_episode_id=${episodeId}`)
+    }
+
+    increaseMovieWatchCount = (movieId) => {
+        return this.post(`/movie/watch_count?movie_id=${movieId}`)
+    }
+
+    getKeepsake = (shelfId, subdirectory64) => {
+        let url = `/keepsake?shelf_id=${shelfId}`
+        if (subdirectory64) {
+            url += `&subdirectory64=${subdirectory64}`
+        }
+        return this.get(url)
+    }
+
+    getSessionList = () => {
+        return this.get('/session/list')
+    }
+
+    toggleItemWatched = (item) => {
+        if (item.model_kind === 'movie') {
+            return this.toggleMovieWatchStatus(item.id)
+        }
+        else if (item.model_kind === 'show') {
+            return this.toggleShowWatchStatus(item.id)
+        }
+        else if (item.model_kind === 'show_season') {
+            return this.toggleSeasonWatchStatus(item.id)
+        }
+        else if (item.model_kind === 'show_episode') {
+            return this.toggleEpisodeWatchStatus(item.id)
+        }
+    }
+
+    setItemWatchedStatus = (item, isWatched) => {
+        if (item.model_kind === 'movie') {
+            return this.post(`/movie/watched?movie_id=${item.id}&is_watched=${isWatched}`)
+        }
+        else if (item.model_kind === 'show') {
+            return this.post(`/show/watched?show_id=${item.id}&is_watched=${isWatched}`)
+        }
+        else if (item.model_kind === 'show_season') {
+            return this.post(`/show/season/watched?season_id=${item.id}&is_watched=${isWatched}`)
+        }
+        else if (item.model_kind === 'show_episode') {
+            return this.post(`/show/season/episode/watched?episode_id=${item.id}&is_watched=${isWatched}`)
+        }
+    }
+
+    setItemWatched = (item) => {
+        return this.setItemWatchedStatus(item, true)
+    }
+
+    setItemUnwatched = (item) => {
+        return this.setItemWatchedStatus(item, false)
+    }
+
+    savePlaybackLogs = (logs) => {
+        return this.post('/log/playback', { logs })
+    }
+
+    deleteAllCachedText = () => {
+        return this.delete('/cached/text')
+    }
+
+    getDisplayCleanupRuleList = () => {
+        return this.get('/display-cleanup-rule/list')
+    }
+
+    getDisplayCleanupRule = (ruleId) => {
+        return this.get(`/display-cleanup-rule?rule_id=${ruleId}`)
+    }
+
+    saveDisplayCleanupRule = (rule) => {
+        return this.post('/display-cleanup-rule', rule, false)
+    }
+
+    deleteDisplayCleanupRule = (ruleId) => {
+        return this.delete(`/display-cleanup-rule?rule_id=${ruleId}`)
+    }
+
+    getTagRuleList = () => {
+        return this.get('/tag-rule/list')
+    }
+
+    getTagRule = (ruleId) => {
+        return this.get(`/tag-rule?rule_id=${ruleId}`)
+    }
+
+    saveTagRule = (rule) => {
+        return this.post('/tag-rule', rule, false)
+    }
+
+    deleteTagRule = (ruleId) => {
+        return this.delete(`/tag-rule?rule_id=${ruleId}`)
+    }
+
+
+    debug = () => {
+        util.log({ baseURL: this.baseURL, authToken: this.authToken })
+    }
+}
+
+export default ApiClient

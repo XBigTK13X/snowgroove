@@ -1,0 +1,1 @@
+docker exec -it snowgroove psql -U snowgroove

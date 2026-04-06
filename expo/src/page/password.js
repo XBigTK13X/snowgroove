@@ -1,0 +1,73 @@
+import { C, useAppContext } from 'snowgroove'
+
+// This is the default expo-router route '/'
+export default function SignInPage() {
+    const {
+        navReset,
+        navPush,
+        navPop,
+        currentRoute
+    } = C.useSnowContext()
+    const {
+        session,
+        routes,
+        signIn,
+    } = useAppContext()
+
+    const { username } = currentRoute?.routeParams
+
+    const [errors, setErrors] = C.React.useState(null)
+    const [password, setPassword] = C.React.useState("")
+    const passwordRef = C.React.useRef(password)
+
+
+    C.React.useEffect(() => {
+        if (session) {
+            navPush({ path: routes.landing, func: false })
+        }
+    }, [session])
+
+    C.React.useEffect(() => {
+        passwordRef.current = password
+    }, [password])
+
+    const cancelPassword = () => {
+        navPop()
+    }
+
+    const login = () => {
+        signIn(username, passwordRef.current)
+            .then((result) => {
+                if (result.failed) {
+                    setErrors(`Incorrect password [${passwordRef.current}] for [${username}].`)
+                }
+                else {
+                    navReset()
+                }
+            })
+            .catch((err) => {
+                setErrors(C.Snow.stringifySafe({ err }))
+            })
+    }
+
+    return (
+        <>
+            <C.SnowGrid itemsPerRow={1}>
+                <C.SnowLabel center>Enter the password for {username}</C.SnowLabel>
+
+                <C.SnowInput
+                    focusStart
+                    focusKey="password"
+                    onSubmit={login}
+                    onValueChange={setPassword}
+                    value={password}
+                />
+                <C.SnowGrid focusKey="login" itemsPerRow={2} >
+                    <C.SnowTextButton title="Login" onPress={login} />
+                    <C.SnowTextButton title="Cancel" onPress={cancelPassword} />
+                </C.SnowGrid>
+                {errors ? <C.SnowLabel>{errors}</C.SnowLabel> : null}
+            </C.SnowGrid>
+        </>
+    )
+}

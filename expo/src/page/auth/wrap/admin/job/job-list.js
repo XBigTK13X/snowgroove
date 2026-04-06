@@ -1,0 +1,52 @@
+import { C, useAppContext } from 'snowgroove'
+
+export default function JobListPage() {
+    const { apiClient, routes } = useAppContext()
+    const { navPush } = C.useSnowContext()
+    const [jobs, setJobs] = C.React.useState(null)
+    const [showComplete, setShowComplete] = C.React.useState(true)
+
+    C.React.useEffect(() => {
+        if (!jobs) {
+            apiClient.getJobList(showComplete, 1000).then((response) => {
+                setJobs(response)
+            })
+        }
+    })
+
+    const toggleComplete = () => {
+        setShowComplete(!showComplete)
+        setJobs(null)
+    }
+
+    if (!!jobs) {
+        return (
+            <>
+                <C.SnowGrid
+                    focusKey="page-entry"
+                    itemsPerRow={3}
+                >
+                    <C.SnowTextButton
+                        title={showComplete ? 'Hide Complete' : 'Show All'}
+                        onPress={toggleComplete}
+                    />
+                </C.SnowGrid>
+                <C.SnowGrid focusStart focusKey="job-list" items={jobs} renderItem={(job) => {
+                    const title = `${job.id}) ${job.kind} - ${job.status} - ${job.message.substring(0, 180).replaceAll('\n', '.')}`
+                    return (
+                        <C.SnowTextButton
+                            title={title}
+                            onPress={navPush({
+                                path: routes.adminJobDetails,
+                                params: { jobId: job.id }
+                            })}
+                        />
+                    )
+                }} />
+            </>
+        )
+    }
+    return (
+        <C.SnowLabel center>Loading jobs</C.SnowLabel>
+    )
+}

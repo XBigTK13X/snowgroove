@@ -1,0 +1,56 @@
+import { C, useAppContext } from 'snowgroove'
+
+export function ContinueWatchingListPage(props) {
+    const { apiClient } = useAppContext()
+    const [continueWatchingList, setContinueWatchingList] = C.React.useState(null)
+    const [resultsEmpty, setResultsEmpty] = C.React.useState(false)
+
+    C.React.useEffect(() => {
+        if (!continueWatchingList) {
+            apiClient.getContinueWatchingList().then((response) => {
+                setContinueWatchingList(response)
+                if (!response.length) {
+                    setResultsEmpty(true)
+                }
+            })
+        }
+    }, [continueWatchingList])
+
+    if (resultsEmpty) {
+        return (
+            <C.SnowText>
+                Snowgroove didn't find anything new to watch.
+            </C.SnowText>
+        )
+    }
+
+    if (continueWatchingList) {
+        let tabs = continueWatchingList.map((kind) => {
+            return `${kind.name} [${kind.items.length}]`
+        })
+
+        return (
+            <C.SnowView>
+                <C.SnowTabs
+                    focusStart
+                    focusKey="continue-watching"
+                    headers={tabs}>
+                    {continueWatchingList.map((kind) => {
+                        return <C.SnowPosterGrid
+                            disableWatched
+                            items={kind.items}
+                        />
+                    })}
+                </C.SnowTabs>
+            </C.SnowView>
+        )
+    }
+    return (
+        <>
+            <C.SnowLabel center>Loading the continue watching list.</C.SnowLabel>
+            <C.SnowText center>This will take a few seconds.</C.SnowText>
+        </>
+    )
+}
+
+export default ContinueWatchingListPage

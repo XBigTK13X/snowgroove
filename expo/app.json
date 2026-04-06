@@ -1,0 +1,70 @@
+{
+  "expo": {
+    "version": "1.0.0",
+    "scheme": "com.simplepathstudios.snowgroove",
+    "newArchEnabled": true,
+    "plugins": [
+      [
+        "@react-native-tvos/config-tv",
+        {
+          "androidTVBanner": "./assets/icon/android/tvbanner.png"
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-navigation-bar"
+      ],
+      "react-native-video",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true,
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
+            "minSdkVersion": 26,
+            "buildToolsVersion": "36.1.0",
+            "ndkVersion": "29.0.14206865"
+          },
+          "ios": {}
+        }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://bugsink.9914.us",
+          "project": "snowgroove",
+          "organization": "Arctic"
+        }
+      ]
+    ],
+    "splash": {
+      "image": "./assets/icon/splash.png",
+      "backgroundColor": "#FD6F01"
+    },
+    "icon": "./assets/icon/appicon.png",
+    "name": "snowgroove",
+    "slug": "snowgroove",
+    "orientation": "landscape",
+    "android": {
+      "package": "com.simplepathstudios.snowgroove",
+      "edgeToEdgeEnabled": true,
+      "backgroundColor": "#000000",
+      "versionCode": 1
+    },
+    "ios": {
+      "bundleIdentifier": "com.simplepathstudios.snowgroove"
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "e0fc4a42-5cc7-4ba9-b251-8383cf957527"
+      }
+    }
+  }
+}

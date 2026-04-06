@@ -1,0 +1,23 @@
+import { C, useAppContext } from 'snowgroove'
+export default function InfoPage() {
+    const { displayName, config, apiClient } = useAppContext()
+    let authedInfo = 'Not logged in.'
+    if (displayName) {
+        authedInfo = `Logged in as [${displayName}]`
+    }
+    return (
+        <>
+            <C.Text>{'\n'}</C.Text>
+            <C.SnowText>
+                snowgroove client v{config.clientVersion}.
+            </C.SnowText>
+            <C.SnowText>
+                {apiClient ? `Talking to server at [${apiClient.webApiUrl}].` : null}
+            </C.SnowText>
+            <C.SnowText>
+                {authedInfo}
+            </C.SnowText>
+            <C.SnowTarget focusStart focusKey="info-bottom" />
+        </>
+    )
+}

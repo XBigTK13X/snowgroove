@@ -1,0 +1,134 @@
+import { C, useAppContext } from 'snowgroove'
+import Snow from 'expo-snowui'
+const snowuiPackageInfo = require('expo-snowui/package.json')
+
+export default function LandingPage(props) {
+    const { apiClient, routes, config } = useAppContext()
+    const { SnowStyle, navPush } = C.useSnowContext(props)
+    const [shelves, setShelves] = C.React.useState(null)
+    const [streamSources, setStreamSources] = C.React.useState(null)
+
+    C.React.useEffect(() => {
+        if (config.debugVideoUrl) {
+            const parts = config.debugVideoUrl.split('?')
+            const payload = {
+                path: parts[0],
+                params: Snow.queryToObject(parts[1]),
+                func: false
+            }
+            navPush(payload)
+        }
+    }, [config])
+
+    C.React.useEffect(() => {
+        apiClient.getShelfList().then((response) => {
+            setShelves(response)
+        })
+    }, [])
+
+    C.React.useEffect(() => {
+        apiClient.getStreamSourceList().then((response) => {
+            setStreamSources(response)
+        })
+    }, [])
+
+    if (config.debugVideoUrl) {
+        return null
+    }
+
+    const styles = {
+        footer: {
+            width: '100%',
+            textAlign: 'right',
+            color: SnowStyle.color.active
+        }
+    }
+
+    let destinations = [
+        <C.SnowTextButton title="Continue" onPress={navPush({ path: routes.continueWatching })} />,
+        <C.SnowTextButton title="Search" onPress={navPush({ path: routes.search })} />,
+        <C.SnowTextButton title="Playlists" onPress={navPush({ path: routes.playlistList })} />
+    ]
+
+    if (shelves) {
+        destinations = destinations.concat(shelves.map((shelf) => {
+            if (shelf.kind === 'Movies') {
+                return (
+                    <C.SnowTextButton
+                        title={shelf.name}
+                        onPress={navPush({ path: routes.movieList, params: { shelfId: shelf.id } })}
+                        onLongPress={() => {
+                            apiClient.toggleMovieShelfWatchStatus(shelf.id).then((watched) => {
+                                apiClient.getShelfList().then((response) => {
+                                    setShelves(response)
+                                })
+                            })
+                        }}
+                    />
+                )
+            } else if (shelf.kind === 'Shows') {
+                return (
+                    <C.SnowTextButton
+                        title={shelf.name}
+                        onPress={
+                            navPush({ path: routes.showList, params: { shelfId: shelf.id } })
+                        }
+                        onLongPress={() => {
+                            apiClient.toggleShowShelfWatchStatus(shelf.id).then((watched) => {
+                                apiClient.getShelfList().then((response) => {
+                                    setShelves(response)
+                                })
+                            })
+                        }
+                        }
+                    />
+                )
+            } else if (shelf.kind === 'Keepsakes') {
+                return (
+                    <C.SnowTextButton
+                        title={shelf.name}
+                        onPress={navPush({
+                            path: routes.keepsakeDetails,
+                            params: {
+                                shelfId: shelf.id
+                            }
+                        })}
+                    />
+                )
+            }
+
+            return null
+        }))
+    }
+
+    if (streamSources) {
+        destinations = destinations.concat(streamSources.map((streamSource) => {
+            return (<C.SnowTextButton
+                title={streamSource.name}
+                onPress={navPush({
+                    path: routes.streamableList,
+                    params: { streamSourceId: streamSource.id }
+                })}
+            />)
+        }))
+    }
+
+    if (destinations) {
+        return (
+            <>
+                <C.SnowGrid
+                    focusStart
+                    focusKey="destinations"
+                    items={destinations}
+                    itemsPerRow={3} />
+                <C.SnowText style={styles.footer} center>{`[built ${config.clientBuildDate}] [snowgroove v${config.clientVersion}] [snowui v${snowuiPackageInfo.version}]`}</C.SnowText>
+            </>
+        )
+    }
+
+    return (
+        <C.SnowText center>
+            Loading content from [{apiClient.webApiUrl}] v{config.clientVersion}
+        </C.SnowText>
+    )
+}

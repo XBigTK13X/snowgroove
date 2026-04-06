@@ -1,0 +1,73 @@
+import { C } from 'snowgroove'
+
+import MediaTracksPage from './media-tracks'
+
+export default function EpisodeDetailsPage() {
+
+    return (
+        <MediaTracksPage
+            mediaKind="Episode"
+            getRemoteMetadataId={(media) => {
+                return media.season.show.remote_metadata_id
+            }}
+            getMediaName={(routeParams, media) => {
+                return `${routeParams.showName} - ${media.name}`
+            }}
+            loadMedia={(apiClient, routeParams, deviceProfile) => {
+                return apiClient.getEpisode(routeParams.episodeId, deviceProfile)
+            }}
+            toggleWatchStatus={(apiClient, routeParams) => {
+                return apiClient.toggleEpisodeWatchStatus(routeParams.episodeId)
+            }}
+            gotoShelf={(routes, navPush, routeParams) => {
+                return navPush({
+                    path: routes.showList,
+                    params: { shelfId: routeParams.shelfId }
+                })
+            }}
+            getNavButtons={(routes, navPush, routeParams) => {
+                const episodeListPayload = {
+                    shelfId: routeParams.shelfId,
+                    showId: routeParams.showId,
+                    seasonId: routeParams.seasonId,
+                    showName: routeParams.showName,
+                    seasonOrder: routeParams.seasonOrder,
+                }
+                const seasonListPayload = {
+                    shelfId: routeParams.shelfId,
+                    showId: routeParams.showId,
+                    showName: routeParams.showName,
+                }
+                return [
+                    <C.SnowTextButton tall key="show" title={routeParams.showName}
+                        onPress={navPush({ path: routes.seasonList, params: seasonListPayload })}
+                    />,
+                    <C.SnowTextButton tall key="season" title={`Season ${routeParams.seasonOrder} `}
+                        onPress={navPush({ path: routes.episodeList, params: episodeListPayload })}
+                    />
+                ]
+            }}
+            getPlayRoute={(routes) => {
+                return routes.episodePlay
+            }}
+            getPlayParameters={(routeParams) => {
+                return {
+                    episodeId: routeParams.episodeId,
+                    showId: routeParams.showId,
+                    seasonId: routeParams.seasonId,
+                    showName: routeParams.showName,
+                    seasonOrder: routeParams.seasonOrder,
+                    episodeOrder: routeParams.episodeOrder
+                }
+            }}
+            getJobTarget={(routeParams) => {
+                return {
+                    targetKind: 'episode',
+                    targetId: routeParams.episodeId,
+                    seasonOrder: routeParams.seasonOrder,
+                    episodeOrder: routeParams.episodeOrder
+                }
+            }}
+        />
+    )
+}

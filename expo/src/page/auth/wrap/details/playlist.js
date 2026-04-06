@@ -1,0 +1,65 @@
+import { C, useAppContext } from 'snowgroove'
+
+export default function PlaylistDetailsPage() {
+    const { currentRoute, navPush } = C.useSnowContext()
+    const { apiClient, routes } = useAppContext()
+
+    const tagId = currentRoute.routeParams.tagId
+    const tagName = currentRoute.routeParams.tagName
+
+    const [playlistItems, setPlaylistItems] = C.React.useState(null)
+
+    C.React.useEffect(() => {
+        if (!playlistItems) {
+            apiClient.getPlaylist(tagId).then((response) => {
+                setPlaylistItems(response)
+            })
+        }
+    })
+    if (!playlistItems) {
+        return <C.Text>Loading playlist {tagName ?? ''}.</C.Text>
+    }
+
+    const watchAll = () => {
+        return apiClient
+            .getPlayingQueue({ tagId })
+            .then(response => {
+                navPush({
+                    path: routes.playingQueuePlay,
+                    params: {
+                        playingQueueSource: response.queue.source
+                    },
+                    func: false
+                })
+            })
+    }
+
+    const shuffleAll = () => {
+        return apiClient
+            .getPlayingQueue({ tagId, shuffle: true })
+            .then(response => {
+                navPush({
+                    path: routes.playingQueuePlay,
+                    params: {
+                        playingQueueSource: response.queue.source
+                    },
+                    func: false
+                })
+            })
+    }
+
+    return (
+        <>
+            <>
+                <C.SnowText>Found {playlistItems.length} items from playlist {tagName}.</C.SnowText>
+                <C.SnowGrid focusKey="page-entry" itemsPerRow={2}>
+                    <C.SnowTextButton title="Watch All" onPress={watchAll} />
+                    <C.SnowTextButton title="Shuffle" onPress={shuffleAll} />
+                </C.SnowGrid>
+            </>
+            <>
+                <C.SnowPosterGrid focusStart focusKey="playlist-list" items={playlistItems} />
+            </>
+        </>
+    )
+}
