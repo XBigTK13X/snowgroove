@@ -4,7 +4,7 @@ cd web-server
 mkdir -p .snowgroove/log
 source venv/bin/activate
 echo "Quietly installing requirements"
-pip install -r requirements.txt > /dev/null 2>&1 || true
+uv sync > /dev/null 2>&1 || true
 cd ..
 kill -TERM -$(cat web-server/.snowgroove/running.pid) > /dev/null 2>&1 || true
 fuser -k 8000/tcp || true

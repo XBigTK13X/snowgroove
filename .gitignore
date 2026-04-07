@@ -1,3 +1,4 @@
+*.pyc
 variables.sh
 .docker-volume/
 .web-media/

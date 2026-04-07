@@ -11,6 +11,8 @@ COPY docker/dmo.sources /etc/apt/sources.list.d/dmo.sources
 RUN apt update
 RUN DEBIAN_FRONTEND=noninteractive apt dist-upgrade -y
 
+# python dependency manager
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # database
 RUN DEBIAN_FRONTEND=noninteractive apt install -y postgresql postgresql-common postgresql-client postgresql-contrib
 # message queue
@@ -47,9 +49,9 @@ COPY docker/postgresql.conf /etc/postgresql/17/main/mod-postgresql.conf
 RUN chown postgres:postgres /etc/postgresql/17/main/pg_hba.conf
 RUN chown postgres:postgres /etc/postgresql/17/main/mod-postgresql.conf
 
-COPY ./web-server/requirements.txt /app/requirements.txt
+COPY ./web-server/pyproject.toml /app/pyproject.toml
 WORKDIR /app
-RUN pip install -r /app/requirements.txt
+RUN uv sync
 COPY ./web-server /app
 RUN rm -rf /app/.snowgroove
 
