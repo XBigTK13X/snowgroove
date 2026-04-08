@@ -34,15 +34,10 @@ class UserAccess(BaseModel):
 class JobRequest(BaseModel):
     name: Union[
         Literal["apply_directory_tag"],
-        Literal["channel_guide_refresh"],
         Literal["clean_file_records"],
         Literal['delete_media_records'],
-        Literal["identify_unknown_media"],
         Literal["read_media_files"],
-        Literal["sanitize_file_properties"],
         Literal["scan_shelves_content"],
-        Literal["stream_sources_refresh"],
-        Literal["update_media_files"],
     ]
     input: dict | None = None
 

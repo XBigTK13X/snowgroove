@@ -14,27 +14,17 @@ import message.read
 from message.job_media_scope import JobMediaScope
 
 import message.handler.apply_directory_tag
-import message.handler.channel_guide_refresh
 import message.handler.clean_file_records
 import message.handler.delete_media_records
-import message.handler.identify_unknown_media
 import message.handler.read_media_files
-import message.handler.sanitize_file_properties
 import message.handler.scan_shelves_content
-import message.handler.stream_sources_refresh
-import message.handler.update_media_files
 
 handlers = {
     'apply_directory_tag': message.handler.apply_directory_tag,
-    'channel_guide_refresh': message.handler.channel_guide_refresh,
     'clean_file_records': message.handler.clean_file_records,
     'delete_media_records': message.handler.delete_media_records,
-    'identify_unknown_media': message.handler.identify_unknown_media,
     'read_media_files': message.handler.read_media_files,
-    'update_media_files': message.handler.update_media_files,
-    'sanitize_file_properties': message.handler.sanitize_file_properties,
-    "scan_shelves_content": message.handler.scan_shelves_content,
-    "stream_sources_refresh": message.handler.stream_sources_refresh,
+    "scan_shelves_content": message.handler.scan_shelves_content
 }
 
 def start():

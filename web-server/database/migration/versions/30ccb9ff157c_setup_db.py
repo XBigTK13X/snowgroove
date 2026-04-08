@@ -163,8 +163,9 @@ def upgrade() -> None:
         sa.Column('ffprobe_raw_json', sa.Text),
         sa.Column('mediainfo_raw_json', sa.Text),
         sa.Column('thumbnail_web_path', sa.Text),
-        sa.Column("version", sa.Text, nullable=True),
-        sa.Column("name", sa.Text, nullable=False)
+        sa.Column("name", sa.Text, nullable=False),
+        sa.Column("thumbprint", sa.Text, nullable=False),
+        sa.Column("duration", sa.Float, nullable=False)
     )
 
     op.create_unique_constraint("unique_audio_file_local_path", "audio_file", ["local_path"])
@@ -211,7 +212,8 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime, nullable=False),
         sa.Column("updated_at", sa.DateTime, nullable=False),
         sa.Column("title", sa.Text, nullable=False),
-        sa.Column("year", sa.Float, nullable=True)
+        sa.Column("year", sa.Float, nullable=True),
+
     )
 
     m2m('song.id','audio_file.id')
