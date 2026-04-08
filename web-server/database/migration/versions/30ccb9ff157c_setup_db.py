@@ -34,13 +34,13 @@ def upgrade() -> None:
         sa.Column("permissions", sa.Text),
     )
 
-    op.create_unique_constraint("unique_user_username", "snowstream_user", ["username"])
+    op.create_unique_constraint("unique_user_username", "snowgroove_user", ["username"])
 
     # admin user
     # username: 'admin'
     # password: 'admin'
     op.execute(
-        '''INSERT INTO snowstream_user
+        '''INSERT INTO snowgroove_user
         (
             id,
             created_at,
@@ -131,7 +131,7 @@ def upgrade() -> None:
     op.create_unique_constraint("unique_shelf_network_path", "shelf", ["local_path"])
 
     op.create_table(
-        "music_file",
+        "audio_file",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("created_at", sa.DateTime, nullable=False),
         sa.Column("updated_at", sa.DateTime, nullable=False),
@@ -140,7 +140,7 @@ def upgrade() -> None:
         sa.Column("local_path", sa.Text, nullable=False),
         sa.Column("web_path", sa.Text, nullable=False),
         sa.Column("network_path", sa.Text, nullable=False),
-        sa.Column('snowstream_info_json', sa.Text),
+        sa.Column('snowgroove_info_json', sa.Text),
         sa.Column('ffprobe_raw_json', sa.Text),
         sa.Column('mediainfo_raw_json', sa.Text),
         sa.Column('thumbnail_web_path', sa.Text),
@@ -148,9 +148,9 @@ def upgrade() -> None:
         sa.Column("name", sa.Text, nullable=False)
     )
 
-    op.create_unique_constraint("unique_music_file_local_path", "music_file", ["local_path"])
-    op.create_unique_constraint("unique_music_file_web_path", "music_file", ["web_path"])
-    op.create_unique_constraint("unique_music_file_network_path", "music_file", ["network_path"])
+    op.create_unique_constraint("unique_audio_file_local_path", "audio_file", ["local_path"])
+    op.create_unique_constraint("unique_audio_file_web_path", "audio_file", ["web_path"])
+    op.create_unique_constraint("unique_audio_file_network_path", "audio_file", ["network_path"])
 
     op.create_table(
         "image_file",
@@ -187,6 +187,86 @@ def upgrade() -> None:
     op.create_unique_constraint("unique_metadata_file_network_path", "metadata_file", ["network_path"])
 
     op.create_table(
+        "crate",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("created_at", sa.DateTime, nullable=False),
+        sa.Column("updated_at", sa.DateTime, nullable=False),
+        sa.Column("directory", sa.Text, nullable=False),
+        sa.Column("parent_crate_id", sa.Integer, sa.ForeignKey("crate.id", ondelete="CASCADE"), nullable=True),
+    )
+
+    op.create_unique_constraint("unique_crate_directory", "crate", ["directory"])
+
+    op.create_table(
+        "crate_shelf",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("created_at", sa.DateTime, nullable=False),
+        sa.Column("updated_at", sa.DateTime, nullable=False),
+        sa.Column("shelf_id", sa.Integer, sa.ForeignKey("shelf.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("crate_id", sa.Integer, sa.ForeignKey("crate.id", ondelete="CASCADE"), nullable=False),
+    )
+
+    op.create_unique_constraint(
+        "unique_crate_shelf", "crate_shelf", ["shelf_id", "crate_id"]
+    )
+
+    op.create_table(
+        "crate_audio_file",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("created_at", sa.DateTime, nullable=False),
+        sa.Column("updated_at", sa.DateTime, nullable=False),
+        sa.Column("crate_id", sa.Integer, sa.ForeignKey("crate.id"), nullable=False),
+        sa.Column(
+            "audio_file_id", sa.Integer, sa.ForeignKey("audio_file.id"), nullable=False
+        ),
+    )
+
+    op.create_unique_constraint(
+        "unique_crate_audio_file", "crate_audio_file", ["crate_id", "audio_file_id"]
+    )
+
+    op.create_table(
+        "crate_image_file",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("created_at", sa.DateTime, nullable=False),
+        sa.Column("updated_at", sa.DateTime, nullable=False),
+        sa.Column("crate_id", sa.Integer, sa.ForeignKey("crate.id",ondelete="CASACDE"), nullable=False),
+        sa.Column(
+            "image_file_id", sa.Integer, sa.ForeignKey("image_file.id",ondelete="CASACDE"), nullable=False
+        ),
+    )
+
+    op.create_unique_constraint(
+        "unique_crate_image_file", "crate_image_file", ["crate_id", "image_file_id"]
+    )
+
+    op.create_table(
+        "album",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("created_at", sa.DateTime, nullable=False),
+        sa.Column("updated_at", sa.DateTime, nullable=False),
+        sa.Column("name", sa.Text, nullable=False),
+        sa.Column("year", sa.Text, nullable=True),
+    )
+
+    op.create_table(
+        "album_image_file",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("created_at", sa.DateTime, nullable=False),
+        sa.Column("updated_at", sa.DateTime, nullable=False),
+        sa.Column("album_id", sa.Integer, sa.ForeignKey("album.id",ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "image_file_id", sa.Integer, sa.ForeignKey("image_file.id",ondelete="CASCADE"), nullable=False
+        ),
+    )
+
+    op.create_unique_constraint(
+        "unique_album_image_file", "album_image_file", ["album_id", "image_file_id"]
+    )
+
+
+
+    op.create_table(
         "user_tag",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("created_at", sa.DateTime, nullable=False),
@@ -194,7 +274,7 @@ def upgrade() -> None:
         sa.Column(
             "user_id",
             sa.Integer,
-            sa.ForeignKey("snowstream_user.id", ondelete="CASCADE"),
+            sa.ForeignKey("snowgroove_user.id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column(
@@ -219,7 +299,7 @@ def upgrade() -> None:
         sa.Column(
             "user_id",
             sa.Integer,
-            sa.ForeignKey("snowstream_user.id", ondelete="CASCADE"),
+            sa.ForeignKey("snowgroove_user.id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column(
@@ -237,28 +317,28 @@ def upgrade() -> None:
     )
 
     op.create_table(
-        "user_stream_source",
+        "user_crate",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("created_at", sa.DateTime, nullable=False),
         sa.Column("updated_at", sa.DateTime, nullable=False),
         sa.Column(
             "user_id",
             sa.Integer,
-            sa.ForeignKey("snowstream_user.id", ondelete="CASCADE"),
+            sa.ForeignKey("snowgroove_user.id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column(
-            "stream_source_id",
+            "crate_id",
             sa.Integer,
-            sa.ForeignKey("stream_source.id", ondelete="CASCADE"),
+            sa.ForeignKey("crate.id", ondelete="CASCADE"),
             nullable=False,
         ),
     )
 
     op.create_unique_constraint(
-        "unique_user_stream_source",
-        "user_stream_source",
-        ["user_id", "stream_source_id"],
+        "unique_user_crate",
+        "user_crate",
+        ["user_id", "crate_id"],
     )
 
     op.create_table(
@@ -288,7 +368,7 @@ def upgrade() -> None:
         sa.Column(
             "user_id",
             sa.Integer,
-            sa.ForeignKey("snowstream_user.id",ondelete="CASCADE"),
+            sa.ForeignKey("snowgroove_user.id",ondelete="CASCADE"),
             nullable=True,
         ),
         sa.Column("isolation_mode", sa.Text),
@@ -299,41 +379,6 @@ def upgrade() -> None:
         "unique_client_device_user",
         "client_device_user",
         ["client_device_id","user_id"]
-    )
-
-    op.create_table(
-        "listen_progress",
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("created_at", sa.DateTime, nullable=False),
-        sa.Column("updated_at", sa.DateTime, nullable=False),
-
-        sa.Column(
-            "client_device_user_id",
-            sa.Integer,
-            sa.ForeignKey("client_device_user.id",ondelete="CASCADE"),
-            nullable=False,
-        ),
-        sa.Column(
-            "movie_id",
-            sa.Integer,
-            sa.ForeignKey("movie.id",ondelete="CASCADE"),
-            nullable=True,
-        ),
-        sa.Column(
-            "show_episode_id",
-            sa.Integer,
-            sa.ForeignKey("show_episode.id",ondelete="CASCADE"),
-            nullable=True,
-        ),
-
-        sa.Column(
-            "streamable_id",
-            sa.Integer,
-            sa.ForeignKey("streamable.id",ondelete="CASCADE"),
-            nullable=True,
-        ),
-        sa.Column("played_seconds", sa.Float),
-        sa.Column("duration_seconds", sa.Float)
     )
 
     op.create_table(
@@ -366,55 +411,6 @@ def upgrade() -> None:
             nullable=True,
         ),
         sa.Column('amount', sa.Integer)
-    )
-
-    op.create_table(
-        'listened',
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("created_at", sa.DateTime, nullable=False),
-        sa.Column("updated_at", sa.DateTime, nullable=False),
-        sa.Column(
-            "client_device_user_id",
-            sa.Integer,
-            sa.ForeignKey("client_device_user.id",ondelete="CASCADE"),
-            nullable=False,
-        ),
-        sa.Column(
-            "shelf_id",
-            sa.Integer,
-            sa.ForeignKey('shelf.id',ondelete="CASCADE"),
-            nullable=True
-        ),
-        sa.Column(
-            "movie_id",
-            sa.Integer,
-            sa.ForeignKey("movie.id",ondelete="CASCADE"),
-            nullable=True,
-        ),
-        sa.Column(
-            "show_id",
-            sa.Integer,
-            sa.ForeignKey("show.id",ondelete="CASCADE"),
-            nullable=True,
-        ),
-        sa.Column(
-            "show_season_id",
-            sa.Integer,
-            sa.ForeignKey("show_season.id",ondelete="CASCADE"),
-            nullable=True,
-        ),
-        sa.Column(
-            "show_episode_id",
-            sa.Integer,
-            sa.ForeignKey("show_episode.id",ondelete="CASCADE"),
-            nullable=True,
-        ),
-        sa.Column(
-            "streamable_id",
-            sa.Integer,
-            sa.ForeignKey("streamable.id",ondelete="CASCADE"),
-            nullable=True,
-        )
     )
 
 def downgrade() -> None:
