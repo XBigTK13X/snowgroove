@@ -3,16 +3,10 @@ FROM python:3.14-trixie
 # Ensure we use ffmpeg with libmfx enabled for quicksync
 COPY docker/debian.sources /etc/apt/sources.list.d/debian.sources
 RUN apt update
-RUN DEBIAN_FRONTEND=noninteractive apt install -y gpgv
-RUN wget https://www.deb-multimedia.org/pool/main/d/deb-multimedia-keyring/deb-multimedia-keyring_2024.9.1_all.deb
-RUN dpkg -i deb-multimedia-keyring_2024.9.1_all.deb
-RUN rm deb-multimedia-keyring_2024.9.1_all.deb
-COPY docker/dmo.sources /etc/apt/sources.list.d/dmo.sources
-RUN apt update
 RUN DEBIAN_FRONTEND=noninteractive apt dist-upgrade -y
 
 # python dependency manager
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+RUN bash -c "curl -LsSf https://astral.sh/uv/install.sh | sh"
 # database
 RUN DEBIAN_FRONTEND=noninteractive apt install -y postgresql postgresql-common postgresql-client postgresql-contrib
 # message queue
@@ -21,21 +15,14 @@ RUN DEBIAN_FRONTEND=noninteractive apt install -y rabbitmq-server
 RUN DEBIAN_FRONTEND=noninteractive apt install -y supervisor
 # web server
 RUN DEBIAN_FRONTEND=noninteractive apt install -y nginx
-# transcoding and video inspection
-RUN DEBIAN_FRONTEND=noninteractive apt install -y ffmpeg mediainfo mkvtoolnix
+# transcoding and media inspection
+RUN DEBIAN_FRONTEND=noninteractive apt install -y ffmpeg mediainfo
 # thumbnails
 RUN DEBIAN_FRONTEND=noninteractive apt install -y imagemagick
-# quicksync and vaapi
-RUN DEBIAN_FRONTEND=noninteractive apt install -y intel-media-va-driver-non-free libmfx-gen-dev
-# transcode troubleshooting
-RUN DEBIAN_FRONTEND=noninteractive apt install -y intel-gpu-tools vainfo
 # ease reading cli output as json
 RUN DEBIAN_FRONTEND=noninteractive apt install -y jc
 # sudo helper
 RUN DEBIAN_FRONTEND=noninteractive apt install -y gosu
-
-#RUN userdel Debian-exim
-#RUN groupadd -g 107 render
 
 RUN rabbitmq-plugins enable rabbitmq_management
 COPY docker/rabbitmq.conf /etc/rabbitmq/rabbitmq.conf
