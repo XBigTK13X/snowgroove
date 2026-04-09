@@ -2,7 +2,7 @@ from database.operation.db_internal import dbi
 import snow_media.video
 import database.operation.shelf as db_shelf
 
-def create_video_file(
+def create_audio_file(
     shelf_id: int,
     kind: str,
     local_path: str,
@@ -20,7 +20,7 @@ def create_video_file(
     if '[' in file_name and ']' in file_name:
         version = file_name.split('[')[-1].split(']')[0]
     with dbi.session() as db:
-        dbm = dbi.dm.VideoFile()
+        dbm = dbi.dm.AudioFile()
         dbm.local_path = local_path
         dbm.web_path = web_path
         dbm.network_path = network_path
@@ -37,16 +37,16 @@ def create_video_file(
         return dbm
 
 
-def get_video_file_by_path(local_path: str):
+def get_audio_file_by_path(local_path: str):
     with dbi.session() as db:
-        return db.query(dbi.dm.VideoFile).filter(dbi.dm.VideoFile.local_path == local_path).first()
+        return db.query(dbi.dm.AudioFile).filter(dbi.dm.AudioFile.local_path == local_path).first()
 
-def get_or_create_video_file(shelf_id: int, kind: str, local_path: str):
-    video_file = get_video_file_by_path(local_path=local_path)
-    if not video_file:
+def get_or_create_audio_file(shelf_id: int, kind: str, local_path: str):
+    audio_file = get_audio_file_by_path(local_path=local_path)
+    if not audio_file:
         try:
             info = snow_media.video.path_to_info_json(media_path=local_path)
-            return create_video_file(
+            return create_audio_file(
                 shelf_id=shelf_id,
                 kind=kind,
                 local_path=local_path,
@@ -57,29 +57,29 @@ def get_or_create_video_file(shelf_id: int, kind: str, local_path: str):
         except Exception as e:
             return None
 
-    return video_file
+    return audio_file
 
-def update_video_file_info(
-    video_file_id:int,
+def update_audio_file_info(
+    audio_file_id:int,
     snowstream_info_json:str,
     ffprobe_json:str=None,
     mediainfo_json:str=None
 ):
     with dbi.session() as db:
-        video_file = db.query(dbi.dm.VideoFile).filter(dbi.dm.VideoFile.id == video_file_id).first()
-        video_file.snowstream_info_json = snowstream_info_json
+        audio_file = db.query(dbi.dm.AudioFile).filter(dbi.dm.AudioFile.id == audio_file_id).first()
+        audio_file.snowstream_info_json = snowstream_info_json
         if ffprobe_json:
-            video_file.ffprobe_raw_json = ffprobe_json
+            audio_file.ffprobe_raw_json = ffprobe_json
         if mediainfo_json:
-            video_file.mediainfo_raw_json = mediainfo_json
+            audio_file.mediainfo_raw_json = mediainfo_json
         db.commit()
-        return video_file
+        return audio_file
 
-def update_video_file_thumbnail(video_file_id:int,thumbnail_web_path:str):
+def update_audio_file_thumbnail(audio_file_id:int,thumbnail_web_path:str):
     with dbi.session() as db:
         (
-            db.query(dbi.dm.VideoFile)
-            .filter(dbi.dm.VideoFile.id == video_file_id)
+            db.query(dbi.dm.AudioFile)
+            .filter(dbi.dm.AudioFile.id == audio_file_id)
             .update({
                 'thumbnail_web_path': thumbnail_web_path
             })
@@ -87,23 +87,23 @@ def update_video_file_thumbnail(video_file_id:int,thumbnail_web_path:str):
         db.commit()
         return True
 
-def get_video_file_by_id(video_file_id: int):
+def get_audio_file_by_id(audio_file_id: int):
     with dbi.session() as db:
-        return db.query(dbi.dm.VideoFile).filter(dbi.dm.VideoFile.id == video_file_id).first()
+        return db.query(dbi.dm.AudioFile).filter(dbi.dm.AudioFile.id == audio_file_id).first()
 
-def get_video_files_by_shelf(shelf_id: int):
+def get_audio_files_by_shelf(shelf_id: int):
     with dbi.session() as db:
-        return db.query(dbi.dm.VideoFile).filter(dbi.dm.VideoFile.shelf_id == shelf_id).all()
+        return db.query(dbi.dm.AudioFile).filter(dbi.dm.AudioFile.shelf_id == shelf_id).all()
 
-def get_video_file_list(directory:str=None):
+def get_audio_file_list(directory:str=None):
     with dbi.session() as db:
-        query = db.query(dbi.dm.VideoFile)
+        query = db.query(dbi.dm.AudioFile)
 
         if directory:
-            query = query.filter(dbi.dm.VideoFile.local_path.contains(directory))
+            query = query.filter(dbi.dm.AudioFile.local_path.contains(directory))
 
         query = (query
-            .order_by(dbi.dm.VideoFile.local_path)
+            .order_by(dbi.dm.AudioFile.local_path)
             .all()
         )
 

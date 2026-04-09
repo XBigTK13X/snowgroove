@@ -1,18 +1,16 @@
-class Stub:
-    def __init__(self):
-        pass
+from box import Box
 
 class DeviceProfile:
     def __init__(self,config):
         self.name = config['name']
         self.force_player = config.get('force_player')
 
-        self.video = Stub()
-        self.video.resolution = Stub()
+        self.video = Box()
+        self.video.resolution = Box()
         self.video.resolution.width = config.get('video_width')
         self.video.resolution.height = config.get('video_height')
 
-        self.transcode = Stub()
+        self.transcode = Box()
         self.transcode.container = config.get('transcode_container','matroska')
         self.transcode.video_codec = config.get('transcode_video_codec', 'h265')
         self.transcode.audio_codec = config.get('transcode_audio_codec', 'aac')
@@ -22,33 +20,33 @@ class DeviceProfile:
         self.video.high_fps = config.get('high_fps')
         self.video.streamable_decoding = config.get('streamable_decoding')
 
-        self.video.h264 = Stub()
+        self.video.h264 = Box()
         self.video.h264.eight = config.get('h264_eight')
         self.video.h264.ten = config.get('h264_ten')
 
-        self.video.h265 = Stub()
+        self.video.h265 = Box()
         self.video.h265.eight = config.get('h265_eight')
         self.video.h265.ten = config.get('h265_ten')
 
         self.video.av1 = config.get('av1')
         self.video.vp9 = config.get('vp9')
 
-        self.video.hdr = Stub()
+        self.video.hdr = Box()
         self.video.hdr.basic = config.get('hdr')
         self.video.hdr.hlg = config.get('hdr_hlg')
         self.video.hdr.ten = config.get('hdr_ten')
         self.video.hdr.dolby_vision = config.get('dolby_vision')
         self.video.hdr.ten_plus = config.get('hdr_ten_plus')
 
-        self.audio = Stub()
-        self.audio.dts = Stub()
+        self.audio = Box()
+        self.audio.dts = Box()
         self.audio.dts.x = config.get('dts_x')
         self.audio.dts.hd = config.get('dts_hd')
-        self.audio.dolby = Stub()
+        self.audio.dolby = Box()
         self.audio.dolby.atmos = config.get('dolby_atmos')
         self.audio.dolby.hd = config.get('dolby_hd')
 
-        self.mpv = Stub()
+        self.mpv = Box()
         self.mpv.video_output = config.get('mpv_video_output','gpu')
         self.mpv.decoding_mode = config.get('mpv_decoding_mode','mediacodec')
         self.mpv.accelerated_codecs = config.get('mpv_accelerated_codecs','h264,hevc,mpeg4,mpeg2video,vp8,vp9,av1')

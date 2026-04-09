@@ -1,11 +1,10 @@
 import database.operation
 import database.db_models
 
-class DbWrapper:
-    def __init__(self):
-        self.op = database.operation
-        self.Ticket = database.db_models.Ticket
-        self.Stub = database.db_models.Stub
+from box import Box
 
-
-db = DbWrapper()
+db = Box({
+    'op': database.operation,
+    'Ticket': database.db_models.Ticket,
+    'Box': Box
+})

@@ -7,7 +7,7 @@ import snow_media
 def prep(files,movie=None,show=None,show_season=None,show_episode=None):
     results = []
     for ff in files:
-        result = db.Stub()
+        result = db.Box()
         result.id = ff.id
         result.local_path = ff.local_path
         result.movie = None
@@ -19,20 +19,20 @@ def prep(files,movie=None,show=None,show_season=None,show_episode=None):
             result.ffprobe_raw_json = ff.ffprobe_raw_json
             result.mediainfo_raw_json = ff.mediainfo_raw_json
         if movie:
-            result.movie = db.Stub()
+            result.movie = db.Box()
             result.movie.id = movie.id
             result.movie.release_year = movie.release_year
             result.movie.name = movie.name
         if show:
-            result.show = db.Stub()
+            result.show = db.Box()
             result.show.id = show.id
             result.show.release_year = show.release_year
             result.show.name = show.name
         if show_season:
-            result.show_season = db.Stub()
+            result.show_season = db.Box()
             result.show_season.id = show_season.id
         if show_episode:
-            result.show_episode = db.Stub()
+            result.show_episode = db.Box()
             result.show_episode.id = show_episode.id
         results.append(result)
     return results

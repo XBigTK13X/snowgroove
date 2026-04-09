@@ -41,17 +41,8 @@ class Config:
         self.supervisor_password = "snowgroove"
         self.supervisor_url = "http://localhost:9065"
         self.supervisor_username = "snowgroove"
-        self.themoviedb_api_key = None
-        self.thetvdb_api_key = None
+
         self.thumbnail_dimensions = "340x500"
-        self.transcode_create_max_wait_seconds = 10
-        self.transcode_dialect = 'default'
-        self.transcode_disconnect_seconds = 60
-        self.transcode_port_range = "11910-11950"
-        self.transcode_stream_host = '0.0.0.0'
-        self.transcode_ffmpeg_host = '0.0.0.0'
-        self.watch_progress_unwatched_threshold = 0.05
-        self.watch_progress_watched_threshold = 0.90
         self.web_api_url = "http://localhost:8000"
         self.web_media_url = "<need_to_set_an_env_var-SNOWGROOVE_WEB_MEDIA_URL>"
         self.auth_device_whitelist = [
@@ -67,9 +58,7 @@ class Config:
 
     def refresh_app_data_dirs(self):
         self.thumbnail_dir = f"{self.app_data_dir}thumbnail"
-        self.ffprobe_dir = f"{self.app_data_dir}ffprobe"
         self.log_file_path = f"{self.app_data_dir}log/snowgroove.log"
-        self.transcode_log_dir = f"{self.app_data_dir}log/transcode/"
 
     def validate(self, log):
         if not self.web_media_url or 'SNOWGROOVE_WEB_MEDIA_URL' in self.web_media_url:
