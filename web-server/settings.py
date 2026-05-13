@@ -43,6 +43,7 @@ class Config:
         self.supervisor_username = "snowgroove"
 
         self.thumbnail_dimensions = "340x500"
+        self.media_test_root = ''
         self.web_api_url = "http://localhost:8000"
         self.web_media_url = "<need_to_set_an_env_var-SNOWGROOVE_WEB_MEDIA_URL>"
         self.auth_device_whitelist = [
@@ -58,6 +59,7 @@ class Config:
 
     def refresh_app_data_dirs(self):
         self.thumbnail_dir = f"{self.app_data_dir}thumbnail"
+        self.log_dir = f"{self.app_data_dir}log"
         self.log_file_path = f"{self.app_data_dir}log/snowgroove.log"
 
     def validate(self, log):
@@ -93,7 +95,9 @@ if config.is_deployed_environment:
         '/app/logs/worker.log',
     ]
 
+if not os.path.exists(config.app_data_dir):
+    os.makedirs(config.app_data_dir, exist_ok=True)
 if not os.path.exists(config.thumbnail_dir):
     os.makedirs(config.thumbnail_dir, exist_ok=True)
-if not os.path.exists(config.transcode_log_dir):
-    os.makedirs(config.transcode_log_dir, exist_ok=True)
+if not os.path.exists(config.log_dir):
+    os.makedirs(config.log_dir, exist_ok=True)

@@ -1,10 +1,6 @@
 from database.operation.db_internal import dbi
 import database.operation.shelf as db_shelf
 import database.operation.movie as db_movie
-import database.operation.show as db_show
-import database.operation.show_episode as db_episode
-import database.operation.streamable as db_streamable
-import database.operation.keepsake as db_keepsake
 
 def perform_search(ticket:dbi.dm.Ticket,query:str):
     result = {}
