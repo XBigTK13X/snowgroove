@@ -1,12 +1,11 @@
-FROM python:3.14-trixie
+FROM python:3.12-trixie
 
-# Ensure we use ffmpeg with libmfx enabled for quicksync
 COPY docker/debian.sources /etc/apt/sources.list.d/debian.sources
 RUN apt update
 RUN DEBIAN_FRONTEND=noninteractive apt dist-upgrade -y
 
 # python dependency manager
-RUN bash -c "curl -LsSf https://astral.sh/uv/install.sh | sh"
+COPY --from=ghcr.io/astral-sh/uv:0.11.6 /uv /uvx /bin/
 # database
 RUN DEBIAN_FRONTEND=noninteractive apt install -y postgresql postgresql-common postgresql-client postgresql-contrib
 # message queue
@@ -36,11 +35,11 @@ COPY docker/postgresql.conf /etc/postgresql/17/main/mod-postgresql.conf
 RUN chown postgres:postgres /etc/postgresql/17/main/pg_hba.conf
 RUN chown postgres:postgres /etc/postgresql/17/main/mod-postgresql.conf
 
-COPY ./web-server/pyproject.toml /app/pyproject.toml
 WORKDIR /app
-RUN uv sync
 COPY ./web-server /app
+RUN rm -rf .venv/
 RUN rm -rf /app/.snowgroove
+RUN uv sync
 
 COPY ./docker /app/docker
 COPY ./script /app/script

@@ -1,6 +1,3 @@
-from message.handler.update_media.provider.thetvdb_provider import ThetvdbProvider
-from message.handler.update_media.provider.themoviedb_provider import ThemoviedbProvider
-
 def parse(input, key):
     if not input:
         return None
@@ -72,16 +69,6 @@ class JobMediaScope:
 
     def is_tag(self):
         return self.target_kind == 'tag'
-
-    def get_movie_media_provider(self):
-        if not self.metadata_source or 'themoviedb' in self.metadata_source:
-            return ThemoviedbProvider(self.job_id,self.metadata_source)
-        return ThetvdbProvider(self.job_id,self.metadata_source)
-
-    def get_show_media_provider(self):
-        if not self.metadata_source or 'thetvdb' in self.metadata_source:
-            return ThetvdbProvider(self.job_id,self.metadata_source)
-        return ThemoviedbProvider(self.job_id,self.metadata_source)
 
     def skip_existing_media(self):
         return self.skip_existing == True

@@ -30,6 +30,7 @@ class Config:
         self.postgres_password = "snowgroove"
         self.postgres_port = 9060
         self.postgres_username = "snowgroove"
+
         self.rabbit_delay_seconds = 5
         self.rabbit_host = "localhost"
         self.rabbit_max_failures = 4
@@ -37,11 +38,12 @@ class Config:
         self.rabbit_port = "9062"
         self.rabbit_queue = "snowgroove"
         self.rabbit_user = "snowgroove"
-        self.search_results_per_shelf_limit = 200
+
         self.supervisor_password = "snowgroove"
         self.supervisor_url = "http://localhost:9065"
         self.supervisor_username = "snowgroove"
 
+        self.search_results_per_shelf_limit = 200
         self.thumbnail_dimensions = "340x500"
         self.media_test_root = ''
         self.web_api_url = "http://localhost:8000"

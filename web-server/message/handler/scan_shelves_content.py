@@ -3,14 +3,10 @@ from db import db
 from message.child_job import create_child_job
 from message.job_media_scope import JobMediaScope
 
-from message.handler.scan_shelf.movies_scan import MoviesScanHandler
-from message.handler.scan_shelf.shows_scan import ShowsScanHandler
-from message.handler.scan_shelf.keepsakes_scan import KeepsakesScanHandler
+from message.handler.scan_shelf.song_scan import SongScanHandler
 
 shelf_handlers = {
-    "Movies": MoviesScanHandler,
-    "Shows": ShowsScanHandler,
-    "Keepsakes": KeepsakesScanHandler
+    "Music": SongScanHandler
 }
 
 def handle(scope:JobMediaScope):

@@ -1,5 +1,7 @@
 #! /bin/bash
 
+source script/variables.sh
+
 echo "Docker services working dir"
 
 pwd
@@ -44,7 +46,7 @@ docker run -d \
     -v $(pwd)/.docker-volume/rabbitmq:/var/lib/rabbitmq \
     -v $(pwd)/web-server/.snowgroove:/mnt/.snowgroove \
     -v /mnt/test-data:/mnt/test-data \
-    -v /mnt/j-media/music:/mnt/j-media/music
+    -v /mnt/j-media/music:/mnt/j-media/music \
     $SNOWGROOVE_DOCKER_IMAGE
 
 sleep 12

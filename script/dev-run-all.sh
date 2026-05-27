@@ -2,7 +2,6 @@
 source script/variables.sh
 cd web-server
 mkdir -p .snowgroove/log
-source venv/bin/activate
 echo "Quietly installing requirements"
 uv sync > /dev/null 2>&1 || true
 cd ..
