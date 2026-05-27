@@ -12,12 +12,6 @@ import routes
 from settings import config
 config.validate(log)
 
-from snow_media.transcode_sessions import transcode_sessions
-
-transcode_sessions.cleanup()
-
-transcode_sessions.register_cleanup()
-
 app = FastAPI(
     title="snowgroove",
     version=f"{config.server_version}",

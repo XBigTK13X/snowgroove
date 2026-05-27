@@ -358,36 +358,6 @@ export class ApiClient {
         return this.get('/device/profile/list')
     }
 
-    createVideoFileTranscodeSession = (payload) => {
-        let requestUrl = `/transcode/session?video_file_id=${payload.videoFileId}&device_profile=${payload.deviceProfile}&player_kind=${payload.playerKind}`
-        if (payload.audioTrackIndex !== -1) {
-            requestUrl += `&audio_track_index=${payload.audioTrackIndex}`
-        }
-        if (payload.subtitleTrackIndex !== -1) {
-            requestUrl += `&subtitle_track_index=${payload.subtitleTrackIndex}`
-        }
-        if (payload.seekToSeconds) {
-            requestUrl += `&seek_to_seconds=${Math.floor(payload.seekToSeconds)}`
-        }
-        return this.post(requestUrl)
-    }
-
-    createStreamableTranscodeSession = (payload) => {
-        let requestUrl = `/transcode/session?streamable_id=${payload.streamableId}&device_profile=${payload.deviceProfile}&player_kind=${payload.playerKind}`
-        if (payload.seekToSeconds) {
-            requestUrl += `&seek_to_seconds=${Math.floor(payload.seekToSeconds)}`
-        }
-        return this.post(requestUrl)
-    }
-
-    closeTranscodeSession = (transcodeId) => {
-        return this.delete(`/transcode/session?transcode_session_id=${transcodeId}`)
-    }
-
-    closeAllTranscodeSessions = () => {
-        return this.delete(`/transcode/session`)
-    }
-
     setShelfWatchStatus = (shelfId, watched) => {
         return this.post('/watch/status', { shelf_id: shelfId, status: watched })
     }
