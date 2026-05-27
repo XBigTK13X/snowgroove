@@ -32,6 +32,10 @@ def parse_song_info(file_path):
             album_pieces = album.split(' (')
             album = album_pieces[0]
             year = float(album_pieces[1].split(')')[0])
+        if 'Vol.' in album:
+            album_parts = album.split(' - ')
+            album_parts.pop(0)
+            album = ' - '.join(album_parts)
         pieces = name.split(' - ')
         count = len(pieces)
         position = pieces[0]
@@ -51,6 +55,10 @@ def parse_song_info(file_path):
             artist = ' - '.join(pieces[2:-1])
         else:
             artist = parts[-3]
+        if 'Special' == artist:
+            artist = parts[-4]
+        if '(' in artist:
+            artist = artist.split('(')[0].strip()
         return {
             'album': album,
             'path': location,

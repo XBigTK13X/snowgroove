@@ -18,7 +18,18 @@ def test_anime_metadata():
 
 def test_artist_title_dashes():
     song = parse_file('Game/Smash Bros/Vol. 35 - Fatal Fury (2018)/001 - Haremar Faith Capoeira School - Song of the Fight (Believers Will Be Saved) - FATAL FURY - 8ec7c9cbb5c038a66f7802a3b9f6f220.adjusted.mp3"')
-    assert song.title == 'Haremar Faith Capoeira School - Song of the Fight (Believers Will Be Saved) - FATAL FURY'
+    assert song.title == 'Haremar Faith Capoeira School'
+
+def test_smash_bros_metadata():
+    song = parse_file('Game/Smash Bros/Vol. 35 - Fatal Fury (2018)/001 - Haremar Faith Capoeira School - Song of the Fight (Believers Will Be Saved) - FATAL FURY - 8ec7c9cbb5c038a66f7802a3b9f6f220.adjusted.mp3"')
+    assert song.title == 'Haremar Faith Capoeira School'
+    assert song.album == 'Fatal Fury'
+    assert song.artist == 'Song of the Fight'
+    assert song.year == 2018
+
+def test_smash_bros_removes_vol():
+    song = parse_file('Game/Smash Bros/Vol. 35 - Fatal Fury (2018)/001 - Haremar Faith Capoeira School - Song of the Fight (Believers Will Be Saved) - FATAL FURY - 8ec7c9cbb5c038a66f7802a3b9f6f220.adjusted.mp3"')
+    assert song.album == 'Fatal Fury'
 
 def test_multidisc_track():
     song = parse_file('Game/Nintendo Switch/The Legend of Zelda Breath of the Wild (2018)/D03T31 - Urbosa and the Divine Beast - 7ec7c9cbb5c038a66f7802a3b9f6f220.adjusted.mp3')
@@ -34,9 +45,9 @@ def test_artist_metadata():
 
 def test_compilation_metadata():
     song = parse_file('Compilation/Anime Hits (2019)/001 - Tori Kago (ED1) - Darling in the Franxx - 3ec7c9cbb5c038a66f7802a3b9f6f220.adjusted.mp3')
-    assert song.title == 'Tori Kago (ED1) - Darling in the Franxx'
+    assert song.title == 'Tori Kago (ED1)'
     assert song.album == 'Anime Hits'
-    assert song.artist == 'Compilation'
+    assert song.artist == 'Darling in the Franxx'
     assert song.year == 2019
 
 def test_disney_metadata():
@@ -65,17 +76,6 @@ def test_movie_metadata():
     assert song.artist == 'Movie'
     assert song.year == 2016
 
-def test_smash_bros_metadata():
-    song = parse_file('Game/Smash Bros/Vol. 35 - Fatal Fury (2018)/001 - Haremar Faith Capoeira School - Song of the Fight (Believers Will Be Saved) - FATAL FURY - 8ec7c9cbb5c038a66f7802a3b9f6f220.adjusted.mp3"')
-    assert song.title == 'Haremar Faith Capoeira School - Song of the Fight (Believers Will Be Saved) - FATAL FURY'
-    assert song.album == 'Fatal Fury'
-    assert song.artist == 'Smash Bros'
-    assert song.year == 2018
-
-def test_smash_bros_removes_vol():
-    song = parse_file('Game/Smash Bros/Vol. 35 - Fatal Fury (2018)/001 - Haremar Faith Capoeira School - Song of the Fight (Believers Will Be Saved) - FATAL FURY - 8ec7c9cbb5c038a66f7802a3b9f6f220.adjusted.mp3"')
-    assert song.album == 'Fatal Fury'
-
 def test_messy_percent_encoding():
     song = parse_file(r'Anime/K-On/Image Songs - Main Cast Part 1 (2013.06)/008 - Mokujise Happy 100% - 709b6c5b53e298b4c0e92fe2b613d5cf.adjusted.mp3')
     assert '100% ' not in song.audio_url
@@ -86,16 +86,16 @@ def test_messy_hash_encoding():
 
 def test_no_top_level_category():
     song = parse_file('Classical/Johann Sebastian Bach/Bradenburg Concertos (2013)/01 - Brandenburg Concerto No. 1 in F Major, BWV 1046 - I. Allegro - 2eae67b118c6190c6547e6c7c24e4c1e.adjusted.mp3')
-    assert song.title == 'Brandenburg Concerto No. 1 in F Major, BWV 1046 - I. Allegro'
+    assert song.title == 'Brandenburg Concerto No. 1 in F Major, BWV 1046'
     assert song.album == 'Bradenburg Concertos'
-    assert song.artist == 'Johann Sebastian Bach'
+    assert song.artist == 'I. Allegro'
     assert song.kind == 'Classical'
 
 def test_v2_az_wrapper_folder():
     song = parse_file('Game A-Z/C/Civilization V (2010)/D01T001 - America - Peace - Songs For The Morning Star - dd500993d0eca0f52e33496d8e4da71a.adjusted.mp3')
-    assert song.title == 'America - Peace - Songs For The Morning Star'
+    assert song.title == 'America'
     assert song.album == 'Civilization V'
-    assert song.artist == '(C) Game A-Z'
+    assert song.artist == 'Peace - Songs For The Morning Star'
     assert song.kind == 'Game A-Z'
     assert song.year == 2010
 

@@ -1,7 +1,7 @@
 import threading
 import subprocess
 from log import log
-from passlib.context import CryptContext
+import bcrypt
 import hashlib
 import io
 import qrcode
@@ -58,7 +58,6 @@ def run_cli(command, raw_output=False, background=False, log_path=None):
 
 # Taken from https://github.com/salesforce/decorator-operations/blob/master/decoratorOperations/debounce_functions/debounce.py#L6
 def debounce(wait_seconds):
-
     def decorator(function):
         def debounced(*args, **kwargs):
             def call_function():
@@ -76,21 +75,15 @@ def debounce(wait_seconds):
 
     return decorator
 
-#https://github.com/pyca/bcrypt/issues/684
-import bcrypt
-if not hasattr(bcrypt, '__about__'):
-    bcrypt.__about__ = type('about', (object,), {'__version__': bcrypt.__version__})
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 def verify_password(plain_password, hashed_password):
-    if hashed_password == None:
+    if hashed_password is None:
         return True
-    return pwd_context.verify(plain_password, hashed_password)
+    return bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
 
 def get_password_hash(password):
-    if password == 'SNOWGROOVE_EMPTY':
+    if password == 'SNOWSTREAM_EMPTY':
         return None
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 def get_episode_slug(episode):
     return f'S{episode.season.season_order_counter:02} E{episode.episode_order_counter:03}'
