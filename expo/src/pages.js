@@ -7,21 +7,16 @@ import InfoPage from './page/auth/wrap/info'
 import ContinueWatchingPage from './page/auth/wrap/list/continue-watching'
 import EpisodeDetailsPage from './page/auth/wrap/details/episode'
 import EpisodeListPage from './page/auth/wrap/list/episode'
-import EpisodePlayPage from './page/auth/play/episode'
 import KeepsakeDetailsPage from './page/auth/wrap/details/keepsake'
-import KeepsakePlayPage from './page/auth/play/keepsake'
 import MovieDetailsPage from './page/auth/wrap/details/movie'
 import MovieListPage from './page/auth/wrap/list/movie'
-import MoviePlayPage from './page/auth/play/movie'
 import OptionsPage from './page/auth/wrap/options'
-import PlayingQueuePlayPage from './page/auth/play/playing-queue'
 import PlaylistDetailsPage from './page/auth/wrap/details/playlist'
 import PlaylistListPage from './page/auth/wrap/list/playlist'
 import SearchPage from './page/auth/wrap/search'
 import SeasonListPage from './page/auth/wrap/list/season'
 import ShowListPage from './page/auth/wrap/list/show'
 import StreamableListPage from './page/auth/wrap/list/streamable'
-import StreamablePlayPage from './page/auth/play/streamable'
 
 import DashboardPage from './page/auth/wrap/admin/dashboard'
 import CleanupRuleEditPage from './page/auth/wrap/admin/cleanup-rule/cleanup-rule-edit'
@@ -52,12 +47,6 @@ export var pages = {
     [routes.enterPassword]: EnterPasswordPage,
     [routes.landing]: LandingPage,
     [routes.info]: InfoPage,
-
-    [routes.episodePlay]: EpisodePlayPage,
-    [routes.keepsakePlay]: KeepsakePlayPage,
-    [routes.moviePlay]: MoviePlayPage,
-    [routes.playingQueuePlay]: PlayingQueuePlayPage,
-    [routes.streamablePlay]: StreamablePlayPage,
 
     [routes.continueWatching]: ContinueWatchingPage,
     [routes.episodeDetails]: EpisodeDetailsPage,

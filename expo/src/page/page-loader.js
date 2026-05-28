@@ -1,6 +1,5 @@
 import pkg from "../../package.json";
 import React from 'react'
-import { View, Platform } from 'react-native'
 import Snow from 'expo-snowui'
 import {
     config,
@@ -57,11 +56,9 @@ export default function PageLoader() {
             initialRoutePath={routes.signIn}
         >
             <AppContextProvider>
-                <Player.Manager>
-                    <Snow.View style={{ flex: 1, paddingBottom: 50 }}>
-                        <PageWrapper />
-                    </Snow.View>
-                </Player.Manager>
+                <Snow.View style={{ flex: 1, paddingBottom: 50 }}>
+                    <PageWrapper />
+                </Snow.View>
             </AppContextProvider >
         </SnowApp>
     )

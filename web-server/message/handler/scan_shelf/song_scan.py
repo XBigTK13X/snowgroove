@@ -102,14 +102,14 @@ class SongScanHandler(ShelfScanner):
         )
 
     def get_or_create_song(self, info):
-        song_slug = f'{info["movie_name"]}-{info["movie_year"]}'
+        song_slug = f'{info["song_name"]}-{info["movie_year"]}'
         if not song_slug in self.batch_lookup:
-            movie = db.op.get_movie_by_name_and_year(
-                name=info["movie_name"], release_year=info["movie_year"]
+            movie = db.op.get_song_by_fingerprint(
+                fingerprint=info['song_fingerprint']
             )
             if not movie:
                 movie = db.op.create_movie(
-                    name=info["movie_name"], release_year=info["movie_year"], directory=info['directory']
+                    name=info["song_name"], release_year=info["movie_year"], directory=info['directory']
                 )
                 db.op.add_movie_to_shelf(shelf_id=self.shelf.id, movie_id=movie.id)
             if movie.directory != info['directory']:

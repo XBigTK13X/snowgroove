@@ -43,7 +43,6 @@ import Snow, {
 import SnowCreateJobButton from './comp/snow-create-job-button'
 import SnowPosterGrid from './comp/snow-poster-grid'
 import SnowScreencapGrid from './comp/snow-screencap-grid'
-import SnowTrackSelector from './comp/snow-track-selector'
 
 const isAndroid = Platform.OS === 'android'
 const isTV = Platform.isTV
@@ -83,7 +82,6 @@ export default {
     SnowText,
     SnowTextButton,
     SnowToggle,
-    SnowTrackSelector,
     SnowView,
     Text,
     TouchableOpacity,

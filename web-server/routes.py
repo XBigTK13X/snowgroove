@@ -198,55 +198,6 @@ def auth_required(router):
             return None
         return db.delete_tag_by_id(tag_id=tag_id)
 
-    @router.get("/movie/list",tags=['Movie'])
-    def get_movie_list(
-        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        shelf_id: int,
-        show_playlisted:bool=True
-    ):
-        return db.op.get_movie_list(
-            ticket=auth_user.ticket,
-            shelf_id=shelf_id,
-            show_playlisted=show_playlisted,
-            load_files=False
-        )
-
-    @router.get("/movie",tags=['Movie'])
-    def get_movie_details(
-        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        movie_id: int,
-        device_profile:str,
-    ):
-        movie = db.op.get_movie_by_id(ticket=auth_user.ticket,movie_id=movie_id)
-        if movie == None:
-            return None
-        movie.shelf_name = movie.shelf.name
-        movie.watched = db.op.get_movie_watched(ticket=auth_user.ticket,movie_id=movie_id)
-        movie.has_extras = False
-        movie.has_versions = False
-
-        for ii in range(0,len(movie.video_files)):
-            movie.video_files[ii].info = json.loads(movie.video_files[ii].snowstream_info_json)
-            del movie.video_files[ii].snowstream_info_json
-            if device_profile:
-                plan = snow_media.planner.create_plan(
-                    device_profile=device_profile,
-                    snowstream_info=movie.video_files[ii].info,
-                    video_kind="movie"
-                )
-                movie.video_files[ii].plan = plan
-            movie.video_files[ii].file_index = ii
-            if 'main_feature' in movie.video_files[ii].kind:
-                movie.main_feature_index = ii
-            if 'extra' in movie.video_files[ii].kind:
-                movie.has_extras = True
-                movie.video_files[ii].is_extra = True
-            if movie.video_files[ii].version:
-                movie.has_versions = True
-        search_query = f'reddit movies discussion {movie.name} ({movie.release_year})'
-        movie.discussion_image_url,movie.discussion_url = util.search_to_base64_qrcode(search_query)
-        return movie
-
     @router.get('/keepsake')
     def get_keepsake(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
@@ -320,68 +271,6 @@ def auth_required(router):
     ):
         return {'devices':[xx.name for xx in snow_media.device.device_list]}
 
-    @router.get("/playing/queue",tags=['User'])
-    def get_playing_queue(
-        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        show_id:int=None,
-        show_season_id:int=None,
-        tag_id:int=None,
-        shuffle:bool=False,
-        source:str=None
-    ):
-        queue = db.op.get_playing_queue(
-            ticket=auth_user.ticket,
-            show_id=show_id,
-            show_season_id=show_season_id,
-            tag_id=tag_id,
-            shuffle=shuffle,
-            source=source
-        )
-        kind = None
-        kind_id = None
-        item = None
-        if show_id:
-            kind_id = show_id
-            kind = 'show'
-            item = db.op.get_show_by_id(ticket=auth_user.ticket,show_id=show_id)
-        if show_season_id:
-            kind = 'show_season'
-            kind_id = show_season_id
-            item = db.op.get_show_season_by_id(ticket=auth_user.ticket,season_id=show_season_id)
-        if tag_id:
-            kind = 'playlist'
-            kind_id = tag_id
-            item = db.op.get_tag_by_id(tag_id=kind_id)
-            item.model_kind = 'playlist'
-        if not kind and source:
-            scrub = source.replace('-shuffle','')
-            parts = scrub.split('-')
-            kind = parts[0]
-            kind_id = int(parts[1])
-            if kind == 'show':
-                item = db.op.get_show_by_id(ticket=auth_user.ticket,show_id=kind_id)
-            if kind == 'show_season':
-                item = db.op.get_show_season_by_id(ticket=auth_user.ticket,season_id=kind_id)
-            if kind == 'tag':
-                kind = 'playlist'
-                item = db.op.get_tag_by_id(tag_id=kind_id)
-                item.model_kind = 'playlist'
-
-        return {
-            'queue':queue,
-            'kind': kind,
-            'kind_id': kind_id,
-            'item': item
-        }
-
-    @router.post('/playing/queue',tags=['User'])
-    def update_playing_queue(
-        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        source:str,
-        progress:int
-    ):
-        db.op.update_playing_queue(ticket=auth_user.ticket,source=source,progress=progress)
-        return db.op.get_playing_queue(ticket=auth_user.ticket,source=source)
 
     @router.delete('/cached/text', tags=['Admin'])
     def delete_all_cached_text(
@@ -391,56 +280,6 @@ def auth_required(router):
             return False
         db.op.delete_all_cached_text()
         return True
-
-    @router.post('/display-cleanup-rule', tags=['Admin'])
-    def save_display_cleanup_rule(
-        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        rule: am.DisplayCleanupRule
-    ):
-        if not auth_user.is_admin():
-            return False
-        if rule.id != None:
-            return db.op.update_display_cleanup_rule(
-                rule_id=rule.id,
-                priority=rule.priority,
-                rule_kind=rule.rule_kind,
-                target_kind=rule.target_kind,
-                needle=rule.needle,
-                replacement=rule.replacement
-            )
-        return db.op.create_display_cleanup_rule(
-            priority=rule.priority,
-            rule_kind=rule.rule_kind,
-            target_kind=rule.target_kind,
-            needle=rule.needle,
-            replacement=rule.replacement
-        )
-
-    @router.get('/display-cleanup-rule', tags=['Admin'])
-    def get_display_cleanup_rule(
-        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        rule_id:int
-    ):
-        if not auth_user.is_admin():
-            return False
-        return db.op.get_display_cleanup_rule(rule_id=rule_id)
-
-    @router.delete('/display-cleanup-rule', tags=['Admin'])
-    def delete_display_cleanup_rule(
-        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        rule_id:int
-    ):
-        if not auth_user.is_admin():
-            return False
-        return db.op.delete_display_cleanup_rule(rule_id=rule_id)
-
-    @router.get('/display-cleanup-rule/list', tags=['Admin'])
-    def get_display_cleanup_rule_list(
-        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])]
-    ):
-        if not auth_user.is_admin():
-            return None
-        return db.op.get_display_cleanup_rule_list()
 
     @router.post('/tag-rule', tags=['Admin'])
     def save_tag_rule(
