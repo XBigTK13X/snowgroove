@@ -42,9 +42,7 @@ def m2m(field1,field2):
 
     op.create_unique_constraint(f"unique_{title}", title, [name1, name2])
 
-def upgrade() -> None:
-    op.execute("CREATE EXTENSION IF NOT EXISTS unaccent")
-
+def user_schema():
     op.create_table(
         "snowgroove_user",
         sa.Column("id", sa.Integer, primary_key=True),
@@ -89,6 +87,121 @@ def upgrade() -> None:
             'admin'
         );'''
     )
+
+    op.create_table(
+        "client_device",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("created_at", sa.DateTime, nullable=False),
+        sa.Column("updated_at", sa.DateTime, nullable=False),
+        sa.Column("reported_name", sa.Text, nullable=False),
+        sa.Column("display_name", sa.Text),
+        sa.Column("device_kind", sa.Text),
+    )
+
+    op.create_unique_constraint("unique_client_device_reported_name", "client_device", ["reported_name"])
+    op.create_unique_constraint("unique_client_device_display_name", "client_device", ["display_name"])
+
+    op.create_table(
+        "client_device_user",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("created_at", sa.DateTime, nullable=False),
+        sa.Column("updated_at", sa.DateTime, nullable=False),
+        sa.Column(
+            "client_device_id",
+            sa.Integer,
+            sa.ForeignKey("client_device.id",ondelete="CASCADE"),
+            nullable=True,
+        ),
+        sa.Column(
+            "user_id",
+            sa.Integer,
+            sa.ForeignKey("snowgroove_user.id",ondelete="CASCADE"),
+            nullable=True,
+        ),
+        sa.Column("isolation_mode", sa.Text),
+        sa.Column("last_connection", sa.DateTime, nullable=False)
+    )
+
+    op.create_unique_constraint(
+        "unique_client_device_user",
+        "client_device_user",
+        ["client_device_id","user_id"]
+    )
+
+def audio_schema():
+    op.create_table(
+        "audio_file",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("created_at", sa.DateTime, nullable=False),
+        sa.Column("updated_at", sa.DateTime, nullable=False),
+        fk("shelf.id"),
+        sa.Column("kind", sa.Text, nullable=False),
+        sa.Column("local_path", sa.Text, nullable=False),
+        sa.Column("web_path", sa.Text, nullable=False),
+        sa.Column("network_path", sa.Text, nullable=False),
+        sa.Column('snowgroove_info_json', sa.Text),
+        sa.Column('ffprobe_raw_json', sa.Text),
+        sa.Column('mediainfo_raw_json', sa.Text),
+        sa.Column('thumbnail_web_path', sa.Text),
+        sa.Column("name", sa.Text, nullable=False),
+        sa.Column("thumbprint", sa.Text, nullable=False),
+        sa.Column("duration", sa.Float, nullable=False)
+    )
+
+    op.create_unique_constraint("unique_audio_file_local_path", "audio_file", ["local_path"])
+    op.create_unique_constraint("unique_audio_file_web_path", "audio_file", ["web_path"])
+    op.create_unique_constraint("unique_audio_file_network_path", "audio_file", ["network_path"])
+
+    op.create_table(
+        'song',
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("created_at", sa.DateTime, nullable=False),
+        sa.Column("updated_at", sa.DateTime, nullable=False),
+        sa.Column("title", sa.Text, nullable=False),
+        sa.Column("year", sa.Float, nullable=True),
+    )
+
+    op.create_table(
+        "album",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("created_at", sa.DateTime, nullable=False),
+        sa.Column("updated_at", sa.DateTime, nullable=False),
+        sa.Column("name", sa.Text, nullable=False),
+        sa.Column("year", sa.Text, nullable=True),
+    )
+
+    op.create_table(
+        "artist",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("created_at", sa.DateTime, nullable=False),
+        sa.Column("updated_at", sa.DateTime, nullable=False),
+        sa.Column("name", sa.Text, nullable=False)
+    )
+
+    op.create_table(
+        "crate",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("created_at", sa.DateTime, nullable=False),
+        sa.Column("updated_at", sa.DateTime, nullable=False),
+        sa.Column("directory", sa.Text, nullable=False),
+        sa.Column("parent_crate_id", sa.Integer, sa.ForeignKey("crate.id", ondelete="CASCADE"), nullable=True),
+    )
+
+    op.create_unique_constraint("unique_crate_directory", "crate", ["directory"])
+
+    m2m('song.id','audio_file.id')
+    m2m('album.id','song.id')
+    m2m('shelf.id','crate.id')
+    m2m('crate.id','song.id')
+    m2m('crate.id','album.id')
+    m2m('crate.id','artist.id')
+    m2m('crate.id','image_file.id')
+    m2m('crate.id','metadata_file.id')
+
+def upgrade() -> None:
+    op.execute("CREATE EXTENSION IF NOT EXISTS unaccent")
+
+    user_schema()
 
     op.create_table(
         "job",
@@ -150,29 +263,6 @@ def upgrade() -> None:
     op.create_unique_constraint("unique_shelf_network_path", "shelf", ["local_path"])
 
     op.create_table(
-        "audio_file",
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("created_at", sa.DateTime, nullable=False),
-        sa.Column("updated_at", sa.DateTime, nullable=False),
-        fk("shelf.id"),
-        sa.Column("kind", sa.Text, nullable=False),
-        sa.Column("local_path", sa.Text, nullable=False),
-        sa.Column("web_path", sa.Text, nullable=False),
-        sa.Column("network_path", sa.Text, nullable=False),
-        sa.Column('snowgroove_info_json', sa.Text),
-        sa.Column('ffprobe_raw_json', sa.Text),
-        sa.Column('mediainfo_raw_json', sa.Text),
-        sa.Column('thumbnail_web_path', sa.Text),
-        sa.Column("name", sa.Text, nullable=False),
-        sa.Column("thumbprint", sa.Text, nullable=False),
-        sa.Column("duration", sa.Float, nullable=False)
-    )
-
-    op.create_unique_constraint("unique_audio_file_local_path", "audio_file", ["local_path"])
-    op.create_unique_constraint("unique_audio_file_web_path", "audio_file", ["web_path"])
-    op.create_unique_constraint("unique_audio_file_network_path", "audio_file", ["network_path"])
-
-    op.create_table(
         "image_file",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("created_at", sa.DateTime, nullable=False),
@@ -199,95 +289,20 @@ def upgrade() -> None:
         sa.Column("local_path", sa.Text, nullable=False),
         sa.Column("web_path", sa.Text, nullable=False),
         sa.Column("network_path", sa.Text, nullable=False),
-        sa.Column("xml_content", sa.Text, nullable=False),
+        sa.Column("file_content", sa.Text, nullable=False),
     )
 
     op.create_unique_constraint("unique_metadata_file_local_path", "metadata_file", ["local_path"])
     op.create_unique_constraint("unique_metadata_file_web_path", "metadata_file", ["web_path"])
     op.create_unique_constraint("unique_metadata_file_network_path", "metadata_file", ["network_path"])
 
-    op.create_table(
-        'song',
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("created_at", sa.DateTime, nullable=False),
-        sa.Column("updated_at", sa.DateTime, nullable=False),
-        sa.Column("title", sa.Text, nullable=False),
-        sa.Column("year", sa.Float, nullable=True),
-
-    )
-
-    m2m('song.id','audio_file.id')
-
-    op.create_table(
-        "album",
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("created_at", sa.DateTime, nullable=False),
-        sa.Column("updated_at", sa.DateTime, nullable=False),
-        sa.Column("name", sa.Text, nullable=False),
-        sa.Column("year", sa.Text, nullable=True),
-    )
-
-    m2m('album.id','song.id')
-
-    op.create_table(
-        "crate",
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("created_at", sa.DateTime, nullable=False),
-        sa.Column("updated_at", sa.DateTime, nullable=False),
-        sa.Column("directory", sa.Text, nullable=False),
-        sa.Column("parent_crate_id", sa.Integer, sa.ForeignKey("crate.id", ondelete="CASCADE"), nullable=True),
-    )
-
-    op.create_unique_constraint("unique_crate_directory", "crate", ["directory"])
-
-    m2m('shelf.id','crate.id')
-    m2m('crate.id','song.id')
-    m2m('crate.id','album.id')
-    m2m('crate.id','image_file.id')
+    audio_schema()
 
     m2m('snowgroove_user.id','tag.id')
     m2m('snowgroove_user.id','shelf.id')
     m2m('snowgroove_user.id','crate.id')
-
-    op.create_table(
-        "client_device",
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("created_at", sa.DateTime, nullable=False),
-        sa.Column("updated_at", sa.DateTime, nullable=False),
-        sa.Column("reported_name", sa.Text, nullable=False),
-        sa.Column("display_name", sa.Text),
-        sa.Column("device_kind", sa.Text),
-    )
-
-    op.create_unique_constraint("unique_client_device_reported_name", "client_device", ["reported_name"])
-    op.create_unique_constraint("unique_client_device_display_name", "client_device", ["display_name"])
-
-    op.create_table(
-        "client_device_user",
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("created_at", sa.DateTime, nullable=False),
-        sa.Column("updated_at", sa.DateTime, nullable=False),
-        sa.Column(
-            "client_device_id",
-            sa.Integer,
-            sa.ForeignKey("client_device.id",ondelete="CASCADE"),
-            nullable=True,
-        ),
-        sa.Column(
-            "user_id",
-            sa.Integer,
-            sa.ForeignKey("snowgroove_user.id",ondelete="CASCADE"),
-            nullable=True,
-        ),
-        sa.Column("isolation_mode", sa.Text),
-        sa.Column("last_connection", sa.DateTime, nullable=False)
-    )
-
-    op.create_unique_constraint(
-        "unique_client_device_user",
-        "client_device_user",
-        ["client_device_id","user_id"]
-    )
+    m2m('snowgroove_user.id','album.id')
+    m2m('snowgroove_user.id','artist.id')
 
 def downgrade() -> None:
     pass

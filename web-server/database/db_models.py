@@ -49,7 +49,7 @@ class User(BaseModel):
         return 'admin' in self.permissions
 
 # This is a ticket for admission
-# It tells snowstream
+# It tells snowgroove
 # - who the user is
 # - what device the user is on
 # - who counts for having watched content
@@ -164,12 +164,10 @@ class Job(BaseModel):
 class Tag(BaseModel):
     __tablename__ = "tag"
     name = sa.Column(sa.Text)
-    movies: orm.Mapped[List["Movie"]] = orm.relationship(secondary="movie_tag",back_populates="tags")
-    shows: orm.Mapped[List["Show"]] = orm.relationship(secondary="show_tag",back_populates="tags")
-    show_seasons: orm.Mapped[List["ShowSeason"]] = orm.relationship(secondary="show_season_tag",back_populates="tags")
-    show_episodes: orm.Mapped[List["ShowEpisode"]] = orm.relationship(secondary="show_episode_tag",back_populates="tags")
-    stream_sources: orm.Mapped[List["StreamSource"]] = orm.relationship(secondary="stream_source_tag",back_populates="tags")
-    streamables: orm.Mapped[List["Streamable"]] = orm.relationship(secondary="streamable_tag",back_populates="tags")
+    songs: orm.Mapped[List["Song"]] = orm.relationship(secondary="movie_tag",back_populates="tags")
+    albums: orm.Mapped[List["Album"]] = orm.relationship(secondary="show_tag",back_populates="tags")
+    artists: orm.Mapped[List["Artist"]] = orm.relationship(secondary="show_season_tag",back_populates="tags")
+    crates: orm.Mapped[List["Crate"]] = orm.relationship(secondary="show_episode_tag",back_populates="tags")
     rules: orm.Mapped[List["TagRule"]] = orm.relationship(back_populates="tag")
 
 class ImageFile(BaseModel):
@@ -183,16 +181,7 @@ class ImageFile(BaseModel):
     web_path = sa.Column(sa.Text)
     network_path = sa.Column(sa.Text)
     thumbnail_web_path = sa.Column(sa.Text)
-    movie: orm.Mapped["Movie"] = orm.relationship(secondary="movie_image_file", back_populates="image_files")
-    movie_image_file: orm.Mapped["MovieImageFile"] = orm.relationship(back_populates="image_file",overlaps="movie")
-    show_episode: orm.Mapped["ShowEpisode"] = orm.relationship(secondary="show_episode_image_file", back_populates="image_files")
-    show_episode_image_file: orm.Mapped["ShowEpisodeImageFile"] = orm.relationship(back_populates="image_file",overlaps="show_episode")
-    show_season: orm.Mapped["ShowSeason"] = orm.relationship(secondary="show_season_image_file", back_populates="image_files")
-    show_season_image_file: orm.Mapped["ShowSeasonImageFile"] = orm.relationship(back_populates="image_file",overlaps="show_season")
-    show: orm.Mapped["Show"] = orm.relationship(secondary="show_image_file", back_populates="image_files")
-    show_image_file: orm.Mapped["ShowImageFile"] = orm.relationship(back_populates="image_file",overlaps="show")
-    crate: orm.Mapped["Crate"] = orm.relationship(secondary="crate_image_file", back_populates="image_files")
-    crate_image_file: orm.Mapped["CrateImageFile"] = orm.relationship(back_populates="image_file",overlaps="crate")
+    song_image_file: orm.Mapped["SongImageFile"] = orm.relationship(back_populates="image_file",overlaps="movie")
 
 class MetadataFile(BaseModel):
     @orm.reconstructor
@@ -204,16 +193,9 @@ class MetadataFile(BaseModel):
     local_path = sa.Column(sa.Text)
     web_path = sa.Column(sa.Text)
     network_path = sa.Column(sa.Text)
-    xml_content = sa.Column(sa.Text)
+    file_content = sa.Column(sa.Text)
     movie: orm.Mapped["Movie"] = orm.relationship(secondary="movie_metadata_file", back_populates="metadata_files")
-    movie_metadata_file: orm.Mapped["MovieMetadataFile"] = orm.relationship(back_populates="metadata_file",overlaps="movie")
-    show_episode: orm.Mapped["ShowEpisode"] = orm.relationship(secondary="show_episode_metadata_file", back_populates="metadata_files")
-    show_episode_metadata_file: orm.Mapped["ShowEpisodeMetadataFile"] = orm.relationship(back_populates="metadata_file",overlaps="show_episode")
-    show_season: orm.Mapped["ShowSeason"] = orm.relationship(secondary="show_season_metadata_file", back_populates="metadata_files")
-    show_season_metadata_file: orm.Mapped["ShowSeasonMetadataFile"] = orm.relationship(back_populates="metadata_file",overlaps="show_season")
-    show: orm.Mapped["Show"] = orm.relationship(secondary="show_metadata_file", back_populates="metadata_files")
-    show_metadata_file: orm.Mapped["ShowMetadataFile"] = orm.relationship(back_populates="metadata_file",overlaps="show")
-
+    album_metadata_file: orm.Mapped["AlbumMetadataFile"] = orm.relationship(back_populates="metadata_file",overlaps="album")
 
 class AudioFile(BaseModel):
     @orm.reconstructor
@@ -252,7 +234,7 @@ class Shelf(BaseModel):
     crates: orm.Mapped[List["Crate"]] = orm.relationship(secondary="crate_shelf",back_populates="shelf")
 
 
-class Movie(BaseModel):
+class Song(BaseModel):
     @orm.reconstructor
     def init_on_load(self):
         self.model_kind = 'movie'
@@ -275,33 +257,33 @@ class Movie(BaseModel):
             return []
         return [xx.id for xx in self.tags]
 
-class MovieShelf(BaseModel):
+class SongAlbum(BaseModel):
     __tablename__ = "movie_shelf"
     movie_id = sa.Column(sa.Integer, sa.ForeignKey("movie.id"))
     shelf_id = sa.Column(sa.Integer, sa.ForeignKey("shelf.id"))
 
 
-class MovieTag(BaseModel):
+class SongTag(BaseModel):
     __tablename__ = "movie_tag"
     movie_id = sa.Column(sa.Integer, sa.ForeignKey("movie.id"))
     tag_id = sa.Column(sa.Integer, sa.ForeignKey("tag.id"))
 
 
-class MovieImageFile(BaseModel):
+class SongImageFile(BaseModel):
     __tablename__ = "movie_image_file"
     movie_id = sa.Column(sa.Integer, sa.ForeignKey("movie.id"))
     image_file_id = sa.Column(sa.Integer, sa.ForeignKey("image_file.id"))
     image_file: orm.Mapped['ImageFile'] = orm.relationship(back_populates='movie_image_file',overlaps="movie,image_files")
 
 
-class MovieMetadataFile(BaseModel):
+class AlbumMetadataFile(BaseModel):
     __tablename__ = "movie_metadata_file"
     movie_id = sa.Column(sa.Integer, sa.ForeignKey("movie.id"))
     metadata_file_id = sa.Column(sa.Integer, sa.ForeignKey("metadata_file.id"))
     metadata_file: orm.Mapped['MetadataFile'] = orm.relationship(back_populates='movie_metadata_file',overlaps="movie,metadata_files")
 
 
-class MovieAudioFile(BaseModel):
+class SongAudioFile(BaseModel):
     __tablename__ = "movie_audio_file"
     movie_id = sa.Column(sa.Integer, sa.ForeignKey("movie.id"))
     audio_file_id = sa.Column(sa.Integer, sa.ForeignKey("audio_file.id"))
