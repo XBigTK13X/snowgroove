@@ -104,14 +104,16 @@ class SongScanHandler(ShelfScanner):
     def get_or_create_song(self, info):
         song_slug = f'{info["song_name"]}-{info["movie_year"]}'
         if not song_slug in self.batch_lookup:
-            movie = db.op.get_song_by_fingerprint(
+            song = db.op.get_song_by_fingerprint(
                 fingerprint=info['song_fingerprint']
             )
-            if not movie:
-                movie = db.op.create_movie(
-                    name=info["song_name"], release_year=info["movie_year"], directory=info['directory']
+            if not song:
+                song = db.op.create_song(
+                    name=info["song_name"],
+                    fingerprint=info["song_fingerprint"],
+                    local_path=info['local_path']
                 )
-                db.op.add_movie_to_shelf(shelf_id=self.shelf.id, movie_id=movie.id)
+                db.op.add_song_to_album(shelf_id=self.shelf.id, movie_id=movie.id)
             if movie.directory != info['directory']:
                 db.op.update_movie_directory(movie_id=movie.id,directory=info['directory'])
             self.batch_lookup[song_slug] = movie
@@ -153,21 +155,7 @@ class SongScanHandler(ShelfScanner):
                     db.op.create_movie_metadata_file(
                         movie_id=movie.id, metadata_file_id=info["id"]
                     )
-                    movie_nfo = snow_media.nfo.nfo_path_to_dict(info['file_path'])
-                    remote_id = None
-                    remote_source = None
-                    if 'tvdbid' in movie_nfo:
-                        remote_id = int(movie_nfo['tvdbid'])
-                        remote_source = 'thetvdb'
-                    if 'tmdbid' in movie_nfo:
-                        remote_id = int(movie_nfo['tmdbid'])
-                        remote_source = 'themoviedb'
-                    if remote_id:
-                        movie = db.op.update_movie_remote_metadata_id(
-                            movie_id=movie.id,
-                            remote_metadata_id=remote_id,
-                            remote_metadata_source=remote_source
-                        )
+                    song_metadata = snow_media.nfo.nfo_path_to_dict(info['file_path'])
             except Exception as e:
                 db.op.update_job(job_id=self.scope.job_id,message=f"An error occurred while processing metadata [{info['file_path']}]")
                 import traceback
