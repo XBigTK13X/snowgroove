@@ -134,7 +134,8 @@ def audio_schema():
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("created_at", sa.DateTime, nullable=False),
         sa.Column("updated_at", sa.DateTime, nullable=False),
-        fk("shelf.id"),
+        fk("song.id"),
+        sa.Column("thumbprint", sa.Text, nullable=False),
         sa.Column("kind", sa.Text, nullable=False),
         sa.Column("local_path", sa.Text, nullable=False),
         sa.Column("web_path", sa.Text, nullable=False),
@@ -144,7 +145,6 @@ def audio_schema():
         sa.Column('mediainfo_raw_json', sa.Text),
         sa.Column('thumbnail_web_path', sa.Text),
         sa.Column("name", sa.Text, nullable=False),
-        sa.Column("thumbprint", sa.Text, nullable=False),
         sa.Column("duration", sa.Float, nullable=False)
     )
 
@@ -157,8 +157,11 @@ def audio_schema():
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("created_at", sa.DateTime, nullable=False),
         sa.Column("updated_at", sa.DateTime, nullable=False),
+        fk("crate.id"),
+        sa.Column("thumbprint", sa.Text, nullable=False),
         sa.Column("title", sa.Text, nullable=False),
         sa.Column("year", sa.Float, nullable=True),
+        sa.Column("lyrics", sa.Text, nullable=True),
     )
 
     op.create_table(
@@ -166,6 +169,7 @@ def audio_schema():
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("created_at", sa.DateTime, nullable=False),
         sa.Column("updated_at", sa.DateTime, nullable=False),
+        fk("crate.id"),
         sa.Column("name", sa.Text, nullable=False),
         sa.Column("year", sa.Text, nullable=True),
     )
@@ -188,15 +192,6 @@ def audio_schema():
     )
 
     op.create_unique_constraint("unique_crate_directory", "crate", ["directory"])
-
-    m2m('song.id','audio_file.id')
-    m2m('album.id','song.id')
-    m2m('shelf.id','crate.id')
-    m2m('crate.id','song.id')
-    m2m('crate.id','album.id')
-    m2m('crate.id','artist.id')
-    m2m('crate.id','image_file.id')
-    m2m('crate.id','metadata_file.id')
 
 def upgrade() -> None:
     op.execute("CREATE EXTENSION IF NOT EXISTS unaccent")
@@ -267,7 +262,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("created_at", sa.DateTime, nullable=False),
         sa.Column("updated_at", sa.DateTime, nullable=False),
-        fk('shelf.id'),
+        fk('crate.id'),
         sa.Column("kind", sa.Text, nullable=False),
         sa.Column("local_path", sa.Text, nullable=False),
         sa.Column("web_path", sa.Text, nullable=False),
@@ -284,7 +279,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("created_at", sa.DateTime, nullable=False),
         sa.Column("updated_at", sa.DateTime, nullable=False),
-        fk('shelf.id'),
+        fk('crate.id'),
         sa.Column("kind", sa.Text, nullable=False),
         sa.Column("local_path", sa.Text, nullable=False),
         sa.Column("web_path", sa.Text, nullable=False),

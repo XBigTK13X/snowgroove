@@ -1,20 +1,42 @@
 from database.operation.db_internal import dbi
-import api_models as am
 
-def create_shelf(shelf: am.Shelf):
+def create_shelf(
+    kind: str,
+    name: str,
+    local_path: str,
+    network_path: str,
+    id: int = None
+):
     with dbi.session() as db:
-        dbm = dbi.dm.Shelf(**shelf.model_dump())
+        dbm = dbi.dm.Shelf(
+            id=id,
+            kind=kind,
+            name=name,
+            local_path=local_path,
+            network_path=network_path
+        )
         db.add(dbm)
         db.commit()
         db.refresh(dbm)
         return dbm
 
-def upsert_shelf(shelf: am.Shelf):
+def upsert_shelf(
+    kind: str,
+    name: str,
+    local_path: str,
+    network_path: str,
+    id: int = None
+):
     existing_shelf = None
-    if shelf.id:
-        existing_shelf = get_shelf_by_id(shelf_id=shelf.id)
+    if id:
+        existing_shelf = get_shelf_by_id(shelf_id=id)
     if not existing_shelf:
-        return create_shelf(shelf)
+        return create_shelf(
+            kind=kind,
+            name=name,
+            local_path=local_path,
+            network_path=network_path
+        )
     with dbi.session() as db:
         existing_shelf = db.query(dbi.dm.Shelf).filter(dbi.dm.Shelf.id == shelf.id).update(shelf.model_dump())
         db.commit()

@@ -128,10 +128,10 @@ class UserShelf(BaseModel):
     user_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("snowstream_user.id"))
     shelf_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("shelf.id"))
 
-class UserStreamSource(BaseModel):
-    __tablename__ = "user_stream_source"
+class UserCrate(BaseModel):
+    __tablename__ = "user_crate"
     user_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("snowstream_user.id"))
-    stream_source_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("stream_source.id"))
+    crate_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("crate.id"))
 
 class ClientDevice(BaseModel):
     __tablename__ = "client_device"
@@ -164,10 +164,10 @@ class Job(BaseModel):
 class Tag(BaseModel):
     __tablename__ = "tag"
     name = sa.Column(sa.Text)
-    songs: orm.Mapped[List["Song"]] = orm.relationship(secondary="movie_tag",back_populates="tags")
-    albums: orm.Mapped[List["Album"]] = orm.relationship(secondary="show_tag",back_populates="tags")
-    artists: orm.Mapped[List["Artist"]] = orm.relationship(secondary="show_season_tag",back_populates="tags")
-    crates: orm.Mapped[List["Crate"]] = orm.relationship(secondary="show_episode_tag",back_populates="tags")
+    songs: orm.Mapped[List["Song"]] = orm.relationship(secondary="song_tag",back_populates="tags")
+    albums: orm.Mapped[List["Album"]] = orm.relationship(secondary="album_tag",back_populates="tags")
+    artists: orm.Mapped[List["Artist"]] = orm.relationship(secondary="artist_tag",back_populates="tags")
+    crates: orm.Mapped[List["Crate"]] = orm.relationship(secondary="crate_tag",back_populates="tags")
     rules: orm.Mapped[List["TagRule"]] = orm.relationship(back_populates="tag")
 
 class ImageFile(BaseModel):
@@ -175,49 +175,41 @@ class ImageFile(BaseModel):
     def init_on_load(self):
         self.model_kind = 'image_file'
     __tablename__ = "image_file"
-    shelf_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("shelf.id"))
+    crate_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("crate.id"),nullable=True)
+    crate: orm.Mapped["Crate"] = orm.relationship(back_populates="image_files")
     kind = sa.Column(sa.Text)
     local_path = sa.Column(sa.Text)
     web_path = sa.Column(sa.Text)
     network_path = sa.Column(sa.Text)
     thumbnail_web_path = sa.Column(sa.Text)
-    song_image_file: orm.Mapped["SongImageFile"] = orm.relationship(back_populates="image_file",overlaps="movie")
 
 class MetadataFile(BaseModel):
     @orm.reconstructor
     def init_on_load(self):
         self.model_kind = 'metadata_file'
     __tablename__ = "metadata_file"
-    shelf_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("shelf.id"))
+    crate_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("crate.id"))
     kind = sa.Column(sa.Text)
     local_path = sa.Column(sa.Text)
     web_path = sa.Column(sa.Text)
     network_path = sa.Column(sa.Text)
     file_content = sa.Column(sa.Text)
-    movie: orm.Mapped["Movie"] = orm.relationship(secondary="movie_metadata_file", back_populates="metadata_files")
-    album_metadata_file: orm.Mapped["AlbumMetadataFile"] = orm.relationship(back_populates="metadata_file",overlaps="album")
 
 class AudioFile(BaseModel):
     @orm.reconstructor
     def init_on_load(self):
         self.model_kind = 'audio_file'
     __tablename__ = "audio_file"
-    shelf_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("shelf.id"))
+    song_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("song.id"))
+    song: orm.Mapped["Song"] = orm.relationship()
     kind = sa.Column(sa.Text)
     local_path = sa.Column(sa.Text)
     web_path = sa.Column(sa.Text)
     network_path = sa.Column(sa.Text)
-    snowstream_info_json = sa.Column(sa.Text)
+    snowgroove_info_json = sa.Column(sa.Text)
     ffprobe_raw_json = sa.Column(sa.Text)
     mediainfo_raw_json = sa.Column(sa.Text)
-    version = sa.Column(sa.Text)
     name = sa.Column(sa.Text)
-    movie: orm.Mapped["Movie"] = orm.relationship(secondary="movie_audio_file", back_populates="audio_files")
-    movie_audio_file: orm.Mapped["MovieAudioFile"] = orm.relationship(back_populates="audio_file",overlaps="movie")
-    show_episode: orm.Mapped["ShowEpisode"] = orm.relationship(secondary="show_episode_audio_file", back_populates="audio_files")
-    show_episode_audio_file: orm.Mapped["ShowEpisodeAudioFile"] = orm.relationship(back_populates="audio_file",overlaps="show_episode")
-    crate: orm.Mapped["Crate"] = orm.relationship(secondary="crate_audio_file", back_populates="audio_files")
-    crate_audio_file: orm.Mapped["CrateAudioFile"] = orm.relationship(back_populates="audio_file",overlaps="crate")
     thumbnail_web_path = sa.Column(sa.Text)
 
 class Shelf(BaseModel):
@@ -229,65 +221,7 @@ class Shelf(BaseModel):
     kind = sa.Column(sa.Text)
     local_path = sa.Column(sa.Text)
     network_path = sa.Column(sa.Text)
-    movies: orm.Mapped[List["Movie"]] = orm.relationship(secondary="movie_shelf",back_populates="shelf")
-    shows: orm.Mapped[List["Show"]] = orm.relationship(secondary="show_shelf",back_populates="shelf")
-    crates: orm.Mapped[List["Crate"]] = orm.relationship(secondary="crate_shelf",back_populates="shelf")
-
-
-class Song(BaseModel):
-    @orm.reconstructor
-    def init_on_load(self):
-        self.model_kind = 'movie'
-    __tablename__ = "movie"
-    name = sa.Column(sa.Text)
-    release_year = sa.Column(sa.Integer)
-    directory = sa.Column(sa.Text)
-    remote_metadata_id = sa.Column(sa.Integer)
-    remote_metadata_source = sa.Column(sa.Text)
-    in_progress: orm.Mapped["WatchProgress"] = orm.relationship(overlaps="movie", back_populates="movie")
-    tags: orm.Mapped[List["Tag"]] = orm.relationship(secondary="movie_tag",back_populates="movies")
-    audio_files: orm.Mapped[List["AudioFile"]] = orm.relationship(secondary="movie_audio_file",back_populates="movie",overlaps="movie_audio_file")
-    image_files: orm.Mapped[List["ImageFile"]] = orm.relationship(secondary="movie_image_file",back_populates="movie",overlaps="movie_image_file")
-    metadata_files: orm.Mapped[List["MetadataFile"]] = orm.relationship(secondary="movie_metadata_file",back_populates="movie",overlaps="movie_metadata_file")
-    shelf: orm.Mapped["Shelf"] = orm.relationship(secondary="movie_shelf")
-    watch_count: orm.Mapped['WatchCount'] = orm.relationship(overlaps="movie")
-
-    def get_tag_ids(self):
-        if not self.tags:
-            return []
-        return [xx.id for xx in self.tags]
-
-class SongAlbum(BaseModel):
-    __tablename__ = "movie_shelf"
-    movie_id = sa.Column(sa.Integer, sa.ForeignKey("movie.id"))
-    shelf_id = sa.Column(sa.Integer, sa.ForeignKey("shelf.id"))
-
-
-class SongTag(BaseModel):
-    __tablename__ = "movie_tag"
-    movie_id = sa.Column(sa.Integer, sa.ForeignKey("movie.id"))
-    tag_id = sa.Column(sa.Integer, sa.ForeignKey("tag.id"))
-
-
-class SongImageFile(BaseModel):
-    __tablename__ = "movie_image_file"
-    movie_id = sa.Column(sa.Integer, sa.ForeignKey("movie.id"))
-    image_file_id = sa.Column(sa.Integer, sa.ForeignKey("image_file.id"))
-    image_file: orm.Mapped['ImageFile'] = orm.relationship(back_populates='movie_image_file',overlaps="movie,image_files")
-
-
-class AlbumMetadataFile(BaseModel):
-    __tablename__ = "movie_metadata_file"
-    movie_id = sa.Column(sa.Integer, sa.ForeignKey("movie.id"))
-    metadata_file_id = sa.Column(sa.Integer, sa.ForeignKey("metadata_file.id"))
-    metadata_file: orm.Mapped['MetadataFile'] = orm.relationship(back_populates='movie_metadata_file',overlaps="movie,metadata_files")
-
-
-class SongAudioFile(BaseModel):
-    __tablename__ = "movie_audio_file"
-    movie_id = sa.Column(sa.Integer, sa.ForeignKey("movie.id"))
-    audio_file_id = sa.Column(sa.Integer, sa.ForeignKey("audio_file.id"))
-    audio_file: orm.Mapped['AudioFile'] = orm.relationship(back_populates="movie_audio_file",overlaps="movie,audio_files")
+    crates: orm.Mapped[List["Crate"]] = orm.relationship(back_populates="shelf")
 
 class Crate(BaseModel):
     @orm.reconstructor
@@ -295,26 +229,65 @@ class Crate(BaseModel):
         self.model_kind = 'crate'
     __tablename__ = "crate"
     directory = sa.Column(sa.Text)
-    audio_files: orm.Mapped[List["AudioFile"]] = orm.relationship(secondary="crate_audio_file",back_populates="crate",overlaps="crate_audio_file")
-    image_files: orm.Mapped[List["ImageFile"]] = orm.relationship(secondary="crate_image_file",back_populates="crate",overlaps="crate_image_file")
-    shelf: orm.Mapped["Shelf"] = orm.relationship(secondary="crate_shelf")
+    albums: orm.Mapped[List["Album"]] = orm.relationship(back_populates="crate")
+    songs: orm.Mapped[List["Song"]] = orm.relationship(back_populates="crate")
+    image_files: orm.Mapped[List["ImageFile"]] = orm.relationship(back_populates="crate")
+    shelf_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("shelf.id"))
+    shelf: orm.Mapped["Shelf"] = orm.relationship(back_populates="crates")
+    tags: orm.Mapped[List["Tag"]] = orm.relationship(secondary="crate_tag",back_populates="crates")
 
-class CrateShelf(BaseModel):
-    __tablename__ = "crate_shelf"
-    crate_id = sa.Column(sa.Integer, sa.ForeignKey("crate.id"))
-    shelf_id = sa.Column(sa.Integer, sa.ForeignKey("shelf.id"))
+class Artist(BaseModel):
+    @orm.reconstructor
+    def init_on_load(self):
+        self.model_kind = 'artist'
+    __tablename__ = 'artist'
+    name = sa.Column(sa.Text)
+    tags: orm.Mapped[List["Tag"]] = orm.relationship(secondary="artist_tag",back_populates="artists")
 
-class CrateAudioFile(BaseModel):
-    __tablename__ = "crate_audio_file"
-    crate_id = sa.Column(sa.Integer, sa.ForeignKey("crate.id"))
-    audio_file_id = sa.Column(sa.Integer, sa.ForeignKey("audio_file.id"))
-    audio_file: orm.Mapped['AudioFile'] = orm.relationship(back_populates="crate_audio_file",overlaps="crate,audio_files")
+class Album(BaseModel):
+    @orm.reconstructor
+    def init_on_load(self):
+        self.model_kind = 'album'
+    __tablename__ = 'album'
+    crate_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("crate.id"))
+    crate: orm.Mapped["Crate"] = orm.relationship(back_populates="albums")
+    name = sa.Column(sa.Text)
+    year = sa.Column(sa.Text)
+    tags: orm.Mapped[List["Tag"]] = orm.relationship(secondary="album_tag",back_populates="albums")
 
-class CrateImageFile(BaseModel):
-    __tablename__ = "crate_image_file"
+class Song(BaseModel):
+    @orm.reconstructor
+    def init_on_load(self):
+        self.model_kind = 'song'
+    __tablename__ = "song"
+    crate_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("crate.id"))
+    crate: orm.Mapped["Crate"] = orm.relationship(back_populates="songs")
+    name = sa.Column(sa.Text)
+    thumbprint = sa.Column(sa.Text)
+    release_year = sa.Column(sa.Integer)
+    lyrics = sa.Column(sa.Text)
+    audio_files: orm.Mapped["AudioFile"] = orm.relationship(back_populates="song")
+    tags: orm.Mapped[List["Tag"]] = orm.relationship(secondary="song_tag",back_populates="songs")
+
+class SongTag(BaseModel):
+    __tablename__ = "song_tag"
+    song_id = sa.Column(sa.Integer, sa.ForeignKey("song.id"))
+    tag_id = sa.Column(sa.Integer, sa.ForeignKey("tag.id"))
+
+class AlbumTag(BaseModel):
+    __tablename__ = "album_tag"
+    album_id = sa.Column(sa.Integer, sa.ForeignKey("album.id"))
+    tag_id = sa.Column(sa.Integer, sa.ForeignKey("tag.id"))
+
+class ArtistTag(BaseModel):
+    __tablename__ = "artist_tag"
+    artist_id = sa.Column(sa.Integer, sa.ForeignKey("artist.id"))
+    tag_id = sa.Column(sa.Integer, sa.ForeignKey("tag.id"))
+
+class CrateTag(BaseModel):
+    __tablename__ = "crate_tag"
     crate_id = sa.Column(sa.Integer, sa.ForeignKey("crate.id"))
-    image_file_id = sa.Column(sa.Integer, sa.ForeignKey("image_file.id"))
-    image_file: orm.Mapped['ImageFile'] = orm.relationship(back_populates='crate_image_file',overlaps="crate,image_files")
+    tag_id = sa.Column(sa.Integer, sa.ForeignKey("tag.id"))
 
 class DisplayCleanupRule(BaseModel):
     __tablename__ = 'display_cleanup_rule'
