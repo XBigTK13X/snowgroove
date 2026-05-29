@@ -33,17 +33,17 @@ def set_primary_images(model):
 class User(BaseModel):
     @orm.reconstructor
     def init_on_load(self):
-        self.model_kind = 'snowstream_user'
-    __tablename__ = "snowstream_user"
+        self.model_kind = 'snowgroove_user'
+    __tablename__ = "snowgroove_user"
     username = sa.Column(sa.Text, nullable=False)
     display_name = sa.Column(sa.Text, nullable=True)
     hashed_password = sa.Column(sa.Text, nullable=True)
     enabled = sa.Column(sa.Boolean)
     permissions = sa.Column(sa.Text)
     has_password = sa.Column(sa.Boolean, nullable=False)
-    access_tags: orm.Mapped[List["Tag"]] = orm.relationship(secondary="user_tag")
-    access_shelves: orm.Mapped[List["Shelf"]] = orm.relationship(secondary="user_shelf")
-    access_crates: orm.Mapped[List["Crate"]] = orm.relationship(secondary="user_crate")
+    access_tags: orm.Mapped[List["Tag"]] = orm.relationship(secondary="snowgroove_user_tag")
+    access_shelves: orm.Mapped[List["Shelf"]] = orm.relationship(secondary="snowgroove_user_shelf")
+    access_crates: orm.Mapped[List["Crate"]] = orm.relationship(secondary="snowgroove_user_crate")
 
     def is_admin(self):
         return 'admin' in self.permissions
@@ -119,18 +119,18 @@ class Ticket:
         return True
 
 class UserTag(BaseModel):
-    __tablename__ = "user_tag"
-    user_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("snowstream_user.id"))
+    __tablename__ = "snowgroove_user_tag"
+    snowgroove_user_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("snowgroove_user.id"))
     tag_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("tag.id"))
 
 class UserShelf(BaseModel):
-    __tablename__ = "user_shelf"
-    user_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("snowstream_user.id"))
+    __tablename__ = "snowgroove_user_shelf"
+    snowgroove_user_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("snowgroove_user.id"))
     shelf_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("shelf.id"))
 
 class UserCrate(BaseModel):
-    __tablename__ = "user_crate"
-    user_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("snowstream_user.id"))
+    __tablename__ = "snowgroove_user_crate"
+    snowgroove_user_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("snowgroove_user.id"))
     crate_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("crate.id"))
 
 class ClientDevice(BaseModel):
@@ -141,7 +141,7 @@ class ClientDevice(BaseModel):
 
 class ClientDeviceUser(BaseModel):
     __tablename__ = "client_device_user"
-    user_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("snowstream_user.id"),nullable=False)
+    user_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("snowgroove_user.id"),nullable=False)
     client_device_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("client_device.id"),nullable=False)
     client_device: orm.Mapped['ClientDevice'] = orm.relationship()
     isolation_mode = sa.Column(sa.Text)

@@ -8,7 +8,6 @@ export default function UserEditPage() {
     const [userId, setUserId] = C.React.useState(null)
     const [userTags, setUserTags] = C.React.useState([])
     const [userShelves, setUserShelves] = C.React.useState([])
-    const [userStreamSources, setUserStreamSources] = C.React.useState([])
 
     const [tags, setTags] = C.React.useState('')
     const [shelves, setShelves] = C.React.useState('')
@@ -21,7 +20,6 @@ export default function UserEditPage() {
                 if (response.access_tags) {
                     setUserTags(response.access_tags.map(item => item.id))
                     setUserShelves(response.access_shelves.map(item => item.id))
-                    setUserStreamSources(response.access_stream_sources.map(item => item.id))
                 }
             })
         }
@@ -45,8 +43,7 @@ export default function UserEditPage() {
         let payload = {
             userId: userId,
             tagIds: userTags,
-            shelfIds: userShelves,
-            streamSourceIds: userStreamSources,
+            shelfIds: userShelves
         }
         apiClient.saveUserAccess(payload)
     }
@@ -66,25 +63,6 @@ export default function UserEditPage() {
                 let modduedUserShelves = [...userShelves]
                 modduedUserShelves.push(shelfId)
                 setUserShelves(modduedUserShelves)
-            }
-        }
-    }
-
-    const setStreamSourceAccess = (streamSourceId, accessible) => {
-        if (!accessible) {
-            const streamSourceIndex = userStreamSources.indexOf(streamSourceId)
-            if (streamSourceIndex !== -1) {
-                let moddedStreamSources = [...userStreamSources]
-                moddedStreamSources.splice(streamSourceIndex, 1)
-                setUserStreamSources(moddedStreamSources)
-            }
-        }
-        if (accessible) {
-            const streamSourceIndex = userStreamSources.indexOf(streamSourceId)
-            if (streamSourceIndex === -1) {
-                let moddedStreamSources = [...userStreamSources]
-                moddedStreamSources.push(streamSourceId)
-                setUserStreamSources(moddedStreamSources)
             }
         }
     }
@@ -138,35 +116,6 @@ export default function UserEditPage() {
         )
     }
 
-    let streamSourcePicker = null
-    if (streamSources && streamSources.length) {
-        const renderStreamSource = (streamSource) => {
-            if (userStreamSources && userStreamSources.indexOf(streamSource.id) !== -1) {
-                return (
-                    <C.SnowTextButton
-                        title={streamSource.name + ' YES'}
-                        onPress={() => {
-                            setStreamSourceAccess(streamSource.id, false)
-                        }}
-                    ></C.SnowTextButton>
-                )
-            }
-            return (
-                <C.SnowTextButton
-                    title={streamSource.name + ' NO'}
-                    onPress={() => {
-                        setStreamSourceAccess(streamSource.id, true)
-                    }}
-                ></C.SnowTextButton>
-            )
-        }
-        streamSourcePicker = (
-            <>
-                <C.SnowText>Stream Sources</C.SnowText>
-                <C.SnowGrid short={true} items={streamSources} renderItem={renderStreamSource} />
-            </>
-        )
-    }
 
     let tagPicker = null
     if (tags && tags.length) {
@@ -212,7 +161,6 @@ export default function UserEditPage() {
             </C.SnowGrid>
 
             {shelfPicker}
-            {streamSourcePicker}
             {tagPicker}
             <C.SnowBreak />
             <C.SnowGrid>

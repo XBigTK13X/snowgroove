@@ -50,29 +50,6 @@ export default function SearchPage() {
             resultsTabs = (
                 <C.SnowTabs yy={1} key={resultKey} focusKey="search-results" headers={headers}>
                     {searchResults.map((searchResult, resultIndex) => {
-                        if (searchResult.kind === 'streamables') {
-                            return <C.SnowGrid items={searchResult.items} renderItem={(item) => {
-                                return (
-                                    <C.SnowTextButton title={item.name}
-                                        onPress={navPush({
-                                            path: routes.streamablePlay,
-                                            params: {
-                                                streamSourceId: item.stream_source.id,
-                                                streamableId: item.id
-                                            }
-                                        })}
-                                        onLongPress={navPush({
-                                            path: routes.streamablePlay,
-                                            params: {
-                                                streamSourceId: item.stream_source.id,
-                                                streamableId: item.id,
-                                                transcode: true
-                                            }
-                                        })}
-                                    />
-                                )
-                            }} />
-                        }
                         if (searchResult.kind === 'keepsake-directories') {
                             return <C.SnowGrid items={searchResult.items} renderItem={(item) => {
                                 return (

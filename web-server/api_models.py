@@ -29,7 +29,6 @@ class UserAccess(BaseModel):
     user_id: int
     tag_ids: list[int]
     shelf_ids: list[int]
-    stream_source_ids: list[int]
 
 class JobRequest(BaseModel):
     name: Union[

@@ -26,12 +26,6 @@ export default function LandingPage(props) {
         })
     }, [])
 
-    C.React.useEffect(() => {
-        apiClient.getStreamSourceList().then((response) => {
-            setStreamSources(response)
-        })
-    }, [])
-
     if (config.debugVideoUrl) {
         return null
     }

@@ -193,80 +193,6 @@ export class ApiClient {
         return this.get(`/log?transcode_log_path=${logPath}`)
     }
 
-    createStreamSource = (payload) => {
-        return this.post('/stream/source', {
-            url: payload.url,
-            username: payload.username,
-            password: payload.password,
-            kind: payload.kind,
-            name: payload.name,
-        })
-    }
-
-    getStreamSourceList = () => {
-        return this.get(`/stream/source/list`)
-    }
-
-    getStreamSource = (streamSourceId) => {
-        return this.get('/stream/source', { stream_source_id: streamSourceId })
-    }
-
-    saveStreamSource = (payload) => {
-        return this.post('/stream/source', payload, false)
-    }
-
-    deleteStreamSource = (stream_source_id) => {
-        return this.delete(`/stream/source/${stream_source_id}`)
-    }
-
-    saveStreamable = (payload) => {
-        return this.post('/streamable', {
-            id: payload.id,
-            name_display: payload.nameDisplay,
-            group_display: payload.groupDisplay
-        }, false)
-    }
-
-    getChannelGuideSourceList = () => {
-        return this.get('/channel/guide/source/list')
-    }
-
-    getChannelGuideSource = (guideSourceId) => {
-        return this.get(`/channel/guide/source?channel_guide_source_id=${guideSourceId}`)
-    }
-
-    saveChannelGuideSource = (payload) => {
-        return this.post('/channel/guide/source', payload, false)
-    }
-
-    saveChannel = (payload) => {
-        if (payload.editedNumber === '') {
-            payload.editedNumber = null
-        }
-        return this.post('/channel', {
-            id: payload.id,
-            edited_name: payload.editedName,
-            edited_number: payload.editedNumber,
-            edited_id: payload.editedId,
-            streamable_id: payload.streamableId
-        }, false)
-    }
-
-    deleteChannelGuideSource = (channel_guide_source_id) => {
-        return this.delete(`/channel/guide/source/${channel_guide_source_id}`)
-    }
-
-    getStreamable = (streamableId, deviceProfile) => {
-        return this.get('/streamable', {
-            streamable_id: streamableId,
-            device_profile: deviceProfile
-        })
-    }
-
-    getStreamableList = () => {
-        return this.get('/streamable/list')
-    }
-
     saveShelf = (payload) => {
         return this.post('/shelf', payload, false)
     }
@@ -334,7 +260,6 @@ export class ApiClient {
             user_id: payload.userId,
             tag_ids: payload.tagIds,
             shelf_ids: payload.shelfIds,
-            stream_source_ids: payload.streamSourceIds
         }, false)
     }
 

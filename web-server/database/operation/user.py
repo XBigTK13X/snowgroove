@@ -54,7 +54,6 @@ def get_user_by_id(user_id:int):
             .filter(dbi.dm.User.id == user_id)
             .options(dbi.orm.joinedload(dbi.dm.User.access_tags))
             .options(dbi.orm.joinedload(dbi.dm.User.access_shelves))
-            .options(dbi.orm.joinedload(dbi.dm.User.access_stream_sources))
             .first()
         )
 
@@ -87,12 +86,6 @@ def save_user_access(user_access:am.UserAccess):
         user_shelf.user_id = user_access.user_id
         user_shelf.shelf_id = shelf_id
         user_shelves.append({'user_id':user_access.user_id,'shelf_id':shelf_id})
-    user_stream_sources = []
-    for stream_source_id in user_access.stream_source_ids:
-        user_stream_source = dbi.dm.UserStreamSource()
-        user_stream_source.user_id = user_access.user_id
-        user_stream_source.stream_source_id = stream_source_id
-        user_stream_sources.append({'user_id':user_access.user_id,'stream_source_id':stream_source_id})
     with dbi.session() as db:
         db.query(dbi.dm.UserTag).filter(dbi.dm.UserTag.user_id == user_access.user_id).delete()
         db.query(dbi.dm.UserShelf).filter(dbi.dm.UserShelf.user_id == user_access.user_id).delete()
@@ -100,6 +93,5 @@ def save_user_access(user_access:am.UserAccess):
         db.commit()
         db.bulk_insert_mappings(dbi.dm.UserTag, user_tags)
         db.bulk_insert_mappings(dbi.dm.UserShelf, user_shelves)
-        db.bulk_insert_mappings(dbi.dm.UserStreamSource, user_stream_sources)
         db.commit()
     return True

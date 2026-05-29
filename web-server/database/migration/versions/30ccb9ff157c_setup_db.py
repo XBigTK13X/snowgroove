@@ -113,7 +113,7 @@ def user_schema():
             nullable=True,
         ),
         sa.Column(
-            "user_id",
+            "snowgroove_user_id",
             sa.Integer,
             sa.ForeignKey("snowgroove_user.id",ondelete="CASCADE"),
             nullable=True,
@@ -125,10 +125,22 @@ def user_schema():
     op.create_unique_constraint(
         "unique_client_device_user",
         "client_device_user",
-        ["client_device_id","user_id"]
+        ["client_device_id","snowgroove_user_id"]
     )
 
 def audio_schema():
+    op.create_table(
+        'song',
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("created_at", sa.DateTime, nullable=False),
+        sa.Column("updated_at", sa.DateTime, nullable=False),
+        fk("crate.id"),
+        sa.Column("thumbprint", sa.Text, nullable=False),
+        sa.Column("title", sa.Text, nullable=False),
+        sa.Column("year", sa.Float, nullable=True),
+        sa.Column("lyrics", sa.Text, nullable=True),
+    )
+
     op.create_table(
         "audio_file",
         sa.Column("id", sa.Integer, primary_key=True),
@@ -153,18 +165,6 @@ def audio_schema():
     op.create_unique_constraint("unique_audio_file_network_path", "audio_file", ["network_path"])
 
     op.create_table(
-        'song',
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("created_at", sa.DateTime, nullable=False),
-        sa.Column("updated_at", sa.DateTime, nullable=False),
-        fk("crate.id"),
-        sa.Column("thumbprint", sa.Text, nullable=False),
-        sa.Column("title", sa.Text, nullable=False),
-        sa.Column("year", sa.Float, nullable=True),
-        sa.Column("lyrics", sa.Text, nullable=True),
-    )
-
-    op.create_table(
         "album",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("created_at", sa.DateTime, nullable=False),
@@ -181,17 +181,6 @@ def audio_schema():
         sa.Column("updated_at", sa.DateTime, nullable=False),
         sa.Column("name", sa.Text, nullable=False)
     )
-
-    op.create_table(
-        "crate",
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("created_at", sa.DateTime, nullable=False),
-        sa.Column("updated_at", sa.DateTime, nullable=False),
-        sa.Column("directory", sa.Text, nullable=False),
-        sa.Column("parent_crate_id", sa.Integer, sa.ForeignKey("crate.id", ondelete="CASCADE"), nullable=True),
-    )
-
-    op.create_unique_constraint("unique_crate_directory", "crate", ["directory"])
 
 def upgrade() -> None:
     op.execute("CREATE EXTENSION IF NOT EXISTS unaccent")
@@ -256,6 +245,17 @@ def upgrade() -> None:
 
     op.create_unique_constraint("unique_shelf_local_path", "shelf", ["local_path"])
     op.create_unique_constraint("unique_shelf_network_path", "shelf", ["local_path"])
+
+    op.create_table(
+        "crate",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("created_at", sa.DateTime, nullable=False),
+        sa.Column("updated_at", sa.DateTime, nullable=False),
+        sa.Column("directory", sa.Text, nullable=False),
+        sa.Column("parent_crate_id", sa.Integer, sa.ForeignKey("crate.id", ondelete="CASCADE"), nullable=True),
+    )
+
+    op.create_unique_constraint("unique_crate_directory", "crate", ["directory"])
 
     op.create_table(
         "image_file",
