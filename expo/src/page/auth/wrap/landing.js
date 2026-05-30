@@ -46,52 +46,12 @@ export default function LandingPage(props) {
 
     if (shelves) {
         destinations = destinations.concat(shelves.map((shelf) => {
-            if (shelf.kind === 'Movies') {
-                return (
-                    <C.SnowTextButton
-                        title={shelf.name}
-                        onPress={navPush({ path: routes.movieList, params: { shelfId: shelf.id } })}
-                        onLongPress={() => {
-                            apiClient.toggleMovieShelfWatchStatus(shelf.id).then((watched) => {
-                                apiClient.getShelfList().then((response) => {
-                                    setShelves(response)
-                                })
-                            })
-                        }}
-                    />
-                )
-            } else if (shelf.kind === 'Shows') {
-                return (
-                    <C.SnowTextButton
-                        title={shelf.name}
-                        onPress={
-                            navPush({ path: routes.showList, params: { shelfId: shelf.id } })
-                        }
-                        onLongPress={() => {
-                            apiClient.toggleShowShelfWatchStatus(shelf.id).then((watched) => {
-                                apiClient.getShelfList().then((response) => {
-                                    setShelves(response)
-                                })
-                            })
-                        }
-                        }
-                    />
-                )
-            } else if (shelf.kind === 'Keepsakes') {
-                return (
-                    <C.SnowTextButton
-                        title={shelf.name}
-                        onPress={navPush({
-                            path: routes.keepsakeDetails,
-                            params: {
-                                shelfId: shelf.id
-                            }
-                        })}
-                    />
-                )
-            }
-
-            return null
+            return (
+                <C.SnowTextButton
+                    title={shelf.name}
+                    onPress={navPush({ path: routes.crateList, params: { shelfId: shelf.id } })}
+                />
+            )
         }))
     }
 
