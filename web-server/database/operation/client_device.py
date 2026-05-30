@@ -14,23 +14,23 @@ def get_client_device_by_reported_name(device_name:str):
         query = db.query(dbi.dm.ClientDevice)
         return query.filter(dbi.dm.ClientDevice.reported_name == device_name).first()
 
-def create_client_device_user(client_device_id:int,user_id:int):
+def create_client_device_user(client_device_id:int,snowgroove_user_id:int):
     with dbi.session() as db:
         dbm = dbi.dm.ClientDeviceUser()
         dbm.client_device_id = client_device_id
-        dbm.user_id = user_id
+        dbm.snowgroove_user_id = snowgroove_user_id
         dbm.last_connection = dbi.func.now()
         db.add(dbm)
         db.commit()
         db.refresh(dbm)
         return dbm
 
-def get_client_device_user_by_ids(client_device_id:int,user_id:int):
+def get_client_device_user_by_ids(client_device_id:int,snowgroove_user_id:int):
     with dbi.session() as db:
         query = db.query(dbi.dm.ClientDeviceUser)
         return query.filter(
             dbi.dm.ClientDeviceUser.client_device_id == client_device_id,
-            dbi.dm.ClientDeviceUser.user_id == user_id
+            dbi.dm.ClientDeviceUser.snowgroove_user_id == snowgroove_user_id
         ).first()
 
 def get_client_device_user_by_cduid(cduid:int):

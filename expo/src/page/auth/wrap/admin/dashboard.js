@@ -15,8 +15,6 @@ export default function AdminDashboardPage() {
     ]
     const dataButtons = [
         { title: 'Shelves', route: routes.adminShelfList },
-        { title: 'Stream Sources', route: routes.adminStreamSourceList },
-        { title: 'Channel Guides', route: routes.adminChannelGuideSourceList },
         { title: 'Users', route: routes.adminUserList },
         { title: 'Tags', route: routes.adminTagList },
         { title: 'Tag Rules', route: routes.adminTagRuleList },

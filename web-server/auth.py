@@ -119,10 +119,13 @@ def register(router):
             client_device = db.op.create_client_device(device_name=device_name)
         client_device_user = db.op.get_client_device_user_by_ids(
             client_device_id=client_device.id,
-            user_id=user.id
+            snowgroove_user_id=user.id
         )
         if not client_device_user:
-            client_device_user = db.op.create_client_device_user(client_device_id=client_device.id,user_id=user.id)
+            client_device_user = db.op.create_client_device_user(
+                client_device_id=client_device.id,
+                snowgroove_user_id=user.id
+            )
         expiry = {config.jwt_expire_unit: config.jwt_expire_value}
         access_token_expires = timedelta(**expiry)
         user_scopes = []
