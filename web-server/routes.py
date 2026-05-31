@@ -219,9 +219,9 @@ def auth_required(router):
             videos = current_keepsake.video_files
 
             for video in videos:
-                if video.snowstream_info_json:
-                    video.info = json.loads(video.snowstream_info_json)
-                    del video.snowstream_info_json
+                if video.snowgroove_info_json:
+                    video.info = json.loads(video.snowgroove_info_json)
+                    del video.snowgroove_info_json
 
             for image in images:
                 image.name = image.local_path.split('/')[-1]

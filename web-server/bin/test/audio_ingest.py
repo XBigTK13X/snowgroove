@@ -122,3 +122,9 @@ def test_v2_nested_album_split():
     assert song.artist == 'Symphogear'
     assert song.kind == 'Anime'
     assert song.year == 2012
+
+def test_failing_year_parse_anime():
+    song = parse_file('Anime/Yuru Camp/Seize the Day (OP 2) (2021)/005 - Seize The Day -off vocal- - 63286c50f4b38dff1e8e5ff82dfb0b4b.adjusted.mp3')
+    assert song.title == "Seize The Day -off vocal-"
+    assert song.track == 5
+    assert song.year == 2021

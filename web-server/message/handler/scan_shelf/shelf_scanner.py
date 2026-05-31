@@ -37,7 +37,7 @@ class ShelfScanner:
     ):
         self.scope = scope
         self.shelf = shelf
-        self.crate_dirs = []
+        self.crate_paths = []
         self.crate_lookup = {}
         self.file_lookup = {"audio": [], "image": [], "metadata": [], "subtitle": [], "unhandled": []}
         self.file_info_lookup = {
@@ -60,7 +60,7 @@ class ShelfScanner:
             for crate_dir in dirs:
                 crate_path = os.path.join(root,crate_dir)
                 dir_count += 1
-                self.crate_dirs.append(crate_path)
+                self.crate_paths.append(crate_path)
             db.op.update_job(job_id=self.scope.job_id, message=f"Found [{dir_count}] directories to map")
 
             for shelf_file in files:
@@ -78,9 +78,10 @@ class ShelfScanner:
             if progress_count % 500 == 0:
                 db.op.update_job(job_id=self.scope.job_id, message=f'Ingesting item {progress_count} out of {len(self.crate_paths)}')
             try:
-                crate = db.op.get_crate_by_shelf_and_directory(self.shelf.id,crate_path)
+                crate = db.op.get_crate_by_shelf_and_directory(self.shelf.id,crate_path,load_files=False)
                 if not crate:
                     crate = db.op.create_crate(self.shelf.id,crate_path)
+                db.op.update_job(job_id=self.scope.job_id,message=f"Mapped crate for [{crate_path}] to id [{crate.id}]")
                 self.crate_lookup[crate_path] = crate.id
             except Exception as e:
                 db.op.update_job(job_id=self.scope.job_id,message=f"An error occurred while mapping dir to crate [{crate_path}]")
@@ -138,7 +139,7 @@ class ShelfScanner:
                 creator = db.op.get_or_create_metadata_file
             crate_dir = os.path.dirname(local_path)
             dbm = creator(
-                crate_id=self.crate_lookup[crate_dir]
+                crate_id=self.crate_lookup[crate_dir],
                 kind=info["kind"],
                 local_path=local_path
             )

@@ -31,7 +31,7 @@ def parse_song_info(file_path):
         if '(' in album:
             album_pieces = album.split(' (')
             album = album_pieces[0]
-            year = float(album_pieces[1].split(')')[0])
+            year = float(album_pieces[-1].split(')')[0])
         if 'Vol.' in album:
             album_parts = album.split(' - ')
             album_parts.pop(0)

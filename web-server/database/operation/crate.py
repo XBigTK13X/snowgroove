@@ -140,7 +140,7 @@ def get_crate_list(search_query: str):
                 xx.thumbnail_web_path = xx.video_file.thumbnail_web_path
                 xx.name = xx.video_file.name
                 xx.model_kind = 'crate_video'
-                xx.video_file.info = json.loads(xx.video_file.snowstream_info_json)
+                xx.video_file.info = json.loads(xx.video_file.snowgroove_info_json)
 
         return {
             'directories': directories,

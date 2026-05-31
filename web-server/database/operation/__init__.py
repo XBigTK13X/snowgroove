@@ -1,5 +1,6 @@
 from database.operation.cached_text import *
 from database.operation.client_device import *
+from database.operation.crate import *
 from database.operation.display_cleanup_rule import *
 from database.operation.files import *
 from database.operation.image_file import *

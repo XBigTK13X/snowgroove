@@ -1,12 +1,12 @@
 from database.operation.db_internal import dbi
-import snow_media.video
+import snow_media.audio
 import database.operation.crate as db_crate
 
 def create_audio_file(
     crate_id: int,
     kind: str,
     local_path: str,
-    snowstream_info_json: str,
+    snowgroove_info_json: str,
     ffprobe_raw_json:str,
     mediainfo_raw_json:str
     ):
@@ -15,10 +15,7 @@ def create_audio_file(
     if crate.network_path:
         network_path = local_path.replace(crate.local_path,crate.network_path)
     web_path = dbi.config.web_media_url + local_path
-    version = None
     file_name = dbi.os.path.basename(local_path)
-    if '[' in file_name and ']' in file_name:
-        version = file_name.split('[')[-1].split(']')[0]
     with dbi.session() as db:
         dbm = dbi.dm.AudioFile()
         dbm.crate_id = crate_id
@@ -26,10 +23,9 @@ def create_audio_file(
         dbm.web_path = web_path
         dbm.network_path = network_path
         dbm.kind = kind
-        dbm.snowstream_info_json = snowstream_info_json
+        dbm.snowgroove_info_json = snowgroove_info_json
         dbm.ffprobe_raw_json = ffprobe_raw_json
         dbm.mediainfo_raw_json = mediainfo_raw_json
-        dbm.version = version
         dbm.name = dbi.os.path.splitext(file_name)[0]
         db.add(dbm)
         db.commit()
@@ -45,12 +41,12 @@ def get_or_create_audio_file(crate_id: int, kind: str, local_path: str):
     audio_file = get_audio_file_by_path(local_path=local_path)
     if not audio_file:
         try:
-            info = snow_media.video.path_to_info_json(media_path=local_path)
+            info = snow_media.audio.path_to_info_json(media_path=local_path)
             return create_audio_file(
                 crate_id=crate_id,
                 kind=kind,
                 local_path=local_path,
-                snowstream_info_json=info['snowstream_info'],
+                snowgroove_info_json=info['snowstream_info'],
                 ffprobe_raw_json=info['ffprobe_raw'],
                 mediainfo_raw_json=info['mediainfo_raw']
             )
@@ -61,13 +57,13 @@ def get_or_create_audio_file(crate_id: int, kind: str, local_path: str):
 
 def update_audio_file_info(
     audio_file_id:int,
-    snowstream_info_json:str,
+    snowgroove_info_json:str,
     ffprobe_json:str=None,
     mediainfo_json:str=None
 ):
     with dbi.session() as db:
         audio_file = db.query(dbi.dm.AudioFile).filter(dbi.dm.AudioFile.id == audio_file_id).first()
-        audio_file.snowstream_info_json = snowstream_info_json
+        audio_file.snowgroove_info_json = snowgroove_info_json
         if ffprobe_json:
             audio_file.ffprobe_raw_json = ffprobe_json
         if mediainfo_json:
