@@ -57,6 +57,9 @@ def handle(scope:JobMediaScope):
         if not handler.get_files_in_directory():
             results[shelf.name] = False
             continue
+        if not handler.map_directories_to_crates():
+            results[shelf.name] = False
+            continue
         if not handler.ingest_videos():
             results[shelf.name] = False
             continue

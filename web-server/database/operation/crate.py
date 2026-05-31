@@ -1,35 +1,29 @@
 from database.operation.db_internal import dbi
 import json
 
-def create_crate(directory: str):
+def create_crate(shelf_id:int,directory: str):
     with dbi.session() as db:
         dbm = dbi.dm.Crate()
+        dbm.shelf_id = shelf_id
         dbm.directory = directory
         db.add(dbm)
         db.commit()
         db.refresh(dbm)
         return dbm
 
-def add_crate_to_shelf(crate_id: int, shelf_id: int):
-    with dbi.session() as db:
-        dbm = dbi.dm.CrateShelf()
-        dbm.shelf_id = shelf_id
-        dbm.crate_id = crate_id
-        db.add(dbm)
-        db.commit()
-        db.refresh(dbm)
-        return dbm
-
-def get_crate_by_directory(directory:str,load_files:bool=True):
+def get_crate_by_shelf_and_directory(shelf_id:int,directory:str,load_files:bool=True):
     with dbi.session() as db:
         query = (
             db.query(dbi.dm.Crate)
-            .filter(dbi.dm.Crate.directory == directory)
+            .filter(
+                dbi.dm.Crate.shelf_id == shelf_id,
+                dbi.dm.Crate.directory == directory
+            )
         )
         if load_files:
             query = (
                 query
-                .options(dbi.orm.joinedload(dbi.dm.Crate.video_files))
+                .options(dbi.orm.joinedload(dbi.dm.Crate.audio_files))
                 .options(dbi.orm.joinedload(dbi.dm.Crate.image_files))
                 .options(dbi.orm.joinedload(dbi.dm.Crate.shelf))
             )
@@ -40,7 +34,7 @@ def get_crate_by_id(crate_id:int):
         return (
             db.query(dbi.dm.Crate)
             .filter(dbi.dm.Crate.id == crate_id)
-            .options(dbi.orm.joinedload(dbi.dm.Crate.video_files))
+            .options(dbi.orm.joinedload(dbi.dm.Crate.audio_files))
             .options(dbi.orm.joinedload(dbi.dm.Crate.image_files))
             .options(dbi.orm.joinedload(dbi.dm.Crate.shelf))
             .first()
@@ -55,7 +49,7 @@ def get_crate_list_by_directory(directory:str,load_files:bool=True):
         if load_files:
             query = (
                 query
-                .options(dbi.orm.joinedload(dbi.dm.Crate.video_files))
+                .options(dbi.orm.joinedload(dbi.dm.Crate.audio_files))
                 .options(dbi.orm.joinedload(dbi.dm.Crate.image_files))
                 .options(dbi.orm.joinedload(dbi.dm.Crate.shelf))
             )

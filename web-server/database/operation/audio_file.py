@@ -1,19 +1,19 @@
 from database.operation.db_internal import dbi
 import snow_media.video
-import database.operation.shelf as db_shelf
+import database.operation.crate as db_crate
 
 def create_audio_file(
-    shelf_id: int,
+    crate_id: int,
     kind: str,
     local_path: str,
     snowstream_info_json: str,
     ffprobe_raw_json:str,
     mediainfo_raw_json:str
     ):
-    shelf = db_shelf.get_shelf_by_id(shelf_id=shelf_id)
+    crate = db_crate.get_crate_by_id(crate_id=crate_id)
     network_path = ''
-    if shelf.network_path:
-        network_path = local_path.replace(shelf.local_path,shelf.network_path)
+    if crate.network_path:
+        network_path = local_path.replace(crate.local_path,crate.network_path)
     web_path = dbi.config.web_media_url + local_path
     version = None
     file_name = dbi.os.path.basename(local_path)
@@ -21,11 +21,11 @@ def create_audio_file(
         version = file_name.split('[')[-1].split(']')[0]
     with dbi.session() as db:
         dbm = dbi.dm.AudioFile()
+        dbm.crate_id = crate_id
         dbm.local_path = local_path
         dbm.web_path = web_path
         dbm.network_path = network_path
         dbm.kind = kind
-        dbm.shelf_id = shelf_id
         dbm.snowstream_info_json = snowstream_info_json
         dbm.ffprobe_raw_json = ffprobe_raw_json
         dbm.mediainfo_raw_json = mediainfo_raw_json
@@ -41,13 +41,13 @@ def get_audio_file_by_path(local_path: str):
     with dbi.session() as db:
         return db.query(dbi.dm.AudioFile).filter(dbi.dm.AudioFile.local_path == local_path).first()
 
-def get_or_create_audio_file(shelf_id: int, kind: str, local_path: str):
+def get_or_create_audio_file(crate_id: int, kind: str, local_path: str):
     audio_file = get_audio_file_by_path(local_path=local_path)
     if not audio_file:
         try:
             info = snow_media.video.path_to_info_json(media_path=local_path)
             return create_audio_file(
-                shelf_id=shelf_id,
+                crate_id=crate_id,
                 kind=kind,
                 local_path=local_path,
                 snowstream_info_json=info['snowstream_info'],
