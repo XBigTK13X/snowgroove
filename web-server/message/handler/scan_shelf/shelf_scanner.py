@@ -55,19 +55,20 @@ class ShelfScanner:
         scan_directory = self.shelf.local_path if self.target_directory == None else self.target_directory
         db.op.update_job(job_id=self.scope.job_id, message=f"Scanning directory [{scan_directory}]")
         file_count = 0
+        dir_count = 0
         for root, dirs, files in os.walk(scan_directory, followlinks=True):
-            dir_count = 0
             for crate_dir in dirs:
                 crate_path = os.path.join(root,crate_dir)
                 dir_count += 1
                 self.crate_paths.append(crate_path)
-            db.op.update_job(job_id=self.scope.job_id, message=f"Found [{dir_count}] directories to map")
 
             for shelf_file in files:
                 file_path = os.path.join(root, shelf_file)
                 file_count += 1
                 self.file_lookup[get_file_kind(file_path)].append(file_path)
-            db.op.update_job(job_id=self.scope.job_id, message=f"Found [{file_count}] files to process")
+
+        db.op.update_job(job_id=self.scope.job_id, message=f"Found [{dir_count}] directories to map")
+        db.op.update_job(job_id=self.scope.job_id, message=f"Found [{file_count}] files to process")
         return True
 
     def map_directories_to_crates(self):
@@ -81,7 +82,6 @@ class ShelfScanner:
                 crate = db.op.get_crate_by_shelf_and_directory(self.shelf.id,crate_path,load_files=False)
                 if not crate:
                     crate = db.op.create_crate(self.shelf.id,crate_path)
-                db.op.update_job(job_id=self.scope.job_id,message=f"Mapped crate for [{crate_path}] to id [{crate.id}]")
                 self.crate_lookup[crate_path] = crate.id
             except Exception as e:
                 db.op.update_job(job_id=self.scope.job_id,message=f"An error occurred while mapping dir to crate [{crate_path}]")
@@ -99,7 +99,9 @@ class ShelfScanner:
                     db.op.update_job(job_id=self.scope.job_id, message=f"Wasn't able to parse {kind} info for [{media_path}]")
                     continue
                 media_info["kind"] = self.file_kind_identifier(
-                    extension_kind=kind, info=media_info, file_path=media_path
+                    extension_kind=kind,
+                    info=media_info,
+                    file_path=media_path
                 )
                 media_info["file_path"] = media_path
                 parsed_files.append(media_info)
@@ -130,19 +132,27 @@ class ShelfScanner:
             if progress_count % 500 == 0:
                 db.op.update_job(job_id=self.scope.job_id, message=f'Ingesting item {progress_count} out of {len(items)}')
             local_path = info['file_path']
-            creator = None
-            if kind == 'video':
-                creator = db.op.get_or_create_audio_file
-            if kind == 'image':
-                creator = db.op.get_or_create_image_file
-            if kind == 'metadata':
-                creator = db.op.get_or_create_metadata_file
             crate_dir = os.path.dirname(local_path)
-            dbm = creator(
-                crate_id=self.crate_lookup[crate_dir],
-                kind=info["kind"],
-                local_path=local_path
-            )
+            if kind == 'audio':
+                if 'artist' in info:
+                    artist = db.op.get_artist_by_name(name=info['artist'])
+                dbm = db.op.get_or_create_audio_file(
+                    crate_id=self.crate_lookup[crate_dir],
+                    artist_id=artist.id,
+                    file_info=info
+                )
+            if kind == 'image':
+                dbm = db.op.get_or_create_image_file(
+                    crate_id=self.crate_lookup[crate_dir],
+                    kind=info["kind"],
+                    local_path=local_path
+                )
+            if kind == 'metadata':
+                dbm = db.op.get_or_create_metadata_file(
+                    crate_id=self.crate_lookup[crate_dir],
+                    kind=info["kind"],
+                    local_path=local_path
+                )
             if not dbm:
                 db.op.update_job(job_id=self.scope.job_id,message=f"Unable to create content for [{local_path}]")
                 return False

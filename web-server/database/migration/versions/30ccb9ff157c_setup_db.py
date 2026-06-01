@@ -130,41 +130,6 @@ def user_schema():
 
 def audio_schema():
     op.create_table(
-        'song',
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("created_at", sa.DateTime, nullable=False),
-        sa.Column("updated_at", sa.DateTime, nullable=False),
-        fk("crate.id"),
-        sa.Column("thumbprint", sa.Text, nullable=False),
-        sa.Column("title", sa.Text, nullable=False),
-        sa.Column("year", sa.Float, nullable=True),
-        sa.Column("lyrics", sa.Text, nullable=True),
-    )
-
-    op.create_table(
-        "audio_file",
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("created_at", sa.DateTime, nullable=False),
-        sa.Column("updated_at", sa.DateTime, nullable=False),
-        fk("song.id"),
-        sa.Column("thumbprint", sa.Text, nullable=False),
-        sa.Column("kind", sa.Text, nullable=False),
-        sa.Column("local_path", sa.Text, nullable=False),
-        sa.Column("web_path", sa.Text, nullable=False),
-        sa.Column("network_path", sa.Text, nullable=False),
-        sa.Column('snowgroove_info_json', sa.Text),
-        sa.Column('ffprobe_raw_json', sa.Text),
-        sa.Column('mediainfo_raw_json', sa.Text),
-        sa.Column('thumbnail_web_path', sa.Text),
-        sa.Column("name", sa.Text, nullable=False),
-        sa.Column("duration", sa.Float, nullable=False)
-    )
-
-    op.create_unique_constraint("unique_audio_file_local_path", "audio_file", ["local_path"])
-    op.create_unique_constraint("unique_audio_file_web_path", "audio_file", ["web_path"])
-    op.create_unique_constraint("unique_audio_file_network_path", "audio_file", ["network_path"])
-
-    op.create_table(
         "album",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("created_at", sa.DateTime, nullable=False),
@@ -173,6 +138,37 @@ def audio_schema():
         sa.Column("name", sa.Text, nullable=False),
         sa.Column("year", sa.Text, nullable=True),
     )
+
+    op.create_table(
+        "audio_file",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("created_at", sa.DateTime, nullable=False),
+        sa.Column("updated_at", sa.DateTime, nullable=False),
+        fk("crate.id"),
+        fk("album.id",nullable=True),
+        sa.Column("disc", sa.Text, nullable=True),
+        sa.Column("duration", sa.Float, nullable=False),
+        sa.Column("ffprobe_raw_json", sa.Text),
+        sa.Column("id", sa.Text, nullable=True),
+        sa.Column("kind", sa.Text, nullable=False),
+        sa.Column("local_path", sa.Text, nullable=False),
+        sa.Column("lyrics", sa.Text, nullable=True),
+        sa.Column("mediainfo_raw_json", sa.Text),
+        sa.Column("network_path", sa.Text, nullable=False),
+        sa.Column("path", sa.Text, nullable=True),
+        sa.Column("position", sa.Text, nullable=True),
+        sa.Column("snowgroove_info_json", sa.Text),
+        sa.Column("thumbnail_web_path", sa.Text),
+        sa.Column("thumbprint", sa.Text, nullable=False),
+        sa.Column("title", sa.Text, nullable=False)
+        sa.Column("track", sa.Text, nullable=True),
+        sa.Column("web_path", sa.Text, nullable=False),
+        sa.Column("year", sa.Float, nullable=True)
+    )
+
+    op.create_unique_constraint("unique_audio_file_local_path", "audio_file", ["local_path"])
+    op.create_unique_constraint("unique_audio_file_web_path", "audio_file", ["web_path"])
+    op.create_unique_constraint("unique_audio_file_network_path", "audio_file", ["network_path"])
 
     op.create_table(
         "artist",

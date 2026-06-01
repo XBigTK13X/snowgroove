@@ -164,7 +164,6 @@ class Job(BaseModel):
 class Tag(BaseModel):
     __tablename__ = "tag"
     name = sa.Column(sa.Text)
-    songs: orm.Mapped[List["Song"]] = orm.relationship(secondary="song_tag",back_populates="tags")
     albums: orm.Mapped[List["Album"]] = orm.relationship(secondary="album_tag",back_populates="tags")
     artists: orm.Mapped[List["Artist"]] = orm.relationship(secondary="artist_tag",back_populates="tags")
     crates: orm.Mapped[List["Crate"]] = orm.relationship(secondary="crate_tag",back_populates="tags")
@@ -200,8 +199,8 @@ class AudioFile(BaseModel):
     def init_on_load(self):
         self.model_kind = 'audio_file'
     __tablename__ = "audio_file"
-    song_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("song.id"))
-    song: orm.Mapped["Song"] = orm.relationship()
+    crate_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("crate.id"))
+    crate: orm.Mapped["Crate"] = orm.relationship()
     kind = sa.Column(sa.Text)
     local_path = sa.Column(sa.Text)
     web_path = sa.Column(sa.Text)
@@ -209,8 +208,10 @@ class AudioFile(BaseModel):
     snowgroove_info_json = sa.Column(sa.Text)
     ffprobe_raw_json = sa.Column(sa.Text)
     mediainfo_raw_json = sa.Column(sa.Text)
-    name = sa.Column(sa.Text)
+    title = sa.Column(sa.Text)
     thumbnail_web_path = sa.Column(sa.Text)
+    year = sa.Column(sa.Integer)
+    lyrics = sa.Column(sa.Text)
 
 class Shelf(BaseModel):
     @orm.reconstructor
@@ -230,7 +231,7 @@ class Crate(BaseModel):
     __tablename__ = "crate"
     directory = sa.Column(sa.Text)
     albums: orm.Mapped[List["Album"]] = orm.relationship(back_populates="crate")
-    songs: orm.Mapped[List["Song"]] = orm.relationship(back_populates="crate")
+    audio_files: orm.Mapped[List["AudioFile"]] = orm.relationship(back_populates="crate")
     image_files: orm.Mapped[List["ImageFile"]] = orm.relationship(back_populates="crate")
     shelf_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("shelf.id"))
     shelf: orm.Mapped["Shelf"] = orm.relationship(back_populates="crates")
@@ -254,25 +255,6 @@ class Album(BaseModel):
     name = sa.Column(sa.Text)
     year = sa.Column(sa.Text)
     tags: orm.Mapped[List["Tag"]] = orm.relationship(secondary="album_tag",back_populates="albums")
-
-class Song(BaseModel):
-    @orm.reconstructor
-    def init_on_load(self):
-        self.model_kind = 'song'
-    __tablename__ = "song"
-    crate_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("crate.id"))
-    crate: orm.Mapped["Crate"] = orm.relationship(back_populates="songs")
-    name = sa.Column(sa.Text)
-    thumbprint = sa.Column(sa.Text)
-    release_year = sa.Column(sa.Integer)
-    lyrics = sa.Column(sa.Text)
-    audio_files: orm.Mapped["AudioFile"] = orm.relationship(back_populates="song")
-    tags: orm.Mapped[List["Tag"]] = orm.relationship(secondary="song_tag",back_populates="songs")
-
-class SongTag(BaseModel):
-    __tablename__ = "song_tag"
-    song_id = sa.Column(sa.Integer, sa.ForeignKey("song.id"))
-    tag_id = sa.Column(sa.Integer, sa.ForeignKey("tag.id"))
 
 class AlbumTag(BaseModel):
     __tablename__ = "album_tag"

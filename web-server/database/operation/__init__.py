@@ -1,3 +1,4 @@
+from database.operation.audio_file import *
 from database.operation.cached_text import *
 from database.operation.client_device import *
 from database.operation.crate import *
