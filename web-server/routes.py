@@ -206,11 +206,15 @@ def auth_required(router):
     ):
         shelf = db.op.get_shelf_by_id(shelf_id=shelf_id)
         if crate_id == None:
-            crate = db.op.get_crate_by_shelf_id(shelf_id=shelf_id)
+            return {
+                'kind': 'crate-list',
+                'items': db.op.get_crate_list_by_shelf_id(shelf_id=shelf_id)
+            }
         else:
-            crate = db.op.get_crate_by_id(crate_id=crate_id)
-
-        return crate
+            return {
+                'kind': 'crate-details',
+                'item': db.op.get_crate_by_id(crate_id=crate_id)
+            }
 
     @router.get("/device/profile/list",tags=['User'])
     def get_device_profile_list(

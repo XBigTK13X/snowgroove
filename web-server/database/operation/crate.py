@@ -65,7 +65,7 @@ def get_crate_by_shelf_and_directory(shelf_id:int,directory:str,load_files:bool=
             )
         return query.first()
 
-def get_crate_by_shelf_id(shelf_id:int):
+def get_crate_list_by_shelf_id(shelf_id:int):
     with dbi.session() as db:
         return (
             db.query(dbi.dm.Crate)
@@ -74,22 +74,24 @@ def get_crate_by_shelf_id(shelf_id:int):
             .options(dbi.orm.joinedload(dbi.dm.Crate.image_files))
             .options(dbi.orm.joinedload(dbi.dm.Crate.metadata_files))
             .options(dbi.orm.joinedload(dbi.dm.Crate.shelf))
-            .options(dbi.orm.joinedload(dbi.dm.Crate.children))
-            .first()
+            .all()
         )
 
 def get_crate_by_id(crate_id:int):
     with dbi.session() as db:
-        return (
+        crate = (
             db.query(dbi.dm.Crate)
             .filter(dbi.dm.Crate.id == crate_id)
             .options(dbi.orm.joinedload(dbi.dm.Crate.audio_files))
             .options(dbi.orm.joinedload(dbi.dm.Crate.image_files))
             .options(dbi.orm.joinedload(dbi.dm.Crate.metadata_files))
             .options(dbi.orm.joinedload(dbi.dm.Crate.shelf))
-            .options(dbi.orm.joinedload(dbi.dm.Crate.children))
+            .options(dbi.orm.selectinload(dbi.dm.Crate.children))
             .first()
         )
+        if crate:
+            crate.children.sort(key=lambda xx: xx.title)
+        return crate
 
 def get_crate_list_by_directory(directory:str,load_files:bool=True):
     with dbi.session() as db:

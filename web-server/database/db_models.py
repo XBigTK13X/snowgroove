@@ -241,6 +241,7 @@ class Crate(BaseModel):
     shelf_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("shelf.id"))
     shelf: orm.Mapped["Shelf"] = orm.relationship(back_populates="crates")
     directory = sa.Column(sa.Text)
+    title = sa.Column(sa.Text)
     parent_crate_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("crate.id"), nullable=True)
     parent: orm.Mapped["Crate"] = orm.relationship("Crate", remote_side="Crate.id", back_populates="children")
     children: orm.Mapped[List["Crate"]] = orm.relationship("Crate", back_populates="parent")
