@@ -198,22 +198,33 @@ def auth_required(router):
             return None
         return db.delete_tag_by_id(tag_id=tag_id)
 
+    def model_to_dict(model_instance):
+        if model_instance is None:
+            return None
+
+        result = {}
+        for column in model_instance.__table__.columns:
+            result[column.name] = getattr(model_instance, column.name)
+
+        return result
+
     @router.get('/crate')
     def get_crate(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
         shelf_id:str = None,
         crate_id:str = None
     ):
-        shelf = db.op.get_shelf_by_id(shelf_id=shelf_id)
         if crate_id == None:
             return {
                 'kind': 'crate-list',
                 'items': db.op.get_crate_list_by_shelf_id(shelf_id=shelf_id)
             }
         else:
+            crate = db.op.get_crate_by_id(crate_id=crate_id)
+            # Serialize manually, otherwise FastAPI triggers an infinite recurse
             return {
                 'kind': 'crate-details',
-                'item': db.op.get_crate_by_id(crate_id=crate_id)
+                'item': crate
             }
 
     @router.get("/device/profile/list",tags=['User'])

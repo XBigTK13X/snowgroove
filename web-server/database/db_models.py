@@ -13,21 +13,10 @@ BaseModel.created_at = Column(DateTime, default=func.now())
 BaseModel.updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
 def set_primary_images(model):
-    model.screencap_image = None
-    model.poster_image = None
-    screencap_is_meta = False
-    poster_is_meta = False
+    model.album_cover_image_url = None
     if not model.image_files:
         return model
-    for image_file in model.image_files:
-        if not model.poster_image or poster_is_meta:
-            if 'poster' in image_file.kind:
-                model.poster_image = image_file
-                poster_is_meta = '/metadata/' in image_file.local_path
-        if not model.screencap_image or screencap_is_meta:
-            if 'screencap' in image_file.kind:
-                model.screencap_image = image_file
-                screencap_is_meta = '/metadata/' in image_file.local_path
+    model.album_cover_image_url = model.image_files[0].thumbnail_web_path
     return model
 
 class User(BaseModel):
