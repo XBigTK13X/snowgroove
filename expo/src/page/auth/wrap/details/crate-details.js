@@ -1,4 +1,4 @@
-import { C, useAppContext } from 'snowgroove'
+import { C, useAppContext, useAudioContext } from 'snowgroove'
 
 export default function CrateDetailsPage(props) {
     const {
@@ -7,6 +7,7 @@ export default function CrateDetailsPage(props) {
     } = C.useSnowContext(props)
 
 
+    const { playTrack } = useAudioContext()
     const { apiClient, routes, isAdmin } = useAppContext()
     const [crateList, setCrateList] = C.React.useState(null)
     const [crateDetails, setCrateDetails] = C.React.useState(null)
@@ -69,7 +70,7 @@ export default function CrateDetailsPage(props) {
         audioFiles = (
             <C.SnowGrid items={crateDetails?.audio_files} renderItem={(audio_file) => {
                 return <C.SnowTextButton title={audio_file.title} onPress={() => {
-                    console.log(`Playing audio file [${audio_file.local_path}]`)
+                    playTrack("http://192.168.100.110:5050/music/Game%20A-Z/S/Stardew%20Valley%20(2018)/D02T005%20-%20Stardew%20Valley%20Fair%20Theme%20-%201a698d4347fbfc8ae04de39acf9620cc.adjusted.mp3")
                 }} />
             }} />
         )

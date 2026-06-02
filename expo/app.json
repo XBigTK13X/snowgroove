@@ -29,6 +29,13 @@
         }
       ],
       [
+        "expo-av",
+        {
+          "microphonePermission": false,
+          "playsInSilentModeIOS": true
+        }
+      ],
+      [
         "@sentry/react-native/expo",
         {
           "url": "https://bugsink.9914.us",
@@ -49,7 +56,10 @@
       "package": "com.simplepathstudios.snowgroove",
       "edgeToEdgeEnabled": true,
       "backgroundColor": "#000000",
-      "versionCode": 1
+      "versionCode": 1,
+      "permissions": [
+        "BACKGROUND_AUDIO"
+      ]
     },
     "ios": {
       "bundleIdentifier": "com.simplepathstudios.snowgroove"

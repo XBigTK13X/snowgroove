@@ -3,6 +3,7 @@ import React from 'react'
 import Snow from 'expo-snowui'
 import {
     config,
+    AudioContextProvider,
     AppContextProvider,
     useAppContext,
 } from 'snowgroove'
@@ -55,11 +56,13 @@ export default function PageLoader() {
             routePages={pages}
             initialRoutePath={routes.signIn}
         >
-            <AppContextProvider>
-                <Snow.View style={{ flex: 1, paddingBottom: 50 }}>
-                    <PageWrapper />
-                </Snow.View>
-            </AppContextProvider >
+            <AudioContextProvider>
+                <AppContextProvider>
+                    <Snow.View style={{ flex: 1, paddingBottom: 50 }}>
+                        <PageWrapper />
+                    </Snow.View>
+                </AppContextProvider >
+            </AudioContextProvider>
         </SnowApp>
     )
 }

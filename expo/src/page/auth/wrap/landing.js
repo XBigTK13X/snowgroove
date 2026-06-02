@@ -70,6 +70,8 @@ export default function LandingPage(props) {
     if (destinations) {
         return (
             <>
+                <C.SnowText center>Now Playing:[unknown]</C.SnowText>
+                <C.SnowBreak />
                 <C.SnowGrid
                     focusStart
                     focusKey="destinations"
