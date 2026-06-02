@@ -198,72 +198,19 @@ def auth_required(router):
             return None
         return db.delete_tag_by_id(tag_id=tag_id)
 
-    @router.get('/keepsake')
-    def get_keepsake(
+    @router.get('/crate')
+    def get_crate(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
         shelf_id:str = None,
-        subdirectory64:str = None
+        crate_id:str = None
     ):
         shelf = db.op.get_shelf_by_id(shelf_id=shelf_id)
-        absolute_subdirectory = shelf.local_path
-        if subdirectory64:
-            absolute_subdirectory = util.fromBase64(subdirectory64)
+        if crate_id == None:
+            crate = db.op.get_crate_by_shelf_id(shelf_id=shelf_id)
+        else:
+            crate = db.op.get_crate_by_id(crate_id=crate_id)
 
-        current_keepsake = db.op.get_keepsake_by_directory(directory=absolute_subdirectory)
-
-        images = []
-        videos = []
-
-        if current_keepsake:
-            images = current_keepsake.image_files
-            videos = current_keepsake.video_files
-
-            for video in videos:
-                if video.snowgroove_info_json:
-                    video.info = json.loads(video.snowgroove_info_json)
-                    del video.snowgroove_info_json
-
-            for image in images:
-                image.name = image.local_path.split('/')[-1]
-
-            videos.sort(key=lambda xx: xx.name)
-            images.sort(key=lambda xx: xx.name)
-
-        raw_paths = db.op.get_keepsake_subdirectories(directory=absolute_subdirectory)
-
-        directories = []
-        directory_dedupe = {}
-
-        for row in raw_paths:
-            full_path = row[0]
-
-            if full_path == absolute_subdirectory:
-                continue
-
-            dir_name = full_path.replace(absolute_subdirectory, '')
-            parts = dir_name.split('/')
-
-            subdir = None
-            for part in parts:
-                if part:
-                    subdir = part
-                    break
-
-            if subdir and subdir not in directory_dedupe:
-                directory_dedupe[subdir] = True
-                directories.append({
-                    'display': subdir,
-                    'path': os.path.join(absolute_subdirectory, subdir)
-                })
-
-        directories.sort(key=lambda xx: xx['display'])
-
-        return {
-            'videos': videos,
-            'images': images,
-            'directories': directories,
-            'shelf': shelf
-        }
+        return crate
 
     @router.get("/device/profile/list",tags=['User'])
     def get_device_profile_list(

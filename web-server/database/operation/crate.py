@@ -1,15 +1,49 @@
 from database.operation.db_internal import dbi
-import json
+import database.operation.shelf as db_shelf
 
-def create_crate(shelf_id:int,directory: str):
+def create_crate(shelf_id: int, directory: str):
     with dbi.session() as db:
-        dbm = dbi.dm.Crate()
-        dbm.shelf_id = shelf_id
-        dbm.directory = directory
-        db.add(dbm)
-        db.commit()
-        db.refresh(dbm)
-        return dbm
+        shelf = db_shelf.get_shelf_by_id(shelf_id=shelf_id)
+        relative_directory = directory.replace(shelf.local_path, "")
+
+        path_parts = relative_directory.strip("/").split("/")
+
+        current_relative_path = ""
+        parent_id = None
+        last_crate = None
+
+        for part in path_parts:
+            if not part:
+                continue
+
+            current_relative_path = dbi.os.path.join(current_relative_path, part)
+
+            existing_crate = db.query(dbi.dm.Crate).filter_by(
+                shelf_id=shelf_id,
+                directory=current_relative_path
+            ).first()
+
+            if existing_crate:
+                last_crate = existing_crate
+                parent_id = existing_crate.id
+                continue
+
+            dbm = dbi.dm.Crate()
+            dbm.shelf_id = shelf_id
+            dbm.directory = current_relative_path
+            dbm.title = part
+
+            if parent_id is not None:
+                dbm.parent_crate_id = parent_id
+
+            db.add(dbm)
+            db.commit()
+            db.refresh(dbm)
+
+            parent_id = dbm.id
+            last_crate = dbm
+
+        return last_crate
 
 def get_crate_by_shelf_and_directory(shelf_id:int,directory:str,load_files:bool=True):
     with dbi.session() as db:
@@ -25,9 +59,24 @@ def get_crate_by_shelf_and_directory(shelf_id:int,directory:str,load_files:bool=
                 query
                 .options(dbi.orm.joinedload(dbi.dm.Crate.audio_files))
                 .options(dbi.orm.joinedload(dbi.dm.Crate.image_files))
+                .options(dbi.orm.joinedload(dbi.dm.Crate.image_files))
                 .options(dbi.orm.joinedload(dbi.dm.Crate.shelf))
+                .options(dbi.orm.joinedload(dbi.dm.Crate.children))
             )
         return query.first()
+
+def get_crate_by_shelf_id(shelf_id:int):
+    with dbi.session() as db:
+        return (
+            db.query(dbi.dm.Crate)
+            .filter(dbi.dm.Crate.shelf_id == shelf_id,dbi.dm.Crate.parent_crate_id == None)
+            .options(dbi.orm.joinedload(dbi.dm.Crate.audio_files))
+            .options(dbi.orm.joinedload(dbi.dm.Crate.image_files))
+            .options(dbi.orm.joinedload(dbi.dm.Crate.metadata_files))
+            .options(dbi.orm.joinedload(dbi.dm.Crate.shelf))
+            .options(dbi.orm.joinedload(dbi.dm.Crate.children))
+            .first()
+        )
 
 def get_crate_by_id(crate_id:int):
     with dbi.session() as db:
@@ -36,7 +85,9 @@ def get_crate_by_id(crate_id:int):
             .filter(dbi.dm.Crate.id == crate_id)
             .options(dbi.orm.joinedload(dbi.dm.Crate.audio_files))
             .options(dbi.orm.joinedload(dbi.dm.Crate.image_files))
+            .options(dbi.orm.joinedload(dbi.dm.Crate.metadata_files))
             .options(dbi.orm.joinedload(dbi.dm.Crate.shelf))
+            .options(dbi.orm.joinedload(dbi.dm.Crate.children))
             .first()
         )
 
@@ -64,44 +115,6 @@ def get_crate_subdirectories(directory: str):
             db.query(dbi.dm.Crate.directory)
             .filter(dbi.dm.Crate.directory.contains(directory))
             .all()
-        )
-
-def create_crate_video_file(crate_id: int, video_file_id: int):
-    with dbi.session() as db:
-        dbm = dbi.dm.CrateVideoFile()
-        dbm.crate_id = crate_id
-        dbm.video_file_id = video_file_id
-        db.add(dbm)
-        db.commit()
-        db.refresh(dbm)
-        return dbm
-
-def get_crate_video_file(crate_id: int, video_file_id: int):
-    with dbi.session() as db:
-        return (
-            db.query(dbi.dm.CrateVideoFile)
-            .filter(dbi.dm.CrateVideoFile.crate_id == crate_id)
-            .filter(dbi.dm.CrateVideoFile.video_file_id == video_file_id)
-            .first()
-        )
-
-def create_crate_image_file(crate_id: int, image_file_id: int):
-    with dbi.session() as db:
-        dbm = dbi.dm.CrateImageFile()
-        dbm.crate_id = crate_id
-        dbm.image_file_id = image_file_id
-        db.add(dbm)
-        db.commit()
-        db.refresh(dbm)
-        return dbm
-
-def get_crate_image_file(crate_id: int, image_file_id: int):
-    with dbi.session() as db:
-        return (
-            db.query(dbi.dm.CrateImageFile)
-            .filter(dbi.dm.CrateImageFile.crate_id == crate_id)
-            .filter(dbi.dm.CrateImageFile.image_file_id == image_file_id)
-            .first()
         )
 
 def get_crate_list(search_query: str):
@@ -134,13 +147,6 @@ def get_crate_list(search_query: str):
         if directories:
             for xx in directories:
                 xx.display = xx.directory.replace(xx.shelf.local_path+'/','')
-
-        if videos:
-            for xx in videos:
-                xx.thumbnail_web_path = xx.video_file.thumbnail_web_path
-                xx.name = xx.video_file.name
-                xx.model_kind = 'crate_video'
-                xx.video_file.info = json.loads(xx.video_file.snowgroove_info_json)
 
         return {
             'directories': directories,

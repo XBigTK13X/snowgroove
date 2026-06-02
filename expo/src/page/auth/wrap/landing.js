@@ -49,7 +49,7 @@ export default function LandingPage(props) {
             return (
                 <C.SnowTextButton
                     title={shelf.name}
-                    onPress={navPush({ path: routes.crateList, params: { shelfId: shelf.id } })}
+                    onPress={navPush({ path: routes.crateDetails, params: { shelfId: shelf.id } })}
                 />
             )
         }))

@@ -14,7 +14,7 @@ export var routes = {
     continueWatching: '/auth/wrap/list/continue-watching',
     episodeDetails: '/auth/wrap/details/episode',
     episodeList: '/auth/wrap/list/episode',
-    keepsakeDetails: '/auth/wrap/details/keepsake',
+    crateDetails: '/auth/wrap/details/crate',
     movieDetails: '/auth/wrap/details/movie',
     movieList: '/auth/wrap/list/movie',
     options: '/auth/wrap/options',

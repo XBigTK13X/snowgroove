@@ -188,6 +188,7 @@ class MetadataFile(BaseModel):
         self.model_kind = 'metadata_file'
     __tablename__ = "metadata_file"
     crate_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("crate.id"))
+    crate: orm.Mapped["Crate"] = orm.relationship(back_populates="metadata_files")
     kind = sa.Column(sa.Text)
     local_path = sa.Column(sa.Text)
     web_path = sa.Column(sa.Text)
@@ -237,13 +238,17 @@ class Crate(BaseModel):
     def init_on_load(self):
         self.model_kind = 'crate'
     __tablename__ = "crate"
+    shelf_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("shelf.id"))
+    shelf: orm.Mapped["Shelf"] = orm.relationship(back_populates="crates")
     directory = sa.Column(sa.Text)
+    parent_crate_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("crate.id"), nullable=True)
+    parent: orm.Mapped["Crate"] = orm.relationship("Crate", remote_side="Crate.id", back_populates="children")
+    children: orm.Mapped[List["Crate"]] = orm.relationship("Crate", back_populates="parent")
     albums: orm.Mapped[List["Album"]] = orm.relationship(back_populates="crate")
     artists: orm.Mapped[List["Artist"]] = orm.relationship(secondary="crate_artist",back_populates="crates")
     audio_files: orm.Mapped[List["AudioFile"]] = orm.relationship(back_populates="crate")
     image_files: orm.Mapped[List["ImageFile"]] = orm.relationship(back_populates="crate")
-    shelf_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("shelf.id"))
-    shelf: orm.Mapped["Shelf"] = orm.relationship(back_populates="crates")
+    metadata_files: orm.Mapped[List["MetadataFile"]] = orm.relationship(back_populates="crate")
     tags: orm.Mapped[List["Tag"]] = orm.relationship(secondary="crate_tag",back_populates="crates")
 
 class Artist(BaseModel):

@@ -283,54 +283,6 @@ export class ApiClient {
         return this.get('/device/profile/list')
     }
 
-    setShelfWatchStatus = (shelfId, watched) => {
-        return this.post('/watch/status', { shelf_id: shelfId, status: watched })
-    }
-
-    toggleMovieShelfWatchStatus = (shelfId) => {
-        return this.post(`/shelf/watched/toggle?movie_shelf_id=${shelfId}`)
-    }
-
-    toggleShowShelfWatchStatus = (shelfId) => {
-        return this.post(`/shelf/watched/toggle?show_shelf_id=${shelfId}`)
-    }
-
-    toggleMovieWatchStatus = (movieId) => {
-        return this.post(`/movie/watched/toggle?movie_id=${movieId}`)
-    }
-
-    toggleShowWatchStatus = (showId) => {
-        return this.post(`/show/watched/toggle?show_id=${showId}`)
-    }
-
-    toggleSeasonWatchStatus = (seasonId) => {
-        return this.post(`/show/season/watched/toggle?season_id=${seasonId}`)
-    }
-
-    toggleEpisodeWatchStatus = (episodeId) => {
-        return this.post(`/show/season/episode/watched/toggle?episode_id=${episodeId}`)
-    }
-
-    setEpisodeWatchProgress = (episodeId, playedSeconds, durationSeconds) => {
-        return this.post(`/show/season/episode/progress`, {
-            show_episode_id: episodeId,
-            played_seconds: playedSeconds,
-            duration_seconds: durationSeconds
-        })
-    }
-
-    setMovieWatchProgress = (movieId, playedSeconds, durationSeconds) => {
-        return this.post(`/movie/progress`, {
-            movie_id: movieId,
-            played_seconds: playedSeconds,
-            duration_seconds: durationSeconds
-        })
-    }
-
-    getContinueWatchingList = () => {
-        return this.get('/continue/watching')
-    }
-
     search = (query) => {
         return this.get('/search', { query })
     }
@@ -343,89 +295,16 @@ export class ApiClient {
         return this.get('/playlist', { tag_id: tagId })
     }
 
-    getPlayingQueue = (details) => {
-        if (details.showId) {
-            return this.get(`/playing/queue?shelf_id=${details.shelfId}&show_id=${details.showId}&shuffle=${!!details.shuffle}`)
-        }
-        else if (details.seasonId) {
-            return this.get(`/playing/queue?shelf_id=${details.shelfId}&show_season_id=${details.seasonId}&shuffle=${!!details.shuffle}`)
-        }
-        else if (details.tagId) {
-            return this.get(`/playing/queue?tag_id=${details.tagId}&shuffle=${!!details.shuffle}`)
-        }
-        else if (details.source) {
-            return this.get(`/playing/queue?source=${details.source}`)
-        }
-        else {
-            util.log("Unhandled playing queue")
-            util.log({ details })
-        }
-    }
-
-    updatePlayingQueue = (source, progress) => {
-        return this.post(`/playing/queue?source=${source}&progress=${progress}`)
-    }
-
-    increaseShowEpisodeWatchCount = (episodeId) => {
-        return this.post(`/show/season/episode/watch_count?show_episode_id=${episodeId}`)
-    }
-
-    increaseMovieWatchCount = (movieId) => {
-        return this.post(`/movie/watch_count?movie_id=${movieId}`)
-    }
-
-    getKeepsake = (shelfId, subdirectory64) => {
-        let url = `/keepsake?shelf_id=${shelfId}`
-        if (subdirectory64) {
-            url += `&subdirectory64=${subdirectory64}`
+    getCrate = (shelfId, crateId) => {
+        let url = `/crate?shelf_id=${shelfId}`
+        if (crateId) {
+            url += `&crate_id=${crateId}`
         }
         return this.get(url)
     }
 
     getSessionList = () => {
         return this.get('/session/list')
-    }
-
-    toggleItemWatched = (item) => {
-        if (item.model_kind === 'movie') {
-            return this.toggleMovieWatchStatus(item.id)
-        }
-        else if (item.model_kind === 'show') {
-            return this.toggleShowWatchStatus(item.id)
-        }
-        else if (item.model_kind === 'show_season') {
-            return this.toggleSeasonWatchStatus(item.id)
-        }
-        else if (item.model_kind === 'show_episode') {
-            return this.toggleEpisodeWatchStatus(item.id)
-        }
-    }
-
-    setItemWatchedStatus = (item, isWatched) => {
-        if (item.model_kind === 'movie') {
-            return this.post(`/movie/watched?movie_id=${item.id}&is_watched=${isWatched}`)
-        }
-        else if (item.model_kind === 'show') {
-            return this.post(`/show/watched?show_id=${item.id}&is_watched=${isWatched}`)
-        }
-        else if (item.model_kind === 'show_season') {
-            return this.post(`/show/season/watched?season_id=${item.id}&is_watched=${isWatched}`)
-        }
-        else if (item.model_kind === 'show_episode') {
-            return this.post(`/show/season/episode/watched?episode_id=${item.id}&is_watched=${isWatched}`)
-        }
-    }
-
-    setItemWatched = (item) => {
-        return this.setItemWatchedStatus(item, true)
-    }
-
-    setItemUnwatched = (item) => {
-        return this.setItemWatchedStatus(item, false)
-    }
-
-    savePlaybackLogs = (logs) => {
-        return this.post('/log/playback', { logs })
     }
 
     deleteAllCachedText = () => {
@@ -463,7 +342,6 @@ export class ApiClient {
     deleteTagRule = (ruleId) => {
         return this.delete(`/tag-rule?rule_id=${ruleId}`)
     }
-
 
     debug = () => {
         util.log({ baseURL: this.baseURL, authToken: this.authToken })

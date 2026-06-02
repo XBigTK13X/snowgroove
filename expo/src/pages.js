@@ -7,7 +7,7 @@ import InfoPage from './page/auth/wrap/info'
 import ContinueWatchingPage from './page/auth/wrap/list/continue-watching'
 import EpisodeDetailsPage from './page/auth/wrap/details/episode'
 import EpisodeListPage from './page/auth/wrap/list/episode'
-import KeepsakeDetailsPage from './page/auth/wrap/details/keepsake'
+import CrateDetailsPage from './page/auth/wrap/details/crate-details'
 import MovieDetailsPage from './page/auth/wrap/details/movie'
 import MovieListPage from './page/auth/wrap/list/movie'
 import OptionsPage from './page/auth/wrap/options'
@@ -51,7 +51,7 @@ export var pages = {
     [routes.continueWatching]: ContinueWatchingPage,
     [routes.episodeDetails]: EpisodeDetailsPage,
     [routes.episodeList]: EpisodeListPage,
-    [routes.keepsakeDetails]: KeepsakeDetailsPage,
+    [routes.crateDetails]: CrateDetailsPage,
     [routes.movieDetails]: MovieDetailsPage,
     [routes.movieList]: MovieListPage,
     [routes.options]: OptionsPage,

@@ -54,7 +54,7 @@ export default function SearchPage() {
                             return <C.SnowGrid items={searchResult.items} renderItem={(item) => {
                                 return (
                                     <C.SnowTextButton title={item.display} onPress={navPush({
-                                        path: routes.keepsakeDetails,
+                                        path: routes.crateDetails,
                                         params: {
                                             shelfId: item.shelf.id
                                         }
