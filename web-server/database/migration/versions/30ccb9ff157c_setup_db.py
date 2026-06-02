@@ -145,11 +145,11 @@ def audio_schema():
         sa.Column("created_at", sa.DateTime, nullable=False),
         sa.Column("updated_at", sa.DateTime, nullable=False),
         fk("crate.id"),
-        fk("album.id",nullable=True),
+        sa.Column("album",sa.Text,nullable=True),
+        sa.Column("artist",sa.Text,nullable=True),
         sa.Column("disc", sa.Text, nullable=True),
         sa.Column("duration", sa.Float, nullable=False),
         sa.Column("ffprobe_raw_json", sa.Text),
-        sa.Column("id", sa.Text, nullable=True),
         sa.Column("kind", sa.Text, nullable=False),
         sa.Column("local_path", sa.Text, nullable=False),
         sa.Column("lyrics", sa.Text, nullable=True),
@@ -159,8 +159,8 @@ def audio_schema():
         sa.Column("position", sa.Text, nullable=True),
         sa.Column("snowgroove_info_json", sa.Text),
         sa.Column("thumbnail_web_path", sa.Text),
-        sa.Column("thumbprint", sa.Text, nullable=False),
-        sa.Column("title", sa.Text, nullable=False)
+        sa.Column("fingerprint", sa.Text, nullable=False),
+        sa.Column("title", sa.Text, nullable=False),
         sa.Column("track", sa.Text, nullable=True),
         sa.Column("web_path", sa.Text, nullable=False),
         sa.Column("year", sa.Float, nullable=True)
@@ -289,6 +289,8 @@ def upgrade() -> None:
     op.create_unique_constraint("unique_metadata_file_network_path", "metadata_file", ["network_path"])
 
     audio_schema()
+
+    m2m('crate.id','artist.id')
 
     m2m('snowgroove_user.id','tag.id')
     m2m('snowgroove_user.id','shelf.id')

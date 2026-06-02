@@ -21,10 +21,21 @@ def create_thumbnail(local_path:str,force_overwrite:bool=False):
 
     safe_input_path = util.safe_media_path(local_path)
 
+    if local_path.lower().endswith(".mp3"):
+        temp_art_path = os.path.join(output_dir, hash_name + '_raw.jpg')
+        safe_temp_path = util.safe_media_path(temp_art_path)
+        extract_command = f"ffmpeg -y -i {safe_input_path} -an -vcodec copy {safe_temp_path}"
+        util.run_cli(extract_command)
+        if not os.path.exists(safe_temp_path):
+            return None
+        command = f"convert {safe_temp_path} -resize {config.thumbnail_dimensions} {safe_output_path}"
+        util.run_cli(command)
+        os.remove(safe_temp_path)
+        return output_path
+
     command = f"convert {safe_input_path} -resize {config.thumbnail_dimensions} {safe_output_path}"
     util.run_cli(command)
     return output_path
-
 def extract_screencap(video_path:str, duration_seconds:int, output_path:str):
     safe_input_path = util.safe_media_path(video_path)
     safe_output_path = util.safe_media_path(output_path)

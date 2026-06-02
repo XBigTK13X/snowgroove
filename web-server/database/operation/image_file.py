@@ -14,8 +14,8 @@ def create_image_file(
 
     crate = db_crate.get_crate_by_id(crate_id=crate_id)
     network_path = ''
-    if crate.network_path:
-        network_path = local_path.replace(crate.local_path,crate.network_path)
+    if crate.shelf.network_path:
+        network_path = local_path.replace(crate.shelf.local_path,crate.shelf.network_path)
     web_path = dbi.config.web_media_url + local_path
     with dbi.session() as db:
         dbm = dbi.dm.ImageFile()

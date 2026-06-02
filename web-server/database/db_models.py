@@ -201,17 +201,25 @@ class AudioFile(BaseModel):
     __tablename__ = "audio_file"
     crate_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("crate.id"))
     crate: orm.Mapped["Crate"] = orm.relationship()
+    album = sa.Column(sa.Text)
+    artist = sa.Column(sa.Text)
+    disc = sa.Column(sa.Text)
+    duration = sa.Column(sa.Float)
+    ffprobe_raw_json = sa.Column(sa.Text)
     kind = sa.Column(sa.Text)
     local_path = sa.Column(sa.Text)
-    web_path = sa.Column(sa.Text)
-    network_path = sa.Column(sa.Text)
-    snowgroove_info_json = sa.Column(sa.Text)
-    ffprobe_raw_json = sa.Column(sa.Text)
-    mediainfo_raw_json = sa.Column(sa.Text)
-    title = sa.Column(sa.Text)
-    thumbnail_web_path = sa.Column(sa.Text)
-    year = sa.Column(sa.Integer)
     lyrics = sa.Column(sa.Text)
+    mediainfo_raw_json = sa.Column(sa.Text)
+    network_path = sa.Column(sa.Text)
+    path = sa.Column(sa.Text)
+    position = sa.Column(sa.Text)
+    snowgroove_info_json = sa.Column(sa.Text)
+    thumbnail_web_path = sa.Column(sa.Text)
+    fingerprint = sa.Column(sa.Text)
+    title = sa.Column(sa.Text)
+    track = sa.Column(sa.Text)
+    web_path = sa.Column(sa.Text)
+    year = sa.Column(sa.Float)
 
 class Shelf(BaseModel):
     @orm.reconstructor
@@ -231,6 +239,7 @@ class Crate(BaseModel):
     __tablename__ = "crate"
     directory = sa.Column(sa.Text)
     albums: orm.Mapped[List["Album"]] = orm.relationship(back_populates="crate")
+    artists: orm.Mapped[List["Artist"]] = orm.relationship(secondary="crate_artist",back_populates="crates")
     audio_files: orm.Mapped[List["AudioFile"]] = orm.relationship(back_populates="crate")
     image_files: orm.Mapped[List["ImageFile"]] = orm.relationship(back_populates="crate")
     shelf_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey("shelf.id"))
@@ -243,6 +252,7 @@ class Artist(BaseModel):
         self.model_kind = 'artist'
     __tablename__ = 'artist'
     name = sa.Column(sa.Text)
+    crates: orm.Mapped[List["Crate"]] = orm.relationship(secondary="crate_artist",back_populates="artists")
     tags: orm.Mapped[List["Tag"]] = orm.relationship(secondary="artist_tag",back_populates="artists")
 
 class Album(BaseModel):
@@ -270,6 +280,11 @@ class CrateTag(BaseModel):
     __tablename__ = "crate_tag"
     crate_id = sa.Column(sa.Integer, sa.ForeignKey("crate.id"))
     tag_id = sa.Column(sa.Integer, sa.ForeignKey("tag.id"))
+
+class CrateArtist(BaseModel):
+    __tablename__ = "crate_artist"
+    crate_id = sa.Column(sa.Integer, sa.ForeignKey("crate.id"))
+    artist_id = sa.Column(sa.Integer, sa.ForeignKey("artist.id"))
 
 class DisplayCleanupRule(BaseModel):
     __tablename__ = 'display_cleanup_rule'

@@ -134,11 +134,8 @@ class ShelfScanner:
             local_path = info['file_path']
             crate_dir = os.path.dirname(local_path)
             if kind == 'audio':
-                if 'artist' in info:
-                    artist = db.op.get_artist_by_name(name=info['artist'])
                 dbm = db.op.get_or_create_audio_file(
                     crate_id=self.crate_lookup[crate_dir],
-                    artist_id=artist.id,
                     file_info=info
                 )
             if kind == 'image':

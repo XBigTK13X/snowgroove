@@ -16,26 +16,32 @@ def create_audio_file(
         network_path = local_path.replace(crate.shelf.local_path,crate.shelf.network_path)
     web_path = dbi.config.web_media_url + local_path
     file_name = dbi.os.path.basename(local_path)
+    snowgroove_info = dbi.json.loads(snowgroove_info_json)
+    local_thumbnail_path = snow_media.image.create_thumbnail(local_path)
+    thumbnail_web_path = dbi.config.web_media_url + local_thumbnail_path
+    if local_thumbnail_path[0] != '/':
+        thumbnail_web_path = dbi.config.web_media_url + '/' + local_thumbnail_path
+
     with dbi.session() as db:
         dbm = dbi.dm.AudioFile()
         dbm.crate_id = crate_id
-        dbm.local_path = local_path
-        dbm.web_path = web_path
-        dbm.network_path = network_path
-        dbm.kind = file_info['kind']
-        dbm.snowgroove_info_json = snowgroove_info_json
-        dbm.ffprobe_raw_json = ffprobe_raw_json
-        dbm.mediainfo_raw_json = mediainfo_raw_json
-        dbm.title = file_info['title']
         dbm.album = file_info['album']
-        dbm.path = file_info['location']
-        dbm.id = file_info['fingerprint']
-        dbm.title = file_info['title']
-        dbm.position = file_info['position']
         dbm.artist = file_info['artist']
-        dbm.year = file_info['year']
-        dbm.track = file_info['track']
         dbm.disc = file_info['disc']
+        dbm.duration = float(snowgroove_info['duration_seconds'])
+        dbm.ffprobe_raw_json = ffprobe_raw_json
+        dbm.fingerprint = file_info['fingerprint']
+        dbm.kind = file_info['kind']
+        dbm.local_path = local_path
+        dbm.mediainfo_raw_json = mediainfo_raw_json
+        dbm.network_path = network_path
+        dbm.position = file_info['position']
+        dbm.snowgroove_info_json = snowgroove_info_json
+        dbm.title = file_info['title']
+        dbm.thumbnail_web_path = thumbnail_web_path
+        dbm.track = file_info['track']
+        dbm.web_path = web_path
+        dbm.year = file_info['year']
         db.add(dbm)
         db.commit()
         db.refresh(dbm)

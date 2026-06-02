@@ -49,7 +49,7 @@ def parse_song_info(file_path):
         else:
             track = int(position)
         title = pieces[1]
-        fingerprint = pieces[-1]
+        fingerprint = pieces[-1].split('.')[0]
         artist = None
         if count > 3:
             artist = ' - '.join(pieces[2:-1])
@@ -62,7 +62,7 @@ def parse_song_info(file_path):
         return {
             'album': album,
             'path': location,
-            'id': fingerprint,
+            'fingerprint': fingerprint,
             'title': title,
             'position': position,
             'artist': artist,
@@ -101,27 +101,6 @@ class SongScanHandler(ShelfScanner):
             target_directory=target_directory
         )
 
-    def get_or_create_song(self, info):
-        song_slug = f'{info["song_name"]}-{info["movie_year"]}'
-        if not song_slug in self.batch_lookup:
-            song = db.op.get_song_by_fingerprint(
-                fingerprint=info['song_fingerprint']
-            )
-            if not song:
-                song = db.op.create_song(
-                    name=info["song_name"],
-                    fingerprint=info["song_fingerprint"],
-                    local_path=info['local_path']
-                )
-                db.op.add_song_to_album(shelf_id=self.shelf.id, movie_id=movie.id)
-            if movie.directory != info['directory']:
-                db.op.update_movie_directory(movie_id=movie.id,directory=info['directory'])
-            self.batch_lookup[song_slug] = movie
-        movie = self.batch_lookup[song_slug]
-        if not movie.remote_metadata_id and self.scope.metadata_id:
-            db.op.update_movie_remote_metadata_id(movie.id, remote_metadata_id=self.scope.metadata_id)
-        return song_slug, movie
-
     def organize_images(self):
         progress_count = 0
         for info in self.file_info_lookup["image"]:
@@ -129,13 +108,7 @@ class SongScanHandler(ShelfScanner):
                 progress_count += 1
                 if progress_count % 500 == 0:
                     db.op.update_job(job_id=self.scope.job_id, message=f'Organize movie image {progress_count} out of {len(self.file_info_lookup["image"])}')
-                song_slug, movie = self.get_or_create_song(info=info)
-                if not db.op.get_movie_image_file(
-                    movie_id=movie.id, image_file_id=info["id"]
-                ):
-                    db.op.create_movie_image_file(
-                        movie_id=movie.id, image_file_id=info["id"]
-                    )
+                # not sure if this is needed anymore?
             except Exception as e:
                 db.op.update_job(job_id=self.scope.job_id,message=f"An error occurred while processing image [{info['file_path']}]")
                 import traceback
@@ -148,35 +121,20 @@ class SongScanHandler(ShelfScanner):
                 progress_count += 1
                 if progress_count % 500 == 0:
                     db.op.update_job(job_id=self.scope.job_id, message=f'Organize movie metadata {progress_count} out of {len(self.file_info_lookup["metadata"])}')
-                song_slug, movie = self.get_or_create_song(info=info)
-                if not db.op.get_movie_metadata_file(
-                    movie_id=movie.id, metadata_file_id=info["id"]
-                ):
-                    db.op.create_movie_metadata_file(
-                        movie_id=movie.id, metadata_file_id=info["id"]
-                    )
-                    song_metadata = snow_media.nfo.nfo_path_to_dict(info['file_path'])
+                # Read metadata and provide album/artist mappings?
             except Exception as e:
                 db.op.update_job(job_id=self.scope.job_id,message=f"An error occurred while processing metadata [{info['file_path']}]")
                 import traceback
                 db.op.update_job(job_id=self.scope.job_id,message=f"{traceback.format_exc()}")
 
 
-    def organize_videos(self):
+    def organize_audio(self):
         progress_count = 0
-        for info in self.file_info_lookup["video"]:
+        for info in self.file_info_lookup["audio"]:
             try:
-                progress_count += 1
-                if progress_count % 500 == 0:
-                    db.op.update_job(job_id=self.scope.job_id, message=f'Organize movie video {progress_count} out of {len(self.file_info_lookup["video"])}')
-                song_slug, movie = self.get_or_create_song(info=info)
-                if not db.op.get_movie_video_file(
-                    movie_id=movie.id, video_file_id=info["id"]
-                ):
-                    db.op.create_movie_video_file(
-                        movie_id=movie.id, video_file_id=info["id"]
-                    )
+                pass
+                # Create albums/artists/etc
             except Exception as e:
-                db.op.update_job(job_id=self.scope.job_id,message=f"An error occurred while processing video [{info['file_path']}]")
+                db.op.update_job(job_id=self.scope.job_id,message=f"An error occurred while processing audio [{info['file_path']}]")
                 import traceback
                 db.op.update_job(job_id=self.scope.job_id,message=f"{traceback.format_exc()}")
