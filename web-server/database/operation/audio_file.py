@@ -20,7 +20,6 @@ def create_audio_file(
     local_thumbnail_path = snow_media.image.create_thumbnail(local_path)
     thumbnail_web_path = None
     if local_thumbnail_path:
-        dbi.log.info(f'[{local_path}] thumbnail [{local_thumbnail_path}] + [{dbi.config.web_media_url}]')
         thumbnail_web_path = dbi.config.web_media_url + local_thumbnail_path
         if local_thumbnail_path[0] != '/':
             thumbnail_web_path = dbi.config.web_media_url + '/' + local_thumbnail_path
