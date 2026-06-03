@@ -6,25 +6,25 @@ export function SnowDraggableColumn(props) {
     const longPressDelay = 500
 
     const [itemsOrder, setItemsOrder] = React.useState(props.items)
-    const [draggingIndex, setDraggingIndex] = React.useState(null)
-    const [targetIndex, setTargetIndex] = React.useState(null)
+    const [draggingIdx, setDraggingIdx] = React.useState(null)
+    const [targetIdx, setTargetIdx] = React.useState(null)
 
     const dragY = React.useRef(new Animated.Value(0)).current
     const panY = React.useRef(0)
     const isDragging = React.useRef(false)
     const longPressTimeout = React.useRef(null)
 
-    const stateRef = React.useRef({ draggingIndex: null, targetIndex: null, itemsOrder: [] })
+    const stateRef = React.useRef({ draggingIdx: null, targetIdx: null, itemsOrder: [] })
 
     React.useEffect(() => {
         setItemsOrder(props.items)
     }, [props.items])
 
     React.useEffect(() => {
-        stateRef.current.draggingIndex = draggingIndex
-        stateRef.current.targetIndex = targetIndex
+        stateRef.current.draggingIdx = draggingIdx
+        stateRef.current.targetIdx = targetIdx
         stateRef.current.itemsOrder = itemsOrder
-    }, [draggingIndex, targetIndex, itemsOrder])
+    }, [draggingIdx, targetIdx, itemsOrder])
 
     const getTargetIndex = (currentIndex, translateY) => {
         const calculatedIndex = currentIndex + Math.round(translateY / rowHeight)
@@ -33,18 +33,15 @@ export function SnowDraggableColumn(props) {
 
     const panResponder = React.useRef(
         PanResponder.create({
-            onStartShouldSetPanResponder: () => true,
+            onStartShouldSetPanResponder: () => !props.disableDrag,
             onMoveShouldSetPanResponder: (event, gestureState) => {
+                if (props.disableDrag) return false
                 return isDragging.current || Math.abs(gestureState.dy) > 2
             },
             onPanResponderGrant: (event, gestureState) => {
-                const pageY = event.nativeEvent.pageY || (event.nativeEvent.touches && event.nativeEvent.touches[0]?.pageY)
-                if (!pageY) return
+                if (props.disableDrag) return
 
-                // Calculate which item was clicked based on bounding container relative coordinates
                 const locationY = event.nativeEvent.locationY
-                const targetNode = event.target
-
                 let calculatedIndex = Math.floor(locationY / rowHeight)
                 if (calculatedIndex < 0 || calculatedIndex >= stateRef.current.itemsOrder.length) {
                     return
@@ -55,8 +52,8 @@ export function SnowDraggableColumn(props) {
 
                 longPressTimeout.current = setTimeout(() => {
                     isDragging.current = true
-                    setDraggingIndex(calculatedIndex)
-                    setTargetIndex(calculatedIndex)
+                    setDraggingIdx(calculatedIndex)
+                    setTargetIdx(calculatedIndex)
                 }, longPressDelay)
             },
             onPanResponderMove: (event, gestureState) => {
@@ -70,44 +67,44 @@ export function SnowDraggableColumn(props) {
                 panY.current = gestureState.dy
                 dragY.setValue(gestureState.dy)
 
-                const currentDraggingIndex = stateRef.current.draggingIndex
-                if (currentDraggingIndex !== null) {
-                    const currentTarget = getTargetIndex(currentDraggingIndex, gestureState.dy)
-                    if (currentTarget !== stateRef.current.targetIndex) {
-                        setTargetIndex(currentTarget)
+                const currentDraggingIdx = stateRef.current.draggingIdx
+                if (currentDraggingIdx !== null) {
+                    const currentTarget = getTargetIndex(currentDraggingIdx, gestureState.dy)
+                    if (currentTarget !== stateRef.current.targetIdx) {
+                        setTargetIdx(currentTarget)
                     }
                 }
             },
             onPanResponderRelease: (event, gestureState) => {
                 clearTimeout(longPressTimeout.current)
 
-                const currentDraggingIndex = stateRef.current.draggingIndex
-                const currentTargetIndex = stateRef.current.targetIndex
+                const currentDraggingIdx = stateRef.current.draggingIdx
+                const currentTargetIdx = stateRef.current.targetIdx
 
                 if (!isDragging.current) {
                     const locationY = event.nativeEvent.locationY
-                    const clickIndex = Math.floor(locationY / rowHeight)
-                    const clickedItem = stateRef.current.itemsOrder[clickIndex]
+                    const clickIdx = Math.floor(locationY / rowHeight)
+                    const clickedItem = stateRef.current.itemsOrder[clickIdx]
 
                     if (clickedItem && props.onPress && Math.abs(gestureState.dx) < 5 && Math.abs(gestureState.dy) < 5) {
                         props.onPress(clickedItem)
                     }
 
                     isDragging.current = false
-                    setDraggingIndex(null)
-                    setTargetIndex(null)
+                    setDraggingIdx(null)
+                    setTargetIdx(null)
                     return
                 }
 
                 isDragging.current = false
-                setDraggingIndex(null)
-                setTargetIndex(null)
+                setDraggingIdx(null)
+                setTargetIdx(null)
 
-                if (currentDraggingIndex !== null && currentTargetIndex !== null) {
-                    if (currentTargetIndex !== currentDraggingIndex) {
+                if (currentDraggingIdx !== null && currentTargetIdx !== null) {
+                    if (currentTargetIdx !== currentDraggingIdx) {
                         const updatedList = [...stateRef.current.itemsOrder]
-                        const [movedItem] = updatedList.splice(currentDraggingIndex, 1)
-                        updatedList.splice(currentTargetIndex, 0, movedItem)
+                        const [movedItem] = updatedList.splice(currentDraggingIdx, 1)
+                        updatedList.splice(currentTargetIdx, 0, movedItem)
 
                         setItemsOrder(updatedList)
                         if (props.onReorder) {
@@ -120,8 +117,8 @@ export function SnowDraggableColumn(props) {
             onPanResponderTerminate: () => {
                 clearTimeout(longPressTimeout.current)
                 isDragging.current = false
-                setDraggingIndex(null)
-                setTargetIndex(null)
+                setDraggingIdx(null)
+                setTargetIdx(null)
                 dragY.setValue(0)
             }
         })
@@ -139,13 +136,13 @@ export function SnowDraggableColumn(props) {
                 {...panResponder.panHandlers}
             >
                 {itemsOrder.map((item, ii) => {
-                    const isCurrentDragging = draggingIndex === ii
+                    const isCurrentDragging = draggingIdx === ii
                     let calculatedTop = ii * rowHeight
 
-                    if (draggingIndex !== null && !isCurrentDragging) {
-                        if (ii > draggingIndex && ii <= targetIndex) {
+                    if (draggingIdx !== null && !isCurrentDragging) {
+                        if (ii > draggingIdx && ii <= targetIdx) {
                             calculatedTop -= rowHeight
-                        } else if (ii < draggingIndex && ii >= targetIndex) {
+                        } else if (ii < draggingIdx && ii >= targetIdx) {
                             calculatedTop += rowHeight
                         }
                     }
@@ -185,12 +182,12 @@ export function SnowDraggableColumn(props) {
                     )
                 })}
 
-                {draggingIndex !== null && targetIndex !== null && draggingIndex !== targetIndex ? (
+                {draggingIdx !== null && targetIdx !== null && draggingIdx !== targetIdx ? (
                     <View
                         pointerEvents="none"
                         style={[
                             styles.dropIndicator,
-                            { top: targetIndex * rowHeight + (draggingIndex < targetIndex ? rowHeight : 0) }
+                            { top: targetIdx * rowHeight + (draggingIdx < targetIdx ? rowHeight : 0) }
                         ]}
                     />
                 ) : null}

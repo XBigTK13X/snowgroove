@@ -69,6 +69,7 @@ export default function CrateDetailsPage(props) {
     if (crateDetails?.audio_files?.length) {
         audioFiles = (
             <C.SnowDraggableColumn
+                disableDrag
                 title="Songs"
                 items={crateDetails?.audio_files}
                 renderItem={(item) => {
