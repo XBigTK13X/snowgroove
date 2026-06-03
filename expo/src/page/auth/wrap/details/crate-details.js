@@ -68,11 +68,17 @@ export default function CrateDetailsPage(props) {
     let audioFiles = null
     if (crateDetails?.audio_files?.length) {
         audioFiles = (
-            <C.SnowGrid items={crateDetails?.audio_files} renderItem={(audio_file) => {
-                return <C.SnowTextButton title={audio_file.title} onPress={() => {
-                    playTrack("http://192.168.100.110:5050/music/Game%20A-Z/S/Stardew%20Valley%20(2018)/D02T005%20-%20Stardew%20Valley%20Fair%20Theme%20-%201a698d4347fbfc8ae04de39acf9620cc.adjusted.mp3")
-                }} />
-            }} />
+            <C.SnowDraggableColumn
+                title="Songs"
+                items={crateDetails?.audio_files}
+                renderItem={(item) => {
+                    return (
+                        <C.SnowView>
+                            <C.SnowText>{item.title}</C.SnowText>
+                        </C.SnowView>
+                    )
+                }}
+            />
         )
     }
 

@@ -41,6 +41,7 @@ import Snow, {
 } from 'expo-snowui'
 
 import SnowCreateJobButton from './comp/snow-create-job-button'
+import SnowDraggableColumn from './comp/snow-draggable-column'
 import SnowPosterGrid from './comp/snow-poster-grid'
 import SnowScreencapGrid from './comp/snow-screencap-grid'
 
@@ -66,6 +67,7 @@ export default {
     Snow,
     SnowBreak,
     SnowCreateJobButton,
+    SnowDraggableColumn,
     SnowDropdown,
     SnowGrid,
     SnowHeader,
