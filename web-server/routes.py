@@ -5,7 +5,7 @@ import os
 from datetime import datetime, timezone
 
 import httpx
-from fastapi import Response, Request
+from fastapi import Response, Request, Body
 from fastapi import Security
 from fastapi.responses import PlainTextResponse, StreamingResponse
 
@@ -111,11 +111,21 @@ def auth_required(router):
     @router.post("/shelf",tags=['Shelf'])
     def save_shelf(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        shelf: am.Shelf,
+        kind: str = Body(),
+        name: str= Body(),
+        local_path: str= Body(),
+        network_path: str= Body(),
+        id: int = Body(default=None)
     ):
         if not auth_user.is_admin():
             return None
-        return db.op.upsert_shelf(shelf=shelf)
+        return db.op.upsert_shelf(
+            kind=kind,
+            name=name,
+            local_path=local_path,
+            network_path=network_path,
+            id=id
+        )
 
     @router.delete("/shelf/{shelf_id}",tags=['Shelf'])
     def delete_shelf(

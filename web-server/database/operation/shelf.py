@@ -38,7 +38,12 @@ def upsert_shelf(
             network_path=network_path
         )
     with dbi.session() as db:
-        existing_shelf = db.query(dbi.dm.Shelf).filter(dbi.dm.Shelf.id == shelf.id).update(shelf.model_dump())
+        existing_shelf = db.query(dbi.dm.Shelf).filter(dbi.dm.Shelf.id == id).update({
+            'kind': kind,
+            'name': name,
+            'local_path': local_path,
+            'network_path': network_path
+        })
         db.commit()
         return existing_shelf
 
