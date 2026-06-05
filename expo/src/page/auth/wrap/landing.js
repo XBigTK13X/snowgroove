@@ -1,10 +1,11 @@
-import { C, useAppContext } from 'snowgroove'
+import { C, useAppContext, useAudioContext } from 'snowgroove'
 import Snow from 'expo-snowui'
 const snowuiPackageInfo = require('expo-snowui/package.json')
 
 export default function LandingPage(props) {
     const { apiClient, routes, config } = useAppContext()
     const { SnowStyle, navPush } = C.useSnowContext(props)
+    const { currentAudioFile, progressPercent, seekToSeconds, positionSeconds } = useAudioContext()
     const [shelves, setShelves] = C.React.useState(null)
     const [streamSources, setStreamSources] = C.React.useState(null)
 
@@ -68,10 +69,33 @@ export default function LandingPage(props) {
     }
 
     if (destinations) {
+        let nowPlaying = "Nothing is currently playing."
+        let playerControls = (
+            <>
+                <C.SnowText center>{nowPlaying}</C.SnowText>
+                <C.SnowBreak />
+            </>
+        )
+        if (currentAudioFile) {
+            nowPlaying = `${currentAudioFile.title} - ${currentAudioFile.album} - ${currentAudioFile.artist}`
+            let progressDisplay = `${C.util.secondsToTimestamp(positionSeconds)} / ${C.util.secondsToTimestamp(currentAudioFile.duration)}`
+            playerControls = (
+                <>
+                    <C.SnowText center>{nowPlaying}</C.SnowText>
+                    <C.SnowRangeSlider
+                        onValueChange={(seekPercent) => {
+                            seekToSeconds(seekPercent * currentAudioFile.duration)
+                        }}
+                        percent={progressPercent}
+                    />
+                    <C.SnowText center>{progressDisplay}</C.SnowText>
+                    <C.SnowBreak />
+                </>
+            )
+        }
         return (
             <>
-                <C.SnowText center>Now Playing:[unknown]</C.SnowText>
-                <C.SnowBreak />
+                {playerControls}
                 <C.SnowGrid
                     focusStart
                     focusKey="destinations"

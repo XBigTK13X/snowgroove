@@ -7,7 +7,7 @@ export default function CrateDetailsPage(props) {
     } = C.useSnowContext(props)
 
 
-    const { playTrack } = useAudioContext()
+    const { playAudioFile } = useAudioContext()
     const { apiClient, routes, isAdmin } = useAppContext()
     const [crateList, setCrateList] = C.React.useState(null)
     const [crateDetails, setCrateDetails] = C.React.useState(null)
@@ -74,12 +74,12 @@ export default function CrateDetailsPage(props) {
                 renderItem={(item) => {
                     return (
                         <C.SnowView>
-                            <C.SnowText>{item.title}</C.SnowText>
+                            <C.SnowText>{item.position} - {item.title}</C.SnowText>
                         </C.SnowView>
                     )
                 }}
                 onPress={(item) => {
-                    playTrack(item?.web_path)
+                    playAudioFile(item)
                 }}
             />
         )

@@ -7,7 +7,8 @@ export function AudioContextProvider({ children }) {
     const [sound, setSound] = useState(null)
     const [isPlaying, setIsPlaying] = useState(false)
     const [playbackType, setPlaybackType] = useState('local')
-    const [currentTrack, setCurrentTrack] = useState(null)
+    const [currentAudioFile, setCurrentAudioFile] = useState(null)
+    const [positionSeconds, setPositionSeconds] = useState(0)
 
     useEffect(() => {
         return () => {
@@ -17,9 +18,20 @@ export function AudioContextProvider({ children }) {
         }
     }, [sound])
 
-    async function playTrack(url, type = 'local') {
+    function handlePlaybackStatusUpdate(status) {
+        if (status.isLoaded) {
+            setPositionSeconds(status.positionMillis / 1000)
+            if (status.didJustFinish) {
+                setIsPlaying(false)
+                setPositionSeconds(0)
+            }
+        }
+    }
+
+    async function playAudioFile(audioFile, type = 'local') {
         setPlaybackType(type)
-        setCurrentTrack(url)
+        setCurrentAudioFile(audioFile)
+        setPositionSeconds(0)
 
         if (type === 'remote') {
             if (sound) {
@@ -35,9 +47,12 @@ export function AudioContextProvider({ children }) {
         }
 
         const { sound: newSound } = await Audio.Sound.createAsync(
-            { uri: url },
-            { shouldPlay: true }
+            { uri: audioFile.web_path },
+            { shouldPlay: true },
+            handlePlaybackStatusUpdate
         )
+
+        newSound.setOnPlaybackStatusUpdate(handlePlaybackStatusUpdate)
         setSound(newSound)
         setIsPlaying(true)
     }
@@ -59,8 +74,32 @@ export function AudioContextProvider({ children }) {
         }
     }
 
+    async function seekToSeconds(seconds) {
+        if (playbackType === 'remote' || !sound) return
+
+        let targetSeconds = Math.max(0, Math.min(seconds, currentAudioFile?.duration || 0))
+
+        setPositionSeconds(targetSeconds)
+        await sound.setPositionAsync(targetSeconds * 1000)
+    }
+
+    let progressPercent = currentAudioFile && currentAudioFile.duration > 0
+        ? positionSeconds / currentAudioFile.duration
+        : 0
+
+    let contextValue = {
+        isPlaying,
+        playbackType,
+        currentAudioFile,
+        positionSeconds,
+        progressPercent,
+        playAudioFile,
+        togglePlayback,
+        seekToSeconds
+    }
+
     return (
-        <AudioContext.Provider value={{ isPlaying, playbackType, currentTrack, playTrack, togglePlayback }}>
+        <AudioContext.Provider value={contextValue}>
             {children}
         </AudioContext.Provider>
     )
