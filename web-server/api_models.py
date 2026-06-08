@@ -30,17 +30,6 @@ class UserAccess(BaseModel):
     tag_ids: list[int]
     shelf_ids: list[int]
 
-class JobRequest(BaseModel):
-    name: Union[
-        Literal["apply_directory_tag"],
-        Literal["clean_file_records"],
-        Literal['delete_media_records'],
-        Literal["read_media_files"],
-        Literal["scan_shelves_content"],
-    ]
-    input: dict | None = None
-
-
 class Job(BaseModel):
     id: int | None = None
     kind: str

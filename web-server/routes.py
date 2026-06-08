@@ -22,22 +22,50 @@ def register(router):
     router = no_auth_required(router)
     return auth_required(router)
 
-def auth_required(router):
-    @router.get("/auth/check",tags=['User'])
-    def auth_check(
-        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])]
+def user_routes(router):
+    @router.post("/user",tags=['User'])
+    def save_user(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+        user: am.User,
     ):
-        return True
+        return db.op.upsert_user(user=user)
 
+    @router.get('/user',tags=['User'])
+    def get_user(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+        user_id: int
+    ):
+        return db.op.get_user_by_id(user_id=user_id)
+
+    @router.delete("/user/{user_id}",tags=['User'])
+    def delete_user(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+        user_id: int,
+    ):
+        if not auth_user.is_admin():
+            return None
+        return db.op.delete_user_by_id(user_id=user_id)
+
+    @router.post('/user/access',tags=['User'])
+    def save_user_access(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+        user_access: am.UserAccess
+    ):
+        if not auth_user.is_admin():
+            return None
+        return db.op.save_user_access(user_access=user_access)
+
+def job_routes(router):
     @router.post("/job",tags=['Job'])
     def create_job(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        jobRequest: am.JobRequest,
+        name:str = Body(),
+        input:dict = Body()
     ):
         if not auth_user.is_admin():
             return False
-        job = db.op.create_job(kind=jobRequest.name,input=jobRequest.input)
-        message.write.send(job_id=job.id, kind=jobRequest.name, input=jobRequest.input, auth_user=auth_user)
+        job = db.op.create_job(kind=name,input=input)
+        message.write.send(job_id=job.id, kind=name, input=input, auth_user=auth_user)
         return job
 
     @router.get("/job",tags=['Job'])
@@ -55,6 +83,7 @@ def auth_required(router):
     ):
         return db.op.get_job_list(show_complete=show_complete, limit=limit)
 
+def log_routes(router):
     @router.get('/log/list', tags=['Job'])
     def get_log_list(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])]
@@ -93,88 +122,7 @@ def auth_required(router):
             lines = lines[:150]
             return '\n'.join(lines)
 
-    @router.get("/shelf/list",tags=['Shelf'])
-    def get_shelf_list(
-        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])]
-    ):
-        return db.op.get_shelf_list(ticket=auth_user.ticket)
-
-    @router.get("/shelf",tags=['Shelf'])
-    def get_shelf(
-        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        shelf_id: int,
-    ):
-        if not auth_user.ticket.is_allowed(shelf_id=shelf_id):
-            return None
-        return db.op.get_shelf_by_id(shelf_id=shelf_id)
-
-    @router.post("/shelf",tags=['Shelf'])
-    def save_shelf(
-        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        kind: str = Body(),
-        name: str= Body(),
-        local_path: str= Body(),
-        network_path: str= Body(),
-        id: int = Body(default=None)
-    ):
-        if not auth_user.is_admin():
-            return None
-        return db.op.upsert_shelf(
-            kind=kind,
-            name=name,
-            local_path=local_path,
-            network_path=network_path,
-            id=id
-        )
-
-    @router.delete("/shelf/{shelf_id}",tags=['Shelf'])
-    def delete_shelf(
-        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        shelf_id: int,
-    ):
-        if not auth_user.is_admin():
-            return None
-        return db.op.delete_shelf_by_id(shelf_id=shelf_id)
-
-    @router.post("/user",tags=['User'])
-    def save_user(
-        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        user: am.User,
-    ):
-        return db.op.upsert_user(user=user)
-
-    @router.get('/user',tags=['User'])
-    def get_user(
-        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        user_id: int
-    ):
-        return db.op.get_user_by_id(user_id=user_id)
-
-    @router.delete("/user/{user_id}",tags=['User'])
-    def delete_user(
-        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        user_id: int,
-    ):
-        if not auth_user.is_admin():
-            return None
-        return db.op.delete_user_by_id(user_id=user_id)
-
-    @router.post('/user/access',tags=['User'])
-    def save_user_access(
-        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        user_access: am.UserAccess
-    ):
-        if not auth_user.is_admin():
-            return None
-        return db.op.save_user_access(user_access=user_access)
-
-    @router.get('/search', tags=['User'])
-    def perform_search(
-        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        query:str
-    ):
-        return db.op.perform_search(ticket=auth_user.ticket,query=query)
-
+def tag_routes(router):
     @router.get('/tag',tags=['Tag'])
     def get_user(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
@@ -208,50 +156,6 @@ def auth_required(router):
             return None
         return db.delete_tag_by_id(tag_id=tag_id)
 
-    def model_to_dict(model_instance):
-        if model_instance is None:
-            return None
-
-        result = {}
-        for column in model_instance.__table__.columns:
-            result[column.name] = getattr(model_instance, column.name)
-
-        return result
-
-    @router.get('/crate')
-    def get_crate(
-        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        shelf_id:str = None,
-        crate_id:str = None
-    ):
-        if crate_id == None:
-            return {
-                'kind': 'crate-list',
-                'items': db.op.get_crate_list_by_shelf_id(shelf_id=shelf_id)
-            }
-        else:
-            crate = db.op.get_crate_by_id(crate_id=crate_id)
-            # Serialize manually, otherwise FastAPI triggers an infinite recurse
-            return {
-                'kind': 'crate-details',
-                'item': crate
-            }
-
-    @router.get("/device/profile/list",tags=['User'])
-    def get_device_profile_list(
-        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-    ):
-        return {'devices':[xx.name for xx in snow_media.device.device_list]}
-
-
-    @router.delete('/cached/text', tags=['Admin'])
-    def delete_all_cached_text(
-        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])]
-    ):
-        if not auth_user.is_admin():
-            return False
-        db.op.delete_all_cached_text()
-        return True
 
     @router.post('/tag-rule', tags=['Admin'])
     def save_tag_rule(
@@ -308,11 +212,150 @@ def auth_required(router):
             return None
         return db.op.get_tag_rule_list()
 
+def shelf_routes(router):
+    @router.get("/shelf/list",tags=['Shelf'])
+    def get_shelf_list(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])]
+    ):
+        return db.op.get_shelf_list(ticket=auth_user.ticket)
+
+    @router.get("/shelf",tags=['Shelf'])
+    def get_shelf(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+        shelf_id: int,
+    ):
+        if not auth_user.ticket.is_allowed(shelf_id=shelf_id):
+            return None
+        return db.op.get_shelf_by_id(shelf_id=shelf_id)
+
+    @router.post("/shelf",tags=['Shelf'])
+    def save_shelf(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+        kind: str = Body(),
+        name: str= Body(),
+        local_path: str= Body(),
+        network_path: str= Body(),
+        id: int = Body(default=None)
+    ):
+        if not auth_user.is_admin():
+            return None
+        return db.op.upsert_shelf(
+            kind=kind,
+            name=name,
+            local_path=local_path,
+            network_path=network_path,
+            id=id
+        )
+
+    @router.delete("/shelf/{shelf_id}",tags=['Shelf'])
+    def delete_shelf(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+        shelf_id: int,
+    ):
+        if not auth_user.is_admin():
+            return None
+        return db.op.delete_shelf_by_id(shelf_id=shelf_id)
+
+    @router.get('/crate')
+    def get_crate(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+        shelf_id:str = None,
+        crate_id:str = None
+    ):
+        if crate_id == None:
+            return {
+                'kind': 'crate-list',
+                'items': db.op.get_crate_list_by_shelf_id(shelf_id=shelf_id)
+            }
+        else:
+            crate = db.op.get_crate_by_id(crate_id=crate_id)
+            # Serialize manually, otherwise FastAPI triggers an infinite recurse
+            return {
+                'kind': 'crate-details',
+                'item': crate
+            }
+
+def music_session_routes(router):
+    @router.post('/music/session',tags=['Media Session'])
+    def upsert_music_session(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+    ):
+        return True
+
+    @router.delete('/music/session/song/next',tags=[''])
+    def play_next_song_in_session(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+    ):
+        return True
+
+    @router.post('/music/session/song/previous')
+    def play_previous_song_in_session(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+    ):
+        return True
+
+    @router.post('/music/session/play')
+    def play_mussic_session(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+    ):
+        return True
+
+    @router.post('/music/session/pause')
+    def pause_music_session(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+    ):
+        return True
+
+    @router.post('/music/session/stop')
+    def stop_music_session(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+    ):
+        return True
+
+
+def auth_required(router):
+    @router.get("/auth/check",tags=['User'])
+    def auth_check(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])]
+    ):
+        return True
+
+    @router.get('/search', tags=['User'])
+    def perform_search(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+        query:str
+    ):
+        return db.op.perform_search(ticket=auth_user.ticket,query=query)
+
+
+    @router.get("/device/profile/list",tags=['User'])
+    def get_device_profile_list(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+    ):
+        return {'devices':[xx.name for xx in snow_media.device.device_list]}
+
+
+    @router.delete('/cached/text', tags=['Admin'])
+    def delete_all_cached_text(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])]
+    ):
+        if not auth_user.is_admin():
+            return False
+        db.op.delete_all_cached_text()
+        return True
+
     @router.post('/hotfix', tags=['Admin'])
     def deployment_hotfix(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
     ):
         return True
+
+    user_routes(router)
+    job_routes(router)
+    log_routes(router)
+    tag_routes(router)
+    shelf_routes(router)
+    music_session_routes(router)
 
     return router
 

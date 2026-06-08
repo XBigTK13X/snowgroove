@@ -169,6 +169,7 @@ export class ApiClient {
     createJobDeleteMediaRecords = (details) => { return this.createScopedJob('delete_media_records', details) }
     createJobReadMediaFiles = (details) => { return this.createScopedJob('read_media_files', details) }
     createJobShelvesScan = (details) => { return this.createScopedJob('scan_shelves_content', details) }
+    createJobRemotePlayersScan = (details) => { return this.createScopedJob('scan_remote_players', details) }
 
     getJobList = (showComplete, limit) => {
         let query = `/job/list?show_complete=${showComplete}`

@@ -77,16 +77,6 @@ def get_crate_list_by_shelf_id(shelf_id:int):
             .all()
         )
 
-def model_to_dict(model_instance):
-    if model_instance is None:
-        return None
-
-    result = {}
-    for column in model_instance.__table__.columns:
-        result[column.name] = getattr(model_instance, column.name)
-
-    return result
-
 def row_to_dict(row):
     # Convert Row object to a standard mutable dictionary
     data = dict(row)

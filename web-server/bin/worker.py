@@ -18,13 +18,15 @@ import message.handler.clean_file_records
 import message.handler.delete_media_records
 import message.handler.read_media_files
 import message.handler.scan_shelves_content
+import message.handler.scan_remote_players
 
 handlers = {
     'apply_directory_tag': message.handler.apply_directory_tag,
     'clean_file_records': message.handler.clean_file_records,
     'delete_media_records': message.handler.delete_media_records,
     'read_media_files': message.handler.read_media_files,
-    "scan_shelves_content": message.handler.scan_shelves_content
+    'scan_shelves_content': message.handler.scan_shelves_content,
+    'scan_remote_players': message.handler.scan_remote_players
 }
 
 def start():

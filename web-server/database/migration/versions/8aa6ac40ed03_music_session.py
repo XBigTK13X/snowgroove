@@ -34,7 +34,7 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime, nullable=False),
         sa.Column("snowgroove_user_id",sa.Integer, sa.ForeignKey('snowgroove_user.id',ondelete="CASCADE"),nullable=False),
         sa.Column("remote_device_id", sa.Integer, sa.ForeignKey('remote_player.id',ondelete="CASCADE"),nullable=True),
-        sa.Column("local_device_id", sa.Integer, sa.ForeignKey('client_device.id',ondelete="CASCADE"),nullable=True)
+        sa.Column("local_device_id", sa.Integer, sa.ForeignKey('client_device.id',ondelete="CASCADE"),nullable=True),
         sa.Column("kind", sa.Text, nullable=False),
         sa.Column("music_queue_json", sa.Text, nullable=True),
         sa.CheckConstraint(
