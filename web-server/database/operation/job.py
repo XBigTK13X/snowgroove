@@ -1,10 +1,11 @@
 from database.operation.db_internal import dbi
 
-def create_job(kind: str, input:dict=None):
+
+def create_job(kind: str, input: dict = None):
     db_job = dbi.dm.Job()
     db_job.kind = kind
-    db_job.status = "pending"
-    db_job.message = "Waiting for a worker to start the job."
+    db_job.status = 'pending'
+    db_job.message = 'Waiting for a worker to start the job.'
     db_job.logs_json = dbi.json.dumps([db_job.message])
     if input:
         db_job.input_json = dbi.json.dumps(input)
@@ -15,7 +16,7 @@ def create_job(kind: str, input:dict=None):
     return db_job
 
 
-def get_job_list(show_complete:bool=True,limit:int=1000):
+def get_job_list(show_complete: bool = True, limit: int = 1000):
     with dbi.session() as db:
         return (
             db.query(dbi.dm.Job)
@@ -37,7 +38,8 @@ def get_job_by_id(job_id: int):
             job.input = dbi.json.loads(job.input_json)
         return job
 
-def update_job(job_id: int, message:str=None, status:str=None):
+
+def update_job(job_id: int, message: str = None, status: str = None):
     if job_id == None:
         return None
     with dbi.session() as db:
@@ -48,10 +50,12 @@ def update_job(job_id: int, message:str=None, status:str=None):
             dbi.log.info(message)
             job.message = message
             logs = dbi.json.loads(job.logs_json)
-            logs.append(f'{dbi.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} | {message}')
+            logs.append(
+                f'{dbi.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} | {message}'
+            )
             job.logs_json = dbi.json.dumps(logs)
         if status:
-            dbi.log.info(f"Updating job {job_id} to status {status}")
+            dbi.log.info(f'Updating job {job_id} to status {status}')
             job.status = status
         db.commit()
         return job

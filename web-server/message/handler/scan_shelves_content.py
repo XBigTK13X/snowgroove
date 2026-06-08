@@ -5,12 +5,13 @@ from message.job_media_scope import JobMediaScope
 
 from message.handler.scan_shelf.song_scan import SongScanHandler
 
-shelf_handlers = {
-    "Music": SongScanHandler
-}
+shelf_handlers = {'Music': SongScanHandler}
 
-def handle(scope:JobMediaScope):
-    db.op.update_job(job_id=scope.job_id,message=f"[WORKER] Handling a scan_shelves_content job")
+
+def handle(scope: JobMediaScope):
+    db.op.update_job(
+        job_id=scope.job_id, message=f'[WORKER] Handling a scan_shelves_content job'
+    )
 
     shelves = []
     target_directory = None
@@ -27,7 +28,7 @@ def handle(scope:JobMediaScope):
             is_show = shelves[0].kind == 'Shows'
             target_directory = scope.target_directory
         elif scope.is_movie():
-            movie = db.op.get_movie_by_id(ticket=ticket,movie_id=scope.target_id)
+            movie = db.op.get_movie_by_id(ticket=ticket, movie_id=scope.target_id)
             target_directory = movie.directory
             shelves = [movie.shelf]
         elif scope.is_show():
@@ -35,11 +36,15 @@ def handle(scope:JobMediaScope):
             target_directory = show.directory
             shelves = [show.shelf]
         elif scope.is_season():
-            show_season = db.op.get_show_season_by_id(ticket=ticket, season_id=scope.target_id)
+            show_season = db.op.get_show_season_by_id(
+                ticket=ticket, season_id=scope.target_id
+            )
             target_directory = show_season.directory
             shelves = [show_season.show.shelf]
         elif scope.is_episode():
-            show_episode = db.op.get_show_episode_by_id(ticket=ticket, episode_id=scope.target_id)
+            show_episode = db.op.get_show_episode_by_id(
+                ticket=ticket, episode_id=scope.target_id
+            )
             target_directory = show_episode.season.directory
             shelves = [show_episode.season.show.shelf]
 
@@ -51,8 +56,13 @@ def handle(scope:JobMediaScope):
     for shelf in shelves:
         if target_directory and not shelf.local_path in target_directory:
             continue
-        db.op.update_job(job_id=scope.job_id,message=f"Scanning content for shelf [{shelf.name}->{shelf.kind}]")
-        handler = shelf_handlers[shelf.kind](scope=scope, shelf=shelf, target_directory=target_directory)
+        db.op.update_job(
+            job_id=scope.job_id,
+            message=f'Scanning content for shelf [{shelf.name}->{shelf.kind}]',
+        )
+        handler = shelf_handlers[shelf.kind](
+            scope=scope, shelf=shelf, target_directory=target_directory
+        )
 
         if not handler.get_files_in_directory():
             results[shelf.name] = False
@@ -72,14 +82,23 @@ def handle(scope:JobMediaScope):
         handlers.append(handler)
         results[shelf.name] = True
 
-    db.op.update_job(job_id=scope.job_id,message="Checking if all scan_shelves_content job tasks were successful")
+    db.op.update_job(
+        job_id=scope.job_id,
+        message='Checking if all scan_shelves_content job tasks were successful',
+    )
     for key, val in results.items():
         if not val:
             return False
 
-    db.op.update_job(job_id=scope.job_id,message="Finished walking the files on disk for shelves. Add found files to database.")
+    db.op.update_job(
+        job_id=scope.job_id,
+        message='Finished walking the files on disk for shelves. Add found files to database.',
+    )
     for handler in handlers:
-        db.op.update_job(job_id=scope.job_id,message=f"Organizing [{handler.shelf.name} -> {handler.shelf.kind}] files into the library")
+        db.op.update_job(
+            job_id=scope.job_id,
+            message=f'Organizing [{handler.shelf.name} -> {handler.shelf.kind}] files into the library',
+        )
         handler.organize_metadata()
         handler.organize_images()
         handler.organize_audio()

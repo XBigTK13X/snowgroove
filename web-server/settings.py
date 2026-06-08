@@ -4,85 +4,84 @@ import sys
 
 class Config:
     def __init__(self):
-        self.server_version = "1.0.0"
-        self.server_build_date = "April 04, 2026"
+        self.server_version = '1.0.0'
+        self.server_build_date = 'April 04, 2026'
         self.server_build_dev_number = 1
         self.app_data_dir = '.snowgroove/'
         self.display_config = None
 
-        self.cached_text_ttl_seconds = 60 * 60 * 24 # One day
+        self.cached_text_ttl_seconds = 60 * 60 * 24  # One day
         self.ffmpeg_screencap_percent_location = 0.15
-        self.frontend_url = "http://localhost:3000"
+        self.frontend_url = 'http://localhost:3000'
         self.is_deployed_environment = None
-        self.jwt_algorithm = "HS256"
-        self.jwt_expire_unit = "days"
+        self.jwt_algorithm = 'HS256'
+        self.jwt_expire_unit = 'days'
         self.jwt_expire_value = 30
-        self.jwt_secret_hex = "0" * 32
+        self.jwt_secret_hex = '0' * 32
         self.tail_log_paths = [
             '.snowgroove/log/worker.log',
-            '.snowgroove/log/server.log'
+            '.snowgroove/log/server.log',
         ]
-        self.log_level = "INFO"
-        self.mediainfo_parse_speed = 0 # Most modern videos work with 0, which is MUCH faster
-                                       # 1 is used to support very old videos, like DLed flvs
-        self.postgres_database = "snowgroove"
-        self.postgres_host = "localhost"
-        self.postgres_password = "snowgroove"
+        self.log_level = 'INFO'
+        self.mediainfo_parse_speed = (
+            0  # Most modern videos work with 0, which is MUCH faster
+        )
+        # 1 is used to support very old videos, like DLed flvs
+        self.postgres_database = 'snowgroove'
+        self.postgres_host = 'localhost'
+        self.postgres_password = 'snowgroove'
         self.postgres_port = 9060
-        self.postgres_username = "snowgroove"
+        self.postgres_username = 'snowgroove'
 
         self.rabbit_delay_seconds = 5
-        self.rabbit_host = "localhost"
+        self.rabbit_host = 'localhost'
         self.rabbit_max_failures = 4
-        self.rabbit_password = "snowgroove"
-        self.rabbit_port = "9062"
-        self.rabbit_queue = "snowgroove"
-        self.rabbit_user = "snowgroove"
+        self.rabbit_password = 'snowgroove'
+        self.rabbit_port = '9062'
+        self.rabbit_queue = 'snowgroove'
+        self.rabbit_user = 'snowgroove'
 
-        self.supervisor_password = "snowgroove"
-        self.supervisor_url = "http://localhost:9065"
-        self.supervisor_username = "snowgroove"
+        self.supervisor_password = 'snowgroove'
+        self.supervisor_url = 'http://localhost:9065'
+        self.supervisor_username = 'snowgroove'
 
         self.search_results_per_shelf_limit = 200
-        self.thumbnail_dimensions = "340x500"
+        self.thumbnail_dimensions = '340x500'
         self.media_test_root = ''
-        self.web_api_url = "http://localhost:8000"
-        self.web_media_url = "<need_to_set_an_env_var-SNOWGROOVE_WEB_MEDIA_URL>"
-        self.auth_device_whitelist = [
-            'tv-blue-cast',
-            'tv-blue-shield'
-        ]
+        self.web_api_url = 'http://localhost:8000'
+        self.web_media_url = '<need_to_set_an_env_var-SNOWGROOVE_WEB_MEDIA_URL>'
+        self.auth_device_whitelist = ['tv-blue-cast', 'tv-blue-shield']
 
         self.refresh_postgres_url()
         self.refresh_app_data_dirs()
 
     def refresh_postgres_url(self):
-        self.postgres_url = f"postgresql://{self.postgres_username}:{self.postgres_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_database}"
+        self.postgres_url = f'postgresql://{self.postgres_username}:{self.postgres_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_database}'
 
     def refresh_app_data_dirs(self):
-        self.thumbnail_dir = f"{self.app_data_dir}thumbnail"
-        self.log_dir = f"{self.app_data_dir}log"
-        self.log_file_path = f"{self.app_data_dir}log/snowgroove.log"
+        self.thumbnail_dir = f'{self.app_data_dir}thumbnail'
+        self.log_dir = f'{self.app_data_dir}log'
+        self.log_file_path = f'{self.app_data_dir}log/snowgroove.log'
 
     def validate(self, log):
         if not self.web_media_url or 'SNOWGROOVE_WEB_MEDIA_URL' in self.web_media_url:
-            log.error("SNOWGROOVE_WEB_MEDIA_URL environment variable must be set.")
-            log.error("example: http://<host-ip>:9064/mnt")
-            log.error("Exiting")
+            log.error('SNOWGROOVE_WEB_MEDIA_URL environment variable must be set.')
+            log.error('example: http://<host-ip>:9064/mnt')
+            log.error('Exiting')
             sys.exit(1)
         if self.display_config:
             self.display(log)
 
     def display(self, log):
-        log.info("Current server config")
+        log.info('Current server config')
         for key, val in vars(self).items():
-            log.info(f"\t{key} = {val}")
+            log.info(f'\t{key} = {val}')
 
 
 config = Config()
 
 for key, val in vars(config).items():
-    env_var_key = f"SNOWGROOVE_{key.upper()}"
+    env_var_key = f'SNOWGROOVE_{key.upper()}'
     env_var_value = os.environ.get(env_var_key)
     if env_var_value:
         setattr(config, key, env_var_value)

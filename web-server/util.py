@@ -8,13 +8,14 @@ import qrcode
 import base64
 import shlex
 
+
 def run_cli(command, raw_output=False, background=False, log_path=None):
     stdout_target = subprocess.PIPE
     stderr_target = subprocess.PIPE
     if log_path:
-        stdout_target = open(log_path+'.stdout', 'w')
+        stdout_target = open(log_path + '.stdout', 'w')
         stdout_target.write(command)
-        stderr_target = open(log_path+'.stderr', 'w')
+        stderr_target = open(log_path + '.stderr', 'w')
         stderr_target.write(command)
     if background:
         return subprocess.Popen(
@@ -22,37 +23,37 @@ def run_cli(command, raw_output=False, background=False, log_path=None):
             shell=True,
             stdout=stdout_target,
             stderr=stderr_target,
-            executable="/bin/bash",
+            executable='/bin/bash',
         )
     process = subprocess.Popen(
         command,
         shell=True,
         stdout=stdout_target,
         stderr=stderr_target,
-        executable="/bin/bash",
+        executable='/bin/bash',
     )
     stdout, stderr = process.communicate()
     result = process.returncode
     if result != 0:
-        log.error(f"An error occurred while running [{command}]")
-        log.error(f"stdout: [{stdout}]")
-        log.error(f"stderr: [{stderr}]")
+        log.error(f'An error occurred while running [{command}]')
+        log.error(f'stdout: [{stdout}]')
+        log.error(f'stderr: [{stderr}]')
         return {
             'error': True,
             'result': result,
-            'stdout': stdout.decode("utf-8", errors="replace"),
-            "stderr": stderr.decode("utf-8", errors="replace"),
+            'stdout': stdout.decode('utf-8', errors='replace'),
+            'stderr': stderr.decode('utf-8', errors='replace'),
         }
     if raw_output:
         return {
-            "result": result,
-            "stdout": stdout.decode("utf-8", errors="replace"),
-            "stderr": stderr.decode("utf-8", errors="replace"),
+            'result': result,
+            'stdout': stdout.decode('utf-8', errors='replace'),
+            'stderr': stderr.decode('utf-8', errors='replace'),
         }
     return {
-        "result": result,
-        "stdout": stdout.decode("utf-8", errors="replace").split("\n"),
-        "stderr": stderr.decode("utf-8", errors="replace").split("\n"),
+        'result': result,
+        'stdout': stdout.decode('utf-8', errors='replace').split('\n'),
+        'stderr': stderr.decode('utf-8', errors='replace').split('\n'),
     }
 
 
@@ -75,42 +76,47 @@ def debounce(wait_seconds):
 
     return decorator
 
+
 def verify_password(plain_password, hashed_password):
     if hashed_password is None:
         return True
     return bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
+
 
 def get_password_hash(password):
     if password == 'SNOWSTREAM_EMPTY':
         return None
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
+
 def get_episode_slug(episode):
-    return f'S{episode.season.season_order_counter:02} E{episode.episode_order_counter:03}'
+    return (
+        f'S{episode.season.season_order_counter:02} E{episode.episode_order_counter:03}'
+    )
+
 
 def get_season_title(season):
     if season.season_order_counter == 0:
         return 'Specials'
     return f'Season {season.season_order_counter:02}'
 
-def string_to_md5(input_string:str):
+
+def string_to_md5(input_string: str):
     encoded_bytes = input_string.encode('utf-8')
     return hashlib.md5(encoded_bytes).hexdigest()
 
-def string_to_sha1(input_string:str):
+
+def string_to_sha1(input_string: str):
     encoded_bytes = input_string.encode('utf-8')
     return hashlib.sha1(encoded_bytes).hexdigest()
 
-def search_to_base64_qrcode(query:str):
-    qr = qrcode.QRCode(
-        version=1,
-        box_size=10,
-        border=5
-    )
-    query_url = f"https://www.google.com/search?q={query.replace(' ','+')}"
+
+def search_to_base64_qrcode(query: str):
+    qr = qrcode.QRCode(version=1, box_size=10, border=5)
+    query_url = f'https://www.google.com/search?q={query.replace(" ", "+")}'
     qr.add_data(query_url)
     qr.make(fit=True)
-    image = qr.make_image(back_color="rgb(50, 50, 50)", fill_color="rgb(200, 200, 200)")
+    image = qr.make_image(back_color='rgb(50, 50, 50)', fill_color='rgb(200, 200, 200)')
 
     buffer = io.BytesIO()
     image.save(buffer, format='PNG')
@@ -118,8 +124,10 @@ def search_to_base64_qrcode(query:str):
     encoded = base64.b64encode(buffer.read()).decode('utf-8')
     return f'data:image/png;base64,{encoded}', query_url
 
-def fromBase64(input:str):
+
+def fromBase64(input: str):
     return base64.b64decode(input).decode('utf-8')
 
-def safe_media_path(input:str):
+
+def safe_media_path(input: str):
     return shlex.quote(input)

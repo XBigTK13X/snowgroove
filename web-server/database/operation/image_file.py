@@ -2,11 +2,8 @@ from database.operation.db_internal import dbi
 import snow_media.image
 import database.operation.crate as db_crate
 
-def create_image_file(
-        crate_id:int,
-        kind: str,
-        local_path: str
-    ):
+
+def create_image_file(crate_id: int, kind: str, local_path: str):
     local_thumbnail_path = snow_media.image.create_thumbnail(local_path)
     thumbnail_web_path = dbi.config.web_media_url + local_thumbnail_path
     if local_thumbnail_path[0] != '/':
@@ -15,7 +12,9 @@ def create_image_file(
     crate = db_crate.get_crate_by_id(crate_id=crate_id)
     network_path = ''
     if crate.shelf.network_path:
-        network_path = local_path.replace(crate.shelf.local_path,crate.shelf.network_path)
+        network_path = local_path.replace(
+            crate.shelf.local_path, crate.shelf.network_path
+        )
     web_path = dbi.config.web_media_url + local_path
     with dbi.session() as db:
         dbm = dbi.dm.ImageFile()
@@ -30,29 +29,33 @@ def create_image_file(
         db.refresh(dbm)
         return dbm
 
+
 def get_image_file_by_path(local_path: str):
     with dbi.session() as db:
-        return db.query(dbi.dm.ImageFile).filter(dbi.dm.ImageFile.local_path == local_path).first()
+        return (
+            db.query(dbi.dm.ImageFile)
+            .filter(dbi.dm.ImageFile.local_path == local_path)
+            .first()
+        )
 
-def get_or_create_image_file(
-        crate_id: int,
-        kind: str,
-        local_path: str
-    ):
+
+def get_or_create_image_file(crate_id: int, kind: str, local_path: str):
     image_file = get_image_file_by_path(local_path=local_path)
     if not image_file:
-        return create_image_file(
-            crate_id=crate_id,
-            kind=kind,
-            local_path=local_path
-        )
+        return create_image_file(crate_id=crate_id, kind=kind, local_path=local_path)
     return image_file
+
 
 def get_image_files_by_shelf(shelf_id: int):
     with dbi.session() as db:
-        return db.query(dbi.dm.ImageFile).filter(dbi.dm.ImageFile.shelf_id == shelf_id).all()
+        return (
+            db.query(dbi.dm.ImageFile)
+            .filter(dbi.dm.ImageFile.shelf_id == shelf_id)
+            .all()
+        )
 
-def get_image_file_list(directory:str=None):
+
+def get_image_file_list(directory: str = None):
     with dbi.session() as db:
         query = db.query(dbi.dm.ImageFile)
         if directory:

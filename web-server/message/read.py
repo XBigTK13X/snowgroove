@@ -10,7 +10,7 @@ def watch(callback):
     channel.basic_qos(prefetch_count=1)
     channel.basic_consume(queue=config.rabbit_queue, on_message_callback=callback)
 
-    log.info("Waiting for messages.")
+    log.info('Waiting for messages.')
     channel.start_consuming()
 
 

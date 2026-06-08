@@ -13,12 +13,12 @@ def create():
         pika.ConnectionParameters(
             config.rabbit_host,
             config.rabbit_port,
-            "/",
+            '/',
             credentials,
             blocked_connection_timeout=ONE_DAY_SECONDS,
             socket_timeout=DISABLE_TIMEOUT,
             stack_timeout=DISABLE_TIMEOUT,
-            heartbeat=DISABLE_HEARTBEAT
+            heartbeat=DISABLE_HEARTBEAT,
         )
     )
     channel = connection.channel()

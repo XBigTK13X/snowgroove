@@ -1,7 +1,8 @@
 from database.operation.db_internal import dbi
 import api_models as am
 
-def create_tag(tag: am.Tag=None, name: str=None):
+
+def create_tag(tag: am.Tag = None, name: str = None):
     with dbi.session() as db:
         dbm = None
         if tag:
@@ -14,15 +15,18 @@ def create_tag(tag: am.Tag=None, name: str=None):
         db.refresh(dbm)
         return dbm
 
-def get_tag_by_id(tag_id:int):
+
+def get_tag_by_id(tag_id: int):
     with dbi.session() as db:
         return db.query(dbi.dm.Tag).filter(dbi.dm.Tag.id == tag_id).first()
 
-def get_tag_by_name(tag_name:str):
+
+def get_tag_by_name(tag_name: str):
     with dbi.session() as db:
         return db.query(dbi.dm.Tag).filter(dbi.dm.Tag.name == tag_name).first()
 
-def upsert_tag(tag: am.Tag=None, name: str=None):
+
+def upsert_tag(tag: am.Tag = None, name: str = None):
     existing = None
     if tag:
         if tag.id:
@@ -32,13 +36,18 @@ def upsert_tag(tag: am.Tag=None, name: str=None):
     elif name:
         existing = get_tag_by_name(name)
     if not existing:
-        return create_tag(tag=tag,name=name)
+        return create_tag(tag=tag, name=name)
     with dbi.session() as db:
-        existing = db.query(dbi.dm.Tag).filter(dbi.dm.Tag.id == existing.id).update(tag.model_dump())
+        existing = (
+            db.query(dbi.dm.Tag)
+            .filter(dbi.dm.Tag.id == existing.id)
+            .update(tag.model_dump())
+        )
         db.commit()
         return existing
 
-def get_tag_list(ticket:dbi.dm.Ticket=None):
+
+def get_tag_list(ticket: dbi.dm.Ticket = None):
     with dbi.session() as db:
         query = db.query(dbi.dm.Tag)
         if ticket != None and ticket.tag_ids != None:
@@ -46,7 +55,8 @@ def get_tag_list(ticket:dbi.dm.Ticket=None):
         query = query.order_by(dbi.dm.Tag.name)
         return query.all()
 
-def delete_tag_by_id(tag_id:int):
+
+def delete_tag_by_id(tag_id: int):
     with dbi.session() as db:
         deleted = db.query(dbi.dm.Tag).filter(dbi.dm.Tag.id == tag_id).delete()
         db.commit()

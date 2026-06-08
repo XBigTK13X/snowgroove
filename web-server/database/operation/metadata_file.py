@@ -1,17 +1,15 @@
 from database.operation.db_internal import dbi
 import database.operation.crate as db_crate
 
-def create_metadata_file(
-        crate_id: int,
-        kind: str,
-        local_path: str,
-        file_content:str
-    ):
+
+def create_metadata_file(crate_id: int, kind: str, local_path: str, file_content: str):
     network_path = ''
     crate = db_crate.get_crate_by_id(crate_id=crate_id)
     network_path = ''
     if crate.shelf.network_path:
-        network_path = local_path.replace(crate.shelf.local_path,crate.shelf.network_path)
+        network_path = local_path.replace(
+            crate.shelf.local_path, crate.shelf.network_path
+        )
     web_path = dbi.config.web_media_url + local_path
     with dbi.session() as db:
         dbm = dbi.dm.MetadataFile()
@@ -30,8 +28,11 @@ def create_metadata_file(
 def get_metadata_file_by_path(local_path: str):
     with dbi.session() as db:
         return (
-            db.query(dbi.dm.MetadataFile).filter(dbi.dm.MetadataFile.local_path == local_path).first()
+            db.query(dbi.dm.MetadataFile)
+            .filter(dbi.dm.MetadataFile.local_path == local_path)
+            .first()
         )
+
 
 def get_or_create_metadata_file(crate_id: int, kind: str, local_path: str):
     metadata_file = get_metadata_file_by_path(local_path=local_path)
@@ -41,15 +42,19 @@ def get_or_create_metadata_file(crate_id: int, kind: str, local_path: str):
                 crate_id=crate_id,
                 kind=kind,
                 local_path=local_path,
-                xml_content=read_handle.read()
+                xml_content=read_handle.read(),
             )
     return metadata_file
 
+
 def get_metadata_files_by_shelf(shelf_id: int):
     with dbi.session() as db:
-        return db.query(dbi.dm.MetadataFile).filter(dbi.dm.MetadataFile.shelf_id == shelf_id)
+        return db.query(dbi.dm.MetadataFile).filter(
+            dbi.dm.MetadataFile.shelf_id == shelf_id
+        )
 
-def get_metadata_file_list(directory:str=None):
+
+def get_metadata_file_list(directory: str = None):
     with dbi.session() as db:
         query = (
             db.query(dbi.dm.MetadataFile)
@@ -62,16 +67,18 @@ def get_metadata_file_list(directory:str=None):
         if directory:
             query = query.filter(dbi.dm.MetadataFile.local_path.contains(directory))
 
-        query = (query
-            .order_by(dbi.dm.MetadataFile.local_path)
-            .all()
-        )
+        query = query.order_by(dbi.dm.MetadataFile.local_path).all()
 
         return query
 
-def update_metadata_file_content(metadata_file_id:int,xml_content:str):
+
+def update_metadata_file_content(metadata_file_id: int, xml_content: str):
     with dbi.session() as db:
-        dbm = db.query(dbi.dm.MetadataFile).filter(dbi.dm.MetadataFile.id == metadata_file_id).first()
+        dbm = (
+            db.query(dbi.dm.MetadataFile)
+            .filter(dbi.dm.MetadataFile.id == metadata_file_id)
+            .first()
+        )
         if not dbm:
             return None
         dbm.xml_content = xml_content

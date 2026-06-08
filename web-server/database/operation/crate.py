@@ -1,14 +1,15 @@
 from database.operation.db_internal import dbi
 import database.operation.shelf as db_shelf
 
+
 def create_crate(shelf_id: int, directory: str):
     with dbi.session() as db:
         shelf = db_shelf.get_shelf_by_id(shelf_id=shelf_id)
-        relative_directory = directory.replace(shelf.local_path, "")
+        relative_directory = directory.replace(shelf.local_path, '')
 
-        path_parts = relative_directory.strip("/").split("/")
+        path_parts = relative_directory.strip('/').split('/')
 
-        current_relative_path = ""
+        current_relative_path = ''
         parent_id = None
         last_crate = None
 
@@ -18,10 +19,11 @@ def create_crate(shelf_id: int, directory: str):
 
             current_relative_path = dbi.os.path.join(current_relative_path, part)
 
-            existing_crate = db.query(dbi.dm.Crate).filter_by(
-                shelf_id=shelf_id,
-                directory=current_relative_path
-            ).first()
+            existing_crate = (
+                db.query(dbi.dm.Crate)
+                .filter_by(shelf_id=shelf_id, directory=current_relative_path)
+                .first()
+            )
 
             if existing_crate:
                 last_crate = existing_crate
@@ -45,19 +47,17 @@ def create_crate(shelf_id: int, directory: str):
 
         return last_crate
 
-def get_crate_by_shelf_and_directory(shelf_id:int,directory:str,load_files:bool=True):
+
+def get_crate_by_shelf_and_directory(
+    shelf_id: int, directory: str, load_files: bool = True
+):
     with dbi.session() as db:
-        query = (
-            db.query(dbi.dm.Crate)
-            .filter(
-                dbi.dm.Crate.shelf_id == shelf_id,
-                dbi.dm.Crate.directory == directory
-            )
+        query = db.query(dbi.dm.Crate).filter(
+            dbi.dm.Crate.shelf_id == shelf_id, dbi.dm.Crate.directory == directory
         )
         if load_files:
             query = (
-                query
-                .options(dbi.orm.joinedload(dbi.dm.Crate.audio_files))
+                query.options(dbi.orm.joinedload(dbi.dm.Crate.audio_files))
                 .options(dbi.orm.joinedload(dbi.dm.Crate.image_files))
                 .options(dbi.orm.joinedload(dbi.dm.Crate.image_files))
                 .options(dbi.orm.joinedload(dbi.dm.Crate.shelf))
@@ -65,17 +65,21 @@ def get_crate_by_shelf_and_directory(shelf_id:int,directory:str,load_files:bool=
             )
         return query.first()
 
-def get_crate_list_by_shelf_id(shelf_id:int):
+
+def get_crate_list_by_shelf_id(shelf_id: int):
     with dbi.session() as db:
         return (
             db.query(dbi.dm.Crate)
-            .filter(dbi.dm.Crate.shelf_id == shelf_id,dbi.dm.Crate.parent_crate_id == None)
+            .filter(
+                dbi.dm.Crate.shelf_id == shelf_id, dbi.dm.Crate.parent_crate_id == None
+            )
             .options(dbi.orm.joinedload(dbi.dm.Crate.audio_files))
             .options(dbi.orm.joinedload(dbi.dm.Crate.image_files))
             .options(dbi.orm.joinedload(dbi.dm.Crate.metadata_files))
             .options(dbi.orm.joinedload(dbi.dm.Crate.shelf))
             .all()
         )
+
 
 def row_to_dict(row):
     # Convert Row object to a standard mutable dictionary
@@ -90,11 +94,12 @@ def row_to_dict(row):
 
     return data
 
-def get_crate_by_id(crate_id:int):
+
+def get_crate_by_id(crate_id: int):
     with dbi.session() as db:
         if search_query:
-            search_query = search_query.replace("'","''")
-        raw_query = f'''
+            search_query = search_query.replace("'", "''")
+        raw_query = f"""
         select
             crate.id as crate_id,
             crate.title as crate_title,
@@ -163,9 +168,13 @@ def get_crate_by_id(crate_id:int):
         join crate_shelf as cs on cs.crate_id = crate.id
         join shelf as shelf on shelf.id = cs.shelf_id
         where crate.id = :crate_id
-        '''
+        """
 
-        result = db.execute(dbi.sql_text(raw_query), {"crate_id": crate_id}).mappings().first()
+        result = (
+            db.execute(dbi.sql_text(raw_query), {'crate_id': crate_id})
+            .mappings()
+            .first()
+        )
 
         if not result:
             return None
@@ -182,7 +191,8 @@ def get_crate_by_id(crate_id:int):
 
         return crate
 
-def get_crate_by_id(crate_id:int):
+
+def get_crate_by_id(crate_id: int):
     with dbi.session() as db:
         crate = (
             db.query(dbi.dm.Crate)
@@ -192,8 +202,9 @@ def get_crate_by_id(crate_id:int):
             .options(dbi.orm.joinedload(dbi.dm.Crate.metadata_files))
             .options(dbi.orm.joinedload(dbi.dm.Crate.shelf))
             .options(
-                dbi.orm.selectinload(dbi.dm.Crate.children)
-                .options(dbi.orm.selectinload(dbi.dm.Crate.image_files))
+                dbi.orm.selectinload(dbi.dm.Crate.children).options(
+                    dbi.orm.selectinload(dbi.dm.Crate.image_files)
+                )
             )
             .first()
         )
@@ -204,23 +215,22 @@ def get_crate_by_id(crate_id:int):
                 child = dbi.dm.set_primary_images(child)
         return crate
 
-def get_crate_list_by_directory(directory:str,load_files:bool=True):
+
+def get_crate_list_by_directory(directory: str, load_files: bool = True):
     with dbi.session() as db:
-        query = (
-            db.query(dbi.dm.Crate)
-            .filter(dbi.dm.Crate.directory.contains(directory))
+        query = db.query(dbi.dm.Crate).filter(
+            dbi.dm.Crate.directory.contains(directory)
         )
         if load_files:
             query = (
-                query
-                .options(dbi.orm.joinedload(dbi.dm.Crate.audio_files))
+                query.options(dbi.orm.joinedload(dbi.dm.Crate.audio_files))
                 .options(dbi.orm.joinedload(dbi.dm.Crate.image_files))
                 .options(dbi.orm.joinedload(dbi.dm.Crate.shelf))
             )
         return query.order_by(
-            dbi.func.length(dbi.dm.Crate.directory),
-            dbi.dm.Crate.directory
+            dbi.func.length(dbi.dm.Crate.directory), dbi.dm.Crate.directory
         ).all()
+
 
 def get_crate_subdirectories(directory: str):
     with dbi.session() as db:
@@ -230,6 +240,7 @@ def get_crate_subdirectories(directory: str):
             .all()
         )
 
+
 def get_crate_list(search_query: str):
 
     with dbi.session() as db:
@@ -238,31 +249,27 @@ def get_crate_list(search_query: str):
 
         directories = (
             db.query(dbi.dm.Crate)
-                .options(dbi.orm.joinedload(dbi.dm.Crate.shelf))
-                .filter(u(dbi.dm.Crate.directory).ilike(uq))
-                .all()
+            .options(dbi.orm.joinedload(dbi.dm.Crate.shelf))
+            .filter(u(dbi.dm.Crate.directory).ilike(uq))
+            .all()
         )
         images = (
             db.query(dbi.dm.CrateImageFile)
-                .join(dbi.dm.CrateImageFile.image_file)
-                .filter(u(dbi.dm.ImageFile.local_path).ilike(uq))
-                .options(dbi.orm.contains_eager(dbi.dm.CrateImageFile.image_file))
-                .all()
+            .join(dbi.dm.CrateImageFile.image_file)
+            .filter(u(dbi.dm.ImageFile.local_path).ilike(uq))
+            .options(dbi.orm.contains_eager(dbi.dm.CrateImageFile.image_file))
+            .all()
         )
         videos = (
             db.query(dbi.dm.CrateVideoFile)
-                .join(dbi.dm.CrateVideoFile.video_file)
-                .filter(u(dbi.dm.VideoFile.local_path).ilike(uq))
-                .options(dbi.orm.contains_eager(dbi.dm.CrateVideoFile.video_file))
-                .all()
+            .join(dbi.dm.CrateVideoFile.video_file)
+            .filter(u(dbi.dm.VideoFile.local_path).ilike(uq))
+            .options(dbi.orm.contains_eager(dbi.dm.CrateVideoFile.video_file))
+            .all()
         )
 
         if directories:
             for xx in directories:
-                xx.display = xx.directory.replace(xx.shelf.local_path+'/','')
+                xx.display = xx.directory.replace(xx.shelf.local_path + '/', '')
 
-        return {
-            'directories': directories,
-            'images': images,
-            'videos': videos
-        }
+        return {'directories': directories, 'images': images, 'videos': videos}

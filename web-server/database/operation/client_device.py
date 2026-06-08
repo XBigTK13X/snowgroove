@@ -1,6 +1,7 @@
 from database.operation.db_internal import dbi
 
-def create_client_device(device_name:str):
+
+def create_client_device(device_name: str):
     with dbi.session() as db:
         dbm = dbi.dm.ClientDevice()
         dbm.reported_name = device_name
@@ -9,12 +10,14 @@ def create_client_device(device_name:str):
         db.refresh(dbm)
         return dbm
 
-def get_client_device_by_reported_name(device_name:str):
+
+def get_client_device_by_reported_name(device_name: str):
     with dbi.session() as db:
         query = db.query(dbi.dm.ClientDevice)
         return query.filter(dbi.dm.ClientDevice.reported_name == device_name).first()
 
-def create_client_device_user(client_device_id:int,snowgroove_user_id:int):
+
+def create_client_device_user(client_device_id: int, snowgroove_user_id: int):
     with dbi.session() as db:
         dbm = dbi.dm.ClientDeviceUser()
         dbm.client_device_id = client_device_id
@@ -25,22 +28,27 @@ def create_client_device_user(client_device_id:int,snowgroove_user_id:int):
         db.refresh(dbm)
         return dbm
 
-def get_client_device_user_by_ids(client_device_id:int,snowgroove_user_id:int):
+
+def get_client_device_user_by_ids(client_device_id: int, snowgroove_user_id: int):
     with dbi.session() as db:
         query = db.query(dbi.dm.ClientDeviceUser)
         return query.filter(
             dbi.dm.ClientDeviceUser.client_device_id == client_device_id,
-            dbi.dm.ClientDeviceUser.snowgroove_user_id == snowgroove_user_id
+            dbi.dm.ClientDeviceUser.snowgroove_user_id == snowgroove_user_id,
         ).first()
 
-def get_client_device_user_by_cduid(cduid:int):
+
+def get_client_device_user_by_cduid(cduid: int):
     with dbi.session() as db:
-        query = db.query(dbi.dm.ClientDeviceUser).options(dbi.orm.joinedload(dbi.dm.ClientDeviceUser.client_device))
+        query = db.query(dbi.dm.ClientDeviceUser).options(
+            dbi.orm.joinedload(dbi.dm.ClientDeviceUser.client_device)
+        )
         return query.filter(
             dbi.dm.ClientDeviceUser.id == cduid,
         ).first()
 
-def get_ticket_by_cduid(cduid:int):
+
+def get_ticket_by_cduid(cduid: int):
     ticket = dbi.Ticket()
     ticket.client = get_client_device_user_by_cduid(cduid=cduid)
     if not ticket.client:
@@ -52,13 +60,21 @@ def get_ticket_by_cduid(cduid:int):
         isolation = 'Loud'
     with dbi.session() as db:
         ticket.tag_ids = (
-            db.query(dbi.dm.UserTag).filter(dbi.dm.UserTag.snowgroove_user_id == ticket.client.snowgroove_user_id).all()
+            db.query(dbi.dm.UserTag)
+            .filter(
+                dbi.dm.UserTag.snowgroove_user_id == ticket.client.snowgroove_user_id
+            )
+            .all()
         )
         ticket.tag_ids = [xx.tag_id for xx in ticket.tag_ids]
         if len(ticket.tag_ids) == 0:
             ticket.tag_ids = None
         ticket.shelf_ids = (
-            db.query(dbi.dm.UserShelf).filter(dbi.dm.UserShelf.snowgroove_user_id == ticket.client.snowgroove_user_id).all()
+            db.query(dbi.dm.UserShelf)
+            .filter(
+                dbi.dm.UserShelf.snowgroove_user_id == ticket.client.snowgroove_user_id
+            )
+            .all()
         )
         ticket.shelf_ids = [xx.shelf_id for xx in ticket.shelf_ids]
         if len(ticket.shelf_ids) == 0:
@@ -72,14 +88,17 @@ def get_ticket_by_cduid(cduid:int):
                 db.query(dbi.dm.ClientDeviceUser)
                 .filter(
                     dbi.dm.ClientDeviceUser.id != ticket.cduid,
-                    dbi.dm.ClientDeviceUser.snowgroove_user_id == ticket.client.snowgroove_user_id,
-                    (dbi.dm.ClientDeviceUser.isolation_mode.in_(['Loud','Shout']))
-                    | (dbi.dm.ClientDeviceUser.isolation_mode == None)
+                    dbi.dm.ClientDeviceUser.snowgroove_user_id
+                    == ticket.client.snowgroove_user_id,
+                    (dbi.dm.ClientDeviceUser.isolation_mode.in_(['Loud', 'Shout']))
+                    | (dbi.dm.ClientDeviceUser.isolation_mode == None),
                 )
                 .all()
             )
             ticket.watch_group = [xx.id for xx in watch_group]
-            ticket.watch_group.insert(0,ticket.cduid)
+            ticket.watch_group.insert(0, ticket.cduid)
             return ticket
-        dbi.log.error(f"Unknown isolation mode encountered! [{ticket.client.isolation_mode}]")
+        dbi.log.error(
+            f'Unknown isolation mode encountered! [{ticket.client.isolation_mode}]'
+        )
         return ticket

@@ -1,6 +1,7 @@
 from typing import Union, Literal
 from pydantic import BaseModel
 
+
 class User(BaseModel):
     id: int | None = None
     username: str
@@ -25,10 +26,12 @@ class AuthTokenContent(BaseModel):
     scopes: list[str] = []
     client_device_user_id: int
 
+
 class UserAccess(BaseModel):
     user_id: int
     tag_ids: list[int]
     shelf_ids: list[int]
+
 
 class Job(BaseModel):
     id: int | None = None
@@ -36,12 +39,9 @@ class Job(BaseModel):
     message: str
     status: str
 
+
 class ShelfKind(BaseModel):
-    name: Union[
-        Literal["Movies"],
-        Literal["Shows"],
-        Literal["Keepsakes"]
-    ]
+    name: Union[Literal['Movies'], Literal['Shows'], Literal['Keepsakes']]
 
 
 class Shelf(BaseModel):
@@ -70,6 +70,7 @@ class Tag(BaseModel):
     id: int | None = None
     name: str
 
+
 class DisplayCleanupRule(BaseModel):
     id: int | None = None
     needle: str
@@ -77,6 +78,7 @@ class DisplayCleanupRule(BaseModel):
     target_kind: str | None = None
     rule_kind: str | None = None
     priority: int | None = None
+
 
 class TagRule(BaseModel):
     tag_name: str | None = None
