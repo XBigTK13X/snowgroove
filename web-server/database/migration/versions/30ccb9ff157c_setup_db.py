@@ -9,38 +9,13 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-
+from database.migrate import fk,m2m
 
 # revision identifiers, used by Alembic.
 revision: str = '30ccb9ff157c'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
-
-def fk(field,nullable=False):
-    return sa.Column(
-        field.replace('.','_'),
-        sa.Integer,
-        sa.ForeignKey(field,ondelete="CASCADE"),
-        nullable=nullable
-    )
-
-def m2m(field1,field2):
-    name1 = field1.replace('.','_')
-    name2 = field2.replace('.','_')
-    title1 = field1.split('.')[0]
-    title2 = field2.split('.')[0]
-    title = f'{title1}_{title2}'
-    op.create_table(
-        title,
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("created_at", sa.DateTime, nullable=False),
-        sa.Column("updated_at", sa.DateTime, nullable=False),
-        fk(field1),
-        fk(field2)
-    )
-
-    op.create_unique_constraint(f"unique_{title}", title, [name1, name2])
 
 def user_schema():
     op.create_table(
@@ -134,7 +109,7 @@ def audio_schema():
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("created_at", sa.DateTime, nullable=False),
         sa.Column("updated_at", sa.DateTime, nullable=False),
-        fk("crate.id"),
+        fk(sa,"crate.id"),
         sa.Column("name", sa.Text, nullable=False),
         sa.Column("year", sa.Text, nullable=True),
     )
@@ -144,7 +119,7 @@ def audio_schema():
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("created_at", sa.DateTime, nullable=False),
         sa.Column("updated_at", sa.DateTime, nullable=False),
-        fk("crate.id"),
+        fk(sa,"crate.id"),
         sa.Column("album",sa.Text,nullable=True),
         sa.Column("artist",sa.Text,nullable=True),
         sa.Column("disc", sa.Text, nullable=True),
@@ -220,7 +195,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("created_at", sa.DateTime, nullable=False),
         sa.Column("updated_at", sa.DateTime, nullable=False),
-        fk('tag.id',nullable=True),
+        fk(sa,'tag.id',nullable=True),
         sa.Column("rule_kind", sa.Text),
         sa.Column("priority", sa.Integer),
         sa.Column("target_kind", sa.Text),
@@ -260,7 +235,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("created_at", sa.DateTime, nullable=False),
         sa.Column("updated_at", sa.DateTime, nullable=False),
-        fk('crate.id'),
+        fk(sa,'crate.id'),
         sa.Column("kind", sa.Text, nullable=False),
         sa.Column("local_path", sa.Text, nullable=False),
         sa.Column("web_path", sa.Text, nullable=False),
@@ -277,7 +252,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("created_at", sa.DateTime, nullable=False),
         sa.Column("updated_at", sa.DateTime, nullable=False),
-        fk('crate.id'),
+        fk(sa,'crate.id'),
         sa.Column("kind", sa.Text, nullable=False),
         sa.Column("local_path", sa.Text, nullable=False),
         sa.Column("web_path", sa.Text, nullable=False),
@@ -291,13 +266,13 @@ def upgrade() -> None:
 
     audio_schema()
 
-    m2m('crate.id','artist.id')
+    m2m(op,sa,'crate.id','artist.id')
 
-    m2m('snowgroove_user.id','tag.id')
-    m2m('snowgroove_user.id','shelf.id')
-    m2m('snowgroove_user.id','crate.id')
-    m2m('snowgroove_user.id','album.id')
-    m2m('snowgroove_user.id','artist.id')
+    m2m(op,sa,'snowgroove_user.id','tag.id')
+    m2m(op,sa,'snowgroove_user.id','shelf.id')
+    m2m(op,sa,'snowgroove_user.id','crate.id')
+    m2m(op,sa,'snowgroove_user.id','album.id')
+    m2m(op,sa,'snowgroove_user.id','artist.id')
 
 def downgrade() -> None:
     pass
