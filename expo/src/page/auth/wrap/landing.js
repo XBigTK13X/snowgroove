@@ -7,7 +7,6 @@ export default function LandingPage(props) {
     const { SnowStyle, navPush } = C.useSnowContext(props)
     const { currentAudioFile, progressPercent, seekToSeconds, positionSeconds } = useAudioContext()
     const [shelves, setShelves] = C.React.useState(null)
-    const [streamSources, setStreamSources] = C.React.useState(null)
 
     C.React.useEffect(() => {
         if (config.debugVideoUrl) {
@@ -42,7 +41,8 @@ export default function LandingPage(props) {
     let destinations = [
         <C.SnowTextButton title="Queue" onPress={navPush({ path: routes.continueWatching })} />,
         <C.SnowTextButton title="Search" onPress={navPush({ path: routes.search })} />,
-        <C.SnowTextButton title="Playlists" onPress={navPush({ path: routes.playlistList })} />
+        <C.SnowTextButton title="Playlists" onPress={navPush({ path: routes.playlistList })} />,
+        <C.SnowTextButton title="Devices" onPress={navPush({ path: routes.deviceList })} />,
     ]
 
     if (shelves) {
@@ -53,18 +53,6 @@ export default function LandingPage(props) {
                     onPress={navPush({ path: routes.crateDetails, params: { shelfId: shelf.id } })}
                 />
             )
-        }))
-    }
-
-    if (streamSources) {
-        destinations = destinations.concat(streamSources.map((streamSource) => {
-            return (<C.SnowTextButton
-                title={streamSource.name}
-                onPress={navPush({
-                    path: routes.streamableList,
-                    params: { streamSourceId: streamSource.id }
-                })}
-            />)
         }))
     }
 

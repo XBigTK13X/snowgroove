@@ -279,37 +279,43 @@ def shelf_routes(router):
 
 
 def music_session_routes(router):
-    @router.post('/music/session', tags=['Media Session'])
+    @router.get('/remote-player/list', tags=['Music Session'])
+    def get_remote_player_list(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+    ):
+        return db.op.get_remote_player_list()
+
+    @router.post('/music/session', tags=['Music Session'])
     def upsert_music_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
     ):
         return True
 
-    @router.delete('/music/session/song/next', tags=[''])
+    @router.delete('/music/session/song/next', tags=['Music Session'])
     def play_next_song_in_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
     ):
         return True
 
-    @router.post('/music/session/song/previous')
+    @router.post('/music/session/song/previous', tags=['Music Session'])
     def play_previous_song_in_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
     ):
         return True
 
-    @router.post('/music/session/play')
+    @router.post('/music/session/play', tags=['Music Session'])
     def play_mussic_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
     ):
         return True
 
-    @router.post('/music/session/pause')
+    @router.post('/music/session/pause', tags=['Music Session'])
     def pause_music_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
     ):
         return True
 
-    @router.post('/music/session/stop')
+    @router.post('/music/session/stop', tags=['Music Session'])
     def stop_music_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
     ):

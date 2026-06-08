@@ -21,7 +21,10 @@ def create_crate(shelf_id: int, directory: str):
 
             existing_crate = (
                 db.query(dbi.dm.Crate)
-                .filter_by(shelf_id=shelf_id, directory=current_relative_path)
+                .filter(
+                    dbi.dm.Crate.shelf_id == shelf_id,
+                    dbi.dm.Crate.directory == current_relative_path,
+                )
                 .first()
             )
 
@@ -59,7 +62,7 @@ def get_crate_by_shelf_and_directory(
             query = (
                 query.options(dbi.orm.joinedload(dbi.dm.Crate.audio_files))
                 .options(dbi.orm.joinedload(dbi.dm.Crate.image_files))
-                .options(dbi.orm.joinedload(dbi.dm.Crate.image_files))
+                .options(dbi.orm.joinedload(dbi.dm.Crate.metadata_files))
                 .options(dbi.orm.joinedload(dbi.dm.Crate.shelf))
                 .options(dbi.orm.joinedload(dbi.dm.Crate.children))
             )

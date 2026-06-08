@@ -1,57 +1,29 @@
 import json
-from datetime import datetime
 import pychromecast
 
 
-def scan_network_devices():
-    devices, browser = pychromecast.discovery.discover_listed_chromecasts()
+def scan_remote_players():
+    devices, browser = pychromecast.get_chromecasts()
     pychromecast.discovery.stop_discovery(browser)
 
-    discovered_records = []
-    current_time = datetime.utcnow()
+    remote_players = []
 
     for device in devices:
-        # device properties match pychromecast.models.CastInfo structures
         network_payload = {
-            'host': device.host,
-            'port': device.port,
-            'uuid': str(device.uuid),
-            'cast_type': device.cast_type,
+            'host': device.cast_info.host,
+            'port': device.cast_info.port,
+            'uuid': str(device.cast_info.uuid),
+            'cast_type': device.cast_info.cast_type,
         }
 
-        record = {
-            'created_at': current_time,
-            'updated_at': current_time,
-            'kind': device.model_name,  # e.g. 'Google Home Mini', 'Nest Audio', 'Google Cast Group'
-            'name': device.friendly_name,  # e.g. 'Kitchen Speaker'
-            'connection_info': json.dumps(network_payload),
+        remote_player = {
+            'kind': device.cast_info.model_name,
+            'name': device.cast_info.friendly_name,
+            'connection_info_json': json.dumps(network_payload),
         }
-        discovered_records.append(record)
+        remote_players.append(remote_player)
 
-    return discovered_records
-
-
-def sync_devices_to_db(session, remote_player_table):
-    records = scan_network_devices()
-    if not records:
-        return
-
-    for record in records:
-        existing = (
-            session.query(remote_player_table).filter_by(name=record['name']).first()
-        )
-
-        if existing:
-            # Update network fields and timestamp if it changed or dropped/reassigned IP
-            existing.connection_info = record['connection_info']
-            existing.kind = record['kind']
-            existing.updated_at = record['updated_at']
-        else:
-            # New device found on subnet segment
-            new_player = remote_player_table(**record)
-            session.add(new_player)
-
-    session.commit()
+    return remote_players
 
 
 def play_to_static_ip(target_ip, media_url, mime_type='audio/mp3'):
@@ -71,31 +43,8 @@ def play_to_static_ip(target_ip, media_url, mime_type='audio/mp3'):
     return True
 
 
-# chromecast will need a route like this, since it has no onboard playlist support (low memory limit of like 100 items)
-import json
-import logging
-from fastapi import FastAPI, BackgroundTasks, HTTPException, Body, Depends
-from sqlalchemy.orm import Session
-import pychromecast
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('snowgroove')
-
-app = FastAPI(title='snowgroove')
-
-# (Assume get_db and RemotePlayer are imported from your core models)
-
-# ==============================================================================
-# 1. STATE MONITORING & TRACK BOUNDARY AUTOMATION
-# ==============================================================================
-
-
+comment = """
 class DatabaseSessionListener:
-    """
-    Listens for track completion events. When a track finishes, it spins up
-    a short-lived connection worker to look up the DB state and append the next item.
-    """
-
     def __init__(self, player_id: int, host_ip: str, db_session_factory):
         self.player_id = player_id
         self.host_ip = host_ip
@@ -145,18 +94,9 @@ class DatabaseSessionListener:
                 db_session.close()
 
 
-# ==============================================================================
-# 2. OFF-WEB-THREAD OPERATIONS (JUST-IN-TIME CONNECTIONS)
-# ==============================================================================
-
-
-def network_play_worker(
+def media_control_play(
     player_id: int, host_ip: str, playlist_id: int, db_session_factory
 ):
-    """
-    Connects to the hardware, attaches the ephemeral DB listener, and
-    bootstraps the initial sliding track window.
-    """
     try:
         chromecasts, browser = pychromecast.get_chromecasts(known_hosts=[host_ip])
         pychromecast.discovery.stop_discovery(browser)
@@ -191,10 +131,7 @@ def network_play_worker(
         logger.error(f'Error handling play worker routing: {error}')
 
 
-def network_stop_worker(host_ip: str):
-    """
-    Connects to the speaker just-in-time to cleanly drop its current app execution context.
-    """
+def media_control_stop(host_ip: str):
     try:
         chromecasts, browser = pychromecast.get_chromecasts(known_hosts=[host_ip])
         pychromecast.discovery.stop_discovery(browser)
@@ -208,13 +145,7 @@ def network_stop_worker(host_ip: str):
         logger.error(f'Error executing stop sequence worker: {error}')
 
 
-# ==============================================================================
-# 3. FASTAPI STATELESS CONTROLLERS
-# ==============================================================================
-
-
-@app.post('/api/player/{player_id}/play')
-async def start_playlist_session(
+async def media_control_play(
     player_id: int,
     playlist_id: int = Body(..., embed=True),
     background_tasks: BackgroundTasks = BackgroundTasks(),
@@ -244,12 +175,8 @@ async def start_playlist_session(
 
     return {'status': 'session_initiated', 'player': player.name}
 
-
-@app.post('/api/player/{player_id}/skip')
-async def skip_next_track(
-    player_id: int,
-    background_tasks: BackgroundTasks = BackgroundTasks(),
-    db_session: Session = Depends(get_db),
+async def media_control_next_song(
+    player_id: int
 ):
     player = db_session.query(RemotePlayer).get(player_id)
     if not player or not player.is_active:
@@ -268,7 +195,6 @@ async def skip_next_track(
             cast_device = chromecasts[0]
             cast_device.wait()
             cast_device.media_controller.queue_next()
-
     background_tasks.add_task(execute_skip)
     return {'status': 'skip_dispatched'}
 
@@ -294,3 +220,5 @@ async def terminate_session(
 
     background_tasks.add_task(network_stop_worker, host_ip)
     return {'status': 'session_stopped'}
+
+    """

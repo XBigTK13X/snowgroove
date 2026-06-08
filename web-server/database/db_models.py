@@ -377,3 +377,14 @@ class TagRule(BaseModel):
     priority = sa.Column(sa.Integer)
     trigger_kind = sa.Column(sa.Text)
     trigger_target = sa.Column(sa.Text)
+
+
+class RemotePlayer(BaseModel):
+    __tablename__ = 'remote_player'
+    kind = sa.Column(sa.Text)
+    name = sa.Column(sa.Text)
+    connection_info_json = sa.Column(sa.Text)
+
+
+class MusicSession(BaseModel):
+    __tablename__ = 'music_session'

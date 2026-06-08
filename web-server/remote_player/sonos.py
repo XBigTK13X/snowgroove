@@ -1,17 +1,15 @@
 import json
-from datetime import datetime
 import soco
 
 
-def scan_sonos_network():
+def scan_remote_players():
     # Discovers all Sonos components on the local subnet via UPnP
     zone_players = soco.discover()
 
-    discovered_records = []
-    current_time = datetime.utcnow()
+    remote_players = []
 
     if not zone_players:
-        return discovered_records
+        return remote_players
 
     for player in zone_players:
         # Fetch device information dictionary from the hardware
@@ -28,18 +26,17 @@ def scan_sonos_network():
             'is_visible': player.is_visible,  # False if speaker is a hidden stereo pair secondary
         }
 
-        record = {
-            'created_at': current_time,
-            'updated_at': current_time,
+        remote_player = {
             'kind': model_name,  # Returns 'Sonos Era 100 SL' or similar hardware identifier
             'name': friendly_name,  # e.g. 'Living Room (L)'
-            'connection_info': json.dumps(network_payload),
+            'connection_info_json': json.dumps(network_payload),
         }
-        discovered_records.append(record)
+        remote_players.append(remote_player)
 
-    return discovered_records
+    return remote_players
 
 
+comment = """
 def sync_sonos_to_db(session, remote_player_table):
     records = scan_sonos_network()
     if not records:
@@ -78,3 +75,6 @@ def play_to_sonos_player(connection_info_str, media_url):
 
     # Execute actual playback transport control
     sonos_player.play()
+
+
+"""

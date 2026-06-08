@@ -1,5 +1,4 @@
 from database.operation.db_internal import dbi
-import database.operation.movie as db_movie
 
 
 def purge_missing_video_file_records():

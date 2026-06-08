@@ -7,7 +7,7 @@ from database.operation.files import *
 from database.operation.image_file import *
 from database.operation.job import *
 from database.operation.metadata_file import *
-from database.operation.movie import *
+from database.operation.remote_player import *
 from database.operation.search import *
 from database.operation.shelf import *
 from database.operation.tag import *

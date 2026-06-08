@@ -27,7 +27,7 @@ def upgrade() -> None:
         sa.Column('updated_at', sa.DateTime, nullable=False),
         sa.Column('kind', sa.Text, nullable=False),
         sa.Column('name', sa.Text, nullable=False),
-        sa.Column('connection_info', sa.Text, nullable=False),
+        sa.Column('connection_info_json', sa.Text, nullable=False),
     )
     op.create_table(
         'music_session',

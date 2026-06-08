@@ -1,6 +1,5 @@
 from database.operation.db_internal import dbi
 import database.operation.shelf as db_shelf
-import database.operation.movie as db_movie
 
 
 def perform_search(ticket: dbi.dm.Ticket, query: str):
