@@ -35,28 +35,22 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime, nullable=False),
         sa.Column('updated_at', sa.DateTime, nullable=False),
         sa.Column(
-            'snowgroove_user_id',
-            sa.Integer,
-            sa.ForeignKey('snowgroove_user.id', ondelete='CASCADE'),
-            nullable=False,
-        ),
-        sa.Column(
-            'remote_device_id',
+            'remote_player_id',
             sa.Integer,
             sa.ForeignKey('remote_player.id', ondelete='CASCADE'),
             nullable=True,
         ),
         sa.Column(
-            'local_device_id',
+            'client_device_user_id',
             sa.Integer,
-            sa.ForeignKey('client_device.id', ondelete='CASCADE'),
+            sa.ForeignKey('client_device_user.id', ondelete='CASCADE'),
             nullable=True,
         ),
         sa.Column('kind', sa.Text, nullable=False),
         sa.Column('music_queue_json', sa.Text, nullable=True),
         sa.CheckConstraint(
-            '(remote_device_id IS NULL AND local_device_id IS NOT NULL) OR '
-            '(remote_device_id IS NOT NULL AND local_device_id IS NULL)',
+            '(remote_player_id IS NULL AND client_device_user_id IS NOT NULL) OR '
+            '(remote_player_id IS NOT NULL AND client_device_user_id IS NULL)',
             name='check_device_is_assigned_to_session',
         ),
     )

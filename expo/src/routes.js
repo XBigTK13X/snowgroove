@@ -12,7 +12,8 @@ export var routes = {
     streamablePlay: '/auth/play/streamable',
 
     continueWatching: '/auth/wrap/list/continue-watching',
-    deviceList: '/auth/wrap/list/device/list',
+    deviceDetails: '/auth/wrap/details/device',
+    deviceList: '/auth/wrap/list/device',
     episodeDetails: '/auth/wrap/details/episode',
     episodeList: '/auth/wrap/list/episode',
     crateDetails: '/auth/wrap/details/crate',

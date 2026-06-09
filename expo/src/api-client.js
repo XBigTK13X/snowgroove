@@ -308,6 +308,10 @@ export class ApiClient {
         return this.get('/remote-player/list')
     }
 
+    getRemotePlayer = (remotePlayerId) => {
+        return this.get(`/remote-player?remote_player_id=${remotePlayerId}`)
+    }
+
     getSessionList = () => {
         return this.get('/session/list')
     }

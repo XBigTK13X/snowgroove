@@ -5,6 +5,7 @@ import LandingPage from './page/auth/wrap/landing'
 import InfoPage from './page/auth/wrap/info'
 
 import ContinueWatchingPage from './page/auth/wrap/list/continue-watching'
+import DeviceDetailsPage from './page/auth/wrap/details/device-details'
 import DeviceListPage from './page/auth/wrap/list/device-list'
 import EpisodeDetailsPage from './page/auth/wrap/details/episode'
 import EpisodeListPage from './page/auth/wrap/list/episode'
@@ -50,6 +51,7 @@ export var pages = {
     [routes.info]: InfoPage,
 
     [routes.continueWatching]: ContinueWatchingPage,
+    [routes.deviceDetails]: DeviceDetailsPage,
     [routes.deviceList]: DeviceListPage,
     [routes.episodeDetails]: EpisodeDetailsPage,
     [routes.episodeList]: EpisodeListPage,

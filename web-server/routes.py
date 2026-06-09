@@ -285,6 +285,16 @@ def music_session_routes(router):
     ):
         return db.op.get_remote_player_list()
 
+    @router.get('/remote-player', tags=['Music Session'])
+    def get_remote_player_list(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+        remote_player_id: int
+    ):
+        player = db.op.get_remote_player_by_id(id=remote_player_id)
+        if player.music_session:
+            player.music_queue = json.loads(player.music_session.music_queue_json)
+        return player
+
     @router.post('/music/session', tags=['Music Session'])
     def upsert_music_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],

@@ -29,7 +29,10 @@ def upsert_remote_player(name: str, kind: str, connection_info_json: str):
 def get_remote_player_by_id(id: int):
     with dbi.session() as db:
         return (
-            db.query(dbi.dm.RemotePlayer).filter(dbi.dm.RemotePlayer.id == id).first()
+            db.query(dbi.dm.RemotePlayer)
+            .filter(dbi.dm.RemotePlayer.id == id)
+            .options(dbi.orm.joinedload(dbi.dm.RemotePlayer.music_session))
+            .first()
         )
 
 

@@ -161,6 +161,7 @@ class ClientDeviceUser(BaseModel):
     client_device: orm.Mapped['ClientDevice'] = orm.relationship()
     isolation_mode = sa.Column(sa.Text)
     last_connection = sa.Column(sa.DateTime)
+    music_session : orm.Mapped['MusicSession'] = orm.relationship(back_populates='client_device_user')
 
 
 class CachedText(BaseModel):
@@ -384,7 +385,14 @@ class RemotePlayer(BaseModel):
     kind = sa.Column(sa.Text)
     name = sa.Column(sa.Text)
     connection_info_json = sa.Column(sa.Text)
+    music_session: orm.Mapped['MusicSession'] = orm.relationship(back_populates='remote_player')
 
 
 class MusicSession(BaseModel):
     __tablename__ = 'music_session'
+    remote_player_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey('remote_player.id'))
+    remote_player: orm.Mapped['RemotePlayer'] = orm.relationship(back_populates='music_session')
+    client_device_user_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey('client_device_user.id'))
+    client_device_user: orm.Mapped['ClientDeviceUser'] = orm.relationship(back_populates='music_session')
+    kind = sa.Column(sa.Text)
+    music_queue_json = sa.Column(sa.Text)
