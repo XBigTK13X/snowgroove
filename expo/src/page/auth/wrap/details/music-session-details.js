@@ -12,64 +12,28 @@ export default function MusicSessionDetailsPage(props) {
     const [musicSession, setMusicSession] = C.React.useState(null)
 
     C.React.useEffect(() => {
-        if (crateList || crateDetails) {
-            setCrateList(null)
-            setCrateDetails(null)
-        }
-        apiClient.getCrate(
-            currentRoute.routeParams.shelfId,
-            currentRoute.routeParams.crateId
-        ).then((response) => {
-            if (response?.kind === 'crate-list') {
-                setCrateList(response.items)
-            } else {
-                setCrateDetails(response.item)
-            }
+        apiClient.getMusicSession().then(response => {
+            setMusicSession(response)
         })
-    }, [currentRoute?.routeParams?.shelfId, currentRoute?.routeParams?.crateId])
+    }, [])
 
 
 
-    if (!crateDetails && !crateList) {
-        return <C.SnowLabel center>Loading crate...</C.SnowLabel>
+    if (!musicSession) {
+        return <C.SnowLabel center>Loading music session...</C.SnowLabel>
     }
 
-    let parentCrates = null
-    if (crateList?.length) {
-        parentCrates = <C.SnowGrid items={crateList} renderItem={(parentCrate) => {
-            return (
-                <C.SnowTextButton title={parentCrate.title} onPress={navPush({
-                    params: {
-                        shelfId: currentRoute.routeParams.shelfId,
-                        crateId: parentCrate.id
-                    },
-                    replace: false
-                })} />
-            )
-        }} />
-    }
-
-    let childCrates = null
-    if (crateDetails?.children?.length) {
-        childCrates = <C.SnowGrid items={crateDetails.children} renderItem={(childCrate) => {
-            return (
-                <C.SnowTextButton title={childCrate.title} onPress={navPush({
-                    params: {
-                        shelfId: currentRoute.routeParams.shelfId,
-                        crateId: childCrate.id
-                    },
-                    replace: false
-                })} />
-            )
-        }} />
+    let playerTarget = "Local Device"
+    if (currentRoute?.routeParams?.remotePlayerName) {
+        playerTarget = currentRoute.routeParams.remotePlayerName
     }
 
     let audioFiles = null
-    if (crateDetails?.audio_files?.length) {
+    if (musicSession?.musicQueue?.songs?.length) {
         audioFiles = (
             <C.SnowDraggableColumn
                 title="Songs"
-                items={crateDetails?.audio_files}
+                items={musicSession.musicQueue.songs}
                 renderItem={(item) => {
                     return (
                         <C.SnowView>
@@ -82,28 +46,14 @@ export default function MusicSessionDetailsPage(props) {
                 }}
             />
         )
+    } else {
+        audioFiles = <C.SnowLabel center>No songs found in the queue.</C.SnowLabel>
     }
 
-    let admin = null
-    if (isAdmin) {
-        admin = (
-            <C.SnowGrid>
-                <C.SnowCreateJobButton
-                    title="Create Job"
-                    jobDetails={{
-                        targetId: currentRoute?.routeParams?.shelfId,
-                        targetKind: 'shelf',
-                        updateVideos: true,
-                        skipExisting: false
-                    }} />
-            </C.SnowGrid>
-        )
-    }
     return (
         <C.FillView>
             <C.SnowView>
-                {parentCrates}
-                {childCrates}
+                <C.SnowLabel center>Targeting: {playerTarget}</C.SnowLabel>
                 {audioFiles}
             </C.SnowView>
         </C.FillView>

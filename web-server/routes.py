@@ -286,54 +286,60 @@ def music_session_routes(router):
         return db.op.get_remote_player_list()
 
     @router.get('/remote-player', tags=['Music Session'])
-    def get_remote_player_list(
+    def get_remote_player_by_id(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        remote_player_id: int
+        remote_player_id: int,
     ):
         player = db.op.get_remote_player_by_id(id=remote_player_id)
         if player.music_session:
             player.music_queue = json.loads(player.music_session.music_queue_json)
         return player
 
-    @router.post('/music/session', tags=['Music Session'])
+    @router.get('/music-session', tags=['Music Session'])
     def get_music_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        remote_player_id:int=None
+        remote_player_id: int = None,
     ):
-        # Get the session for the cduid if the remote id is null
-        return True
+        return db.op.get_or_create_music_session(
+            remote_player_id=remote_player_id, cduid=auth_user.cduid
+        )
 
-    @router.post('/music/session', tags=['Music Session'])
-    def upsert_music_session(
+    @router.post('/music-session', tags=['Music Session'])
+    def upsert_music_queue(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+        music_session_id: int = Body(),
+        music_queue: dict = Body(),
     ):
+        db.op.update_music_session_music_queue(
+            music_session_id=music_session_id, music_queue=music_queue
+        )
         return True
 
-    @router.delete('/music/session/song/next', tags=['Music Session'])
+    @router.delete('/music-session/song/next', tags=['Music Session'])
     def play_next_song_in_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
     ):
         return True
 
-    @router.post('/music/session/song/previous', tags=['Music Session'])
+    @router.post('/music-session/song/previous', tags=['Music Session'])
     def play_previous_song_in_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
     ):
         return True
 
-    @router.post('/music/session/play', tags=['Music Session'])
+    @router.post('/music-session/play', tags=['Music Session'])
     def play_mussic_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
     ):
         return True
 
-    @router.post('/music/session/pause', tags=['Music Session'])
+    @router.post('/music-session/pause', tags=['Music Session'])
     def pause_music_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
     ):
         return True
 
-    @router.post('/music/session/stop', tags=['Music Session'])
+    @router.post('/music-session/stop', tags=['Music Session'])
     def stop_music_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
     ):

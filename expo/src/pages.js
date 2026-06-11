@@ -10,8 +10,7 @@ import DeviceListPage from './page/auth/wrap/list/device-list'
 import EpisodeDetailsPage from './page/auth/wrap/details/episode'
 import EpisodeListPage from './page/auth/wrap/list/episode'
 import CrateDetailsPage from './page/auth/wrap/details/crate-details'
-import MovieDetailsPage from './page/auth/wrap/details/movie'
-import MovieListPage from './page/auth/wrap/list/movie'
+import MusicSessionDetailsPage from './page/auth/wrap/details/music-session-details'
 import OptionsPage from './page/auth/wrap/options'
 import PlaylistDetailsPage from './page/auth/wrap/details/playlist'
 import PlaylistListPage from './page/auth/wrap/list/playlist'
@@ -53,18 +52,12 @@ export var pages = {
     [routes.continueWatching]: ContinueWatchingPage,
     [routes.deviceDetails]: DeviceDetailsPage,
     [routes.deviceList]: DeviceListPage,
-    [routes.episodeDetails]: EpisodeDetailsPage,
-    [routes.episodeList]: EpisodeListPage,
     [routes.crateDetails]: CrateDetailsPage,
-    [routes.movieDetails]: MovieDetailsPage,
-    [routes.movieList]: MovieListPage,
+    [routes.musicSessionDetails]: MusicSessionDetailsPage,
     [routes.options]: OptionsPage,
     [routes.playlistDetails]: PlaylistDetailsPage,
     [routes.playlistList]: PlaylistListPage,
     [routes.search]: SearchPage,
-    [routes.seasonList]: SeasonListPage,
-    [routes.showList]: ShowListPage,
-    [routes.streamableList]: StreamableListPage,
 
     [routes.adminDashboard]: DashboardPage,
     [routes.adminCleanupRuleEdit]: CleanupRuleEditPage,
