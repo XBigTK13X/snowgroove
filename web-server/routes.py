@@ -296,6 +296,14 @@ def music_session_routes(router):
         return player
 
     @router.post('/music/session', tags=['Music Session'])
+    def get_music_session(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+        remote_player_id:int=None
+    ):
+        # Get the session for the cduid if the remote id is null
+        return True
+
+    @router.post('/music/session', tags=['Music Session'])
     def upsert_music_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
     ):
