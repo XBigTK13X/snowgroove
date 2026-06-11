@@ -49,7 +49,7 @@ export default function LandingPage(props) {
         destinations = destinations.concat(shelves.map((shelf) => {
             return (
                 <C.SnowTextButton
-                    title={shelf.name}
+                    title={"Browse"}
                     onPress={navPush({ path: routes.crateDetails, params: { shelfId: shelf.id } })}
                 />
             )

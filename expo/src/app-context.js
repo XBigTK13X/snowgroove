@@ -32,6 +32,7 @@ export function AppContextProvider(props) {
     const [displayName, setDisplayName] = React.useState(null)
     const [isLoading, setIsLoading] = React.useState(true)
     const [clientOptions, setClientOptions] = React.useState(null)
+    const [targetPlayerId, setTargetPlayerId] = React.useState(null)
 
     const navToItem = (arg) => {
         let isFunc = true
@@ -218,6 +219,13 @@ export function AppContextProvider(props) {
         }
     }
 
+    const changeTargetPlayerId = (targetPlayerId) => {
+        return Snow.saveData(CONST.storageKey.targetPlayerId, targetPlayerId)
+            .then(() => {
+                setTargetPlayerId(targetPlayerId)
+            })
+    }
+
     React.useEffect(() => {
         if (!apiClient) {
             const storedSession = Snow.loadData(CONST.storageKey.session)
@@ -237,6 +245,8 @@ export function AppContextProvider(props) {
                 }))
                 setApiClientKey((prev) => { return prev + 1 })
             }
+            const storedTargetPlayerId = Snow.loadData(CONST.storageKey.targetPlayerId)
+            setTargetPlayerId(storedTargetPlayerId)
             setSessionLoaded(true)
         }
     }, [apiClient, sessionLoaded, apiClientKey])
@@ -307,20 +317,22 @@ export function AppContextProvider(props) {
 
 
     const appContext = {
+        apiClient,
+        changeClientOptions,
+        clientOptions,
         config,
+        displayName,
+        isAdmin,
+        isLoading,
+        navToItem,
         routes,
         session,
         sessionLoaded,
-        isLoading,
-        apiClient,
-        isAdmin,
-        displayName,
+        setWebApiUrl,
         signIn: login,
         signOut: logout,
-        setWebApiUrl,
-        clientOptions,
-        changeClientOptions,
-        navToItem
+        changeTargetPlayerId,
+        targetPlayerId
     }
 
     return (

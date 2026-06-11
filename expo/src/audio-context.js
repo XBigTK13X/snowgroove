@@ -1,16 +1,25 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import React from 'react'
 import { Audio } from 'expo-av'
+import { useAppContext } from './app-context'
 
-const AudioContext = createContext(null)
+const AudioContext = React.createContext(null)
 
 export function AudioContextProvider({ children }) {
-    const [sound, setSound] = useState(null)
-    const [isPlaying, setIsPlaying] = useState(false)
-    const [playbackType, setPlaybackType] = useState('local')
-    const [currentAudioFile, setCurrentAudioFile] = useState(null)
-    const [positionSeconds, setPositionSeconds] = useState(0)
+    const { targetPlayerId, apiClient } = useAppContext()
+    const [musicSession, setMusicSession] = React.useState(null)
+    const [sound, setSound] = React.useState(null)
+    const [isPlaying, setIsPlaying] = React.useState(false)
+    const [playbackType, setPlaybackType] = React.useState('local')
+    const [currentAudioFile, setCurrentAudioFile] = React.useState(null)
+    const [positionSeconds, setPositionSeconds] = React.useState(0)
 
-    useEffect(() => {
+    React.useEffect(() => {
+        apiClient.getMusicSession(targetPlayerId).then(response => {
+            setMusicSession(response)
+        })
+    }, [])
+
+    React.useEffect(() => {
         return () => {
             if (sound) {
                 sound.unloadAsync()
@@ -26,6 +35,14 @@ export function AudioContextProvider({ children }) {
                 setPositionSeconds(0)
             }
         }
+    }
+
+    async function addAudioFileToQueue(audioFile) {
+        let updatedSession = structuredClone(musicSession)
+        updatedSession.musicQueue.songs.push(audioFile)
+        apiClient.updateMusicSessionMusicQueue(musicSession.id, updatedSession.musicQueue).then((response) => {
+            setMusicSession(response)
+        })
     }
 
     async function playAudioFile(audioFile, type = 'local') {
@@ -88,14 +105,15 @@ export function AudioContextProvider({ children }) {
         : 0
 
     let contextValue = {
-        isPlaying,
-        playbackType,
+        addAudioFileToQueue,
         currentAudioFile,
+        isPlaying,
+        playAudioFile,
+        playbackType,
         positionSeconds,
         progressPercent,
-        playAudioFile,
+        seekToSeconds,
         togglePlayback,
-        seekToSeconds
     }
 
     return (
@@ -106,7 +124,7 @@ export function AudioContextProvider({ children }) {
 }
 
 export function useAudioContext() {
-    const context = useContext(AudioContext)
+    const context = React.useContext(AudioContext)
     if (!context) {
         throw new Error('useAudio must be used within an AudioProvider')
     }

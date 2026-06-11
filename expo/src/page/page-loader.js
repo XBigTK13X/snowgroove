@@ -56,13 +56,14 @@ export default function PageLoader() {
             routePages={pages}
             initialRoutePath={routes.signIn}
         >
-            <AudioContextProvider>
-                <AppContextProvider>
+            <AppContextProvider>
+                <AudioContextProvider>
                     <Snow.View style={{ flex: 1, paddingBottom: 50 }}>
                         <PageWrapper />
                     </Snow.View>
-                </AppContextProvider >
-            </AudioContextProvider>
+                </AudioContextProvider>
+            </AppContextProvider >
+
         </SnowApp>
     )
 }

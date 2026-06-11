@@ -53,6 +53,17 @@ export default function CrateDetailsPage(props) {
     let childCrates = null
     if (crateDetails?.children?.length) {
         childCrates = <C.SnowGrid items={crateDetails.children} renderItem={(childCrate) => {
+            if (childCrate.album_cover_image_url) {
+                return (
+                    <C.SnowImageButton title={childCrate.title} imageUrl={childCrate.album_cover_image_url} onPress={navPush({
+                        params: {
+                            shelfId: currentRoute.routeParams.shelfId,
+                            crateId: childCrate.id
+                        },
+                        replace: false
+                    })} />
+                )
+            }
             return (
                 <C.SnowTextButton title={childCrate.title} onPress={navPush({
                     params: {
@@ -79,7 +90,7 @@ export default function CrateDetailsPage(props) {
                     )
                 }}
                 onPress={(item) => {
-                    playAudioFile(item)
+                    addAudioFileToQueue(item)
                 }}
             />
         )
