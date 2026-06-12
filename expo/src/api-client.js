@@ -321,7 +321,7 @@ export class ApiClient {
     }
 
     updateMusicSessionMusicQueue = (musicSessionId, musicQueue) => {
-        return this.post('/music-queue', { music_queue: musicQueue, music_session_id: musicSessionId })
+        return this.post('/music-session', { music_queue: musicQueue, music_session_id: musicSessionId })
     }
 
     getSessionList = () => {

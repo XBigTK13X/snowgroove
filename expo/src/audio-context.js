@@ -14,10 +14,13 @@ export function AudioContextProvider({ children }) {
     const [positionSeconds, setPositionSeconds] = React.useState(0)
 
     React.useEffect(() => {
+        if (!apiClient) {
+            return
+        }
         apiClient.getMusicSession(targetPlayerId).then(response => {
             setMusicSession(response)
         })
-    }, [])
+    }, [apiClient])
 
     React.useEffect(() => {
         return () => {
@@ -27,22 +30,41 @@ export function AudioContextProvider({ children }) {
         }
     }, [sound])
 
+    async function updateMusicQueue(updater) {
+        let updatedSession = structuredClone(musicSession)
+        updatedSession.music_queue = updater(updatedSession.music_queue)
+        apiClient.updateMusicSessionMusicQueue(musicSession.id, updatedSession.music_queue).then((response) => {
+            setMusicSession(response)
+        })
+    }
+
     function handlePlaybackStatusUpdate(status) {
         if (status.isLoaded) {
             setPositionSeconds(status.positionMillis / 1000)
             if (status.didJustFinish) {
                 setIsPlaying(false)
                 setPositionSeconds(0)
+                updateMusicQueue((queue) => {
+                    queue.current_song_index += 1
+                    if (queue.current_song_index > queue?.songs?.length - 1) {
+                        queue.current_song_index = 0
+                    } else {
+                        playAudioFile(queue?.songs?.at(queue.current_song_index))
+                    }
+                    return queue
+                })
             }
         }
     }
 
     async function addAudioFileToQueue(audioFile) {
-        let updatedSession = structuredClone(musicSession)
-        updatedSession.musicQueue.songs.push(audioFile)
-        apiClient.updateMusicSessionMusicQueue(musicSession.id, updatedSession.musicQueue).then((response) => {
-            setMusicSession(response)
+        updateMusicQueue((queue) => {
+            queue.songs.push(audioFile)
+            return queue
         })
+        if (!isPlaying) {
+            playAudioFile(audioFile)
+        }
     }
 
     async function playAudioFile(audioFile, type = 'local') {

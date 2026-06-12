@@ -7,7 +7,7 @@ export default function CrateDetailsPage(props) {
     } = C.useSnowContext(props)
 
 
-    const { playAudioFile } = useAudioContext()
+    const { addAudioFileToQueue } = useAudioContext()
     const { apiClient, routes, isAdmin } = useAppContext()
     const [crateList, setCrateList] = C.React.useState(null)
     const [crateDetails, setCrateDetails] = C.React.useState(null)

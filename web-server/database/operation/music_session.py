@@ -22,7 +22,7 @@ def update_music_session_music_queue(music_session_id: int, music_queue: dict):
         (
             db.query(dbi.dm.MusicSession)
             .filter(dbi.dm.MusicSession.id == music_session_id)
-            .update({'music_queue': dbi.json.dumps(music_queue)})
+            .update({'music_queue_json': dbi.json.dumps(music_queue)})
         )
         db.commit()
         return True

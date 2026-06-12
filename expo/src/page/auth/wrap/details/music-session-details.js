@@ -12,10 +12,13 @@ export default function MusicSessionDetailsPage(props) {
     const [musicSession, setMusicSession] = C.React.useState(null)
 
     C.React.useEffect(() => {
+        if (!apiClient) {
+            return
+        }
         apiClient.getMusicSession().then(response => {
             setMusicSession(response)
         })
-    }, [])
+    }, [apiClient])
 
 
 
@@ -29,11 +32,11 @@ export default function MusicSessionDetailsPage(props) {
     }
 
     let audioFiles = null
-    if (musicSession?.musicQueue?.songs?.length) {
+    if (musicSession?.music_queue?.songs?.length) {
         audioFiles = (
             <C.SnowDraggableColumn
                 title="Songs"
-                items={musicSession.musicQueue.songs}
+                items={musicSession.music_queue.songs}
                 renderItem={(item) => {
                     return (
                         <C.SnowView>
