@@ -7,7 +7,7 @@ export default function MusicSessionDetailsPage(props) {
     } = C.useSnowContext(props)
 
 
-    const { playAudioFile } = useAudioContext()
+    const { playAudioFile, reorderMusicQueue } = useAudioContext()
     const { apiClient, routes, isAdmin } = useAppContext()
     const [musicSession, setMusicSession] = C.React.useState(null)
 
@@ -46,6 +46,9 @@ export default function MusicSessionDetailsPage(props) {
                 }}
                 onPress={(item) => {
                     playAudioFile(item)
+                }}
+                onReorder={(updatedList) => {
+                    reorderMusicQueue(updatedList)
                 }}
             />
         )

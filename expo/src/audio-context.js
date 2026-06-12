@@ -67,6 +67,22 @@ export function AudioContextProvider({ children }) {
         }
     }
 
+    async function reorderMusicQueue(updatedList) {
+        updateMusicQueue(queue => {
+            queue.songs = updatedList
+            if (currentAudioFile) {
+                let ii = 0;
+                for (let ii = 0; ii < queue.songs.length; ii++) {
+                    if (queue.songs[ii].id === currentAudioFile.id) {
+                        queue.current_song_index = ii
+                        break
+                    }
+                }
+            }
+            return queue
+        })
+    }
+
     async function playAudioFile(audioFile, type = 'local') {
         setPlaybackType(type)
         setCurrentAudioFile(audioFile)
@@ -134,6 +150,7 @@ export function AudioContextProvider({ children }) {
         playbackType,
         positionSeconds,
         progressPercent,
+        reorderMusicQueue,
         seekToSeconds,
         togglePlayback,
     }
