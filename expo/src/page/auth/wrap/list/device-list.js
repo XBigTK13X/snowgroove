@@ -17,6 +17,10 @@ export default function DeviceListPage(props) {
         return <C.SnowLabel center>Loading devices...</C.SnowLabel>
     }
 
+    if (!remotePlayers?.length) {
+        return <C.SnowLabel center>No devices found. Try running a scan.</C.SnowLabel>
+    }
+
     return (
         <C.SnowGrid items={remotePlayers} renderItem={(remotePlayer) => {
             return (

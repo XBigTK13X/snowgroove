@@ -274,7 +274,6 @@ def shelf_routes(router):
             }
         else:
             crate = db.op.get_crate_by_id(crate_id=crate_id)
-            # Serialize manually, otherwise FastAPI triggers an infinite recurse
             return {'kind': 'crate-details', 'item': crate}
 
 

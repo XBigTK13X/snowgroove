@@ -238,7 +238,7 @@ class AudioFile(BaseModel):
     crate: orm.Mapped['Crate'] = orm.relationship()
     album = sa.Column(sa.Text)
     artist = sa.Column(sa.Text)
-    disc = sa.Column(sa.Text)
+    disc = sa.Column(sa.Integer)
     duration = sa.Column(sa.Float)
     ffprobe_raw_json = sa.Column(sa.Text)
     kind = sa.Column(sa.Text)
@@ -252,7 +252,7 @@ class AudioFile(BaseModel):
     thumbnail_web_path = sa.Column(sa.Text)
     fingerprint = sa.Column(sa.Text)
     title = sa.Column(sa.Text)
-    track = sa.Column(sa.Text)
+    track = sa.Column(sa.Integer)
     web_path = sa.Column(sa.Text)
     year = sa.Column(sa.Float)
 

@@ -80,6 +80,7 @@ def get_crate_list_by_shelf_id(shelf_id: int):
             .options(dbi.orm.joinedload(dbi.dm.Crate.image_files))
             .options(dbi.orm.joinedload(dbi.dm.Crate.metadata_files))
             .options(dbi.orm.joinedload(dbi.dm.Crate.shelf))
+            .order_by(dbi.dm.Crate.title)
             .all()
         )
 
@@ -122,6 +123,7 @@ def get_crate_by_id(crate_id: int):
             for audio_file in crate.audio_files:
                 if not audio_file.thumbnail_web_path:
                     audio_file.thumbnail_web_path = crate.album_cover_image_url
+            crate.audio_files.sort(key=lambda xx: (xx.disc or 0, xx.track or 0))
         return crate
 
 

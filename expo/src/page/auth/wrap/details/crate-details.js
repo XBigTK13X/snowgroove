@@ -7,7 +7,6 @@ export default function CrateDetailsPage(props) {
     } = C.useSnowContext(props)
 
 
-    const { addAudioFileToQueue } = useAudioContext()
     const { apiClient, routes, isAdmin } = useAppContext()
     const [crateList, setCrateList] = C.React.useState(null)
     const [crateDetails, setCrateDetails] = C.React.useState(null)
@@ -79,20 +78,7 @@ export default function CrateDetailsPage(props) {
     let audioFiles = null
     if (crateDetails?.audio_files?.length) {
         audioFiles = (
-            <C.SnowDraggableColumn
-                title="Songs"
-                items={crateDetails?.audio_files}
-                renderItem={(item) => {
-                    return (
-                        <C.SnowView>
-                            <C.SnowText>{item.position} - {item.title}</C.SnowText>
-                        </C.SnowView>
-                    )
-                }}
-                onPress={(item) => {
-                    addAudioFileToQueue(item)
-                }}
-            />
+            <C.SnowSongList disableDrag audioFiles={crateDetails?.audio_files} />
         )
     }
 

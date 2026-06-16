@@ -90,13 +90,13 @@ export default function ShelfEditPage() {
                 items={buttons}
                 renderItem={renderItem} />
             <C.SnowGrid focusKey="payload" itemsPerRow={2}>
-                <C.SnowLabel>Target Directory</C.SnowLabel>
+                <C.SnowLabel style={{ width: 250 }}>Target Directory</C.SnowLabel>
                 <C.SnowInput onValueChange={changeForm('targetDirectory')} value={form.targetDirectory} />
-                <C.SnowLabel>Target Kind</C.SnowLabel>
+                <C.SnowLabel style={{ width: 250 }}>Target Kind</C.SnowLabel>
                 <C.SnowInput onValueChange={changeForm('targetKind')} value={form.targetKind} />
-                <C.SnowLabel>Target Id</C.SnowLabel>
+                <C.SnowLabel style={{ width: 250 }}>Target Id</C.SnowLabel>
                 <C.SnowInput onValueChange={changeForm('targetId')} value={form.targetId} />
-                <C.SnowLabel>Skip Existing</C.SnowLabel>
+                <C.SnowLabel style={{ width: 250 }}>Skip Existing</C.SnowLabel>
                 <C.SnowInput onValueChange={changeForm('skipExisting')} value={form.skipExisting} />
             </C.SnowGrid>
         </>

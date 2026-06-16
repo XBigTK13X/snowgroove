@@ -44,6 +44,7 @@ import SnowCreateJobButton from './comp/snow-create-job-button'
 import SnowDraggableColumn from './comp/snow-draggable-column'
 import SnowPosterGrid from './comp/snow-poster-grid'
 import SnowScreencapGrid from './comp/snow-screencap-grid'
+import SnowSongList from './comp/snow-song-list'
 
 const isAndroid = Platform.OS === 'android'
 const isTV = Platform.isTV
@@ -79,6 +80,7 @@ export default {
     SnowPosterGrid,
     SnowRangeSlider,
     SnowScreencapGrid,
+    SnowSongList,
     SnowTabs,
     SnowTarget,
     SnowText,

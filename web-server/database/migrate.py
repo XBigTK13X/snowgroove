@@ -18,8 +18,8 @@ def m2m(op, sa, field1, field2):
         sa.Column('id', sa.Integer, primary_key=True),
         sa.Column('created_at', sa.DateTime, nullable=False),
         sa.Column('updated_at', sa.DateTime, nullable=False),
-        fk(field1),
-        fk(field2),
+        fk(sa, field1),
+        fk(sa, field2),
     )
 
     op.create_unique_constraint(f'unique_{title}', title, [name1, name2])

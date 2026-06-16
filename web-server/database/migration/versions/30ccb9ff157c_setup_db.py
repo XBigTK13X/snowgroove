@@ -129,7 +129,7 @@ def audio_schema():
         fk(sa, 'crate.id'),
         sa.Column('album', sa.Text, nullable=True),
         sa.Column('artist', sa.Text, nullable=True),
-        sa.Column('disc', sa.Text, nullable=True),
+        sa.Column('disc', sa.Integer, nullable=True),
         sa.Column('duration', sa.Float, nullable=False),
         sa.Column('ffprobe_raw_json', sa.Text),
         sa.Column('kind', sa.Text, nullable=False),
@@ -143,7 +143,7 @@ def audio_schema():
         sa.Column('thumbnail_web_path', sa.Text),
         sa.Column('fingerprint', sa.Text, nullable=False),
         sa.Column('title', sa.Text, nullable=False),
-        sa.Column('track', sa.Text, nullable=True),
+        sa.Column('track', sa.Integer, nullable=True),
         sa.Column('web_path', sa.Text, nullable=False),
         sa.Column('year', sa.Float, nullable=True),
     )
