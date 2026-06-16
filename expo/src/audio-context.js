@@ -83,6 +83,21 @@ export function AudioContextProvider({ children }) {
         })
     }
 
+    async function stopAudio() {
+        if (!sound) return
+        await sound.pauseAsync()
+        setIsPlaying(false)
+    }
+
+    async function clearMusicQueue() {
+        updateMusicQueue(queue => {
+            stopAudio()
+            queue.songs = []
+            queue.current_song_index = 0
+            return queue
+        })
+    }
+
     async function playAudioFile(audioFile, type = 'local') {
         setPlaybackType(type)
         setCurrentAudioFile(audioFile)
@@ -144,6 +159,7 @@ export function AudioContextProvider({ children }) {
 
     let contextValue = {
         addAudioFileToQueue,
+        clearMusicQueue,
         currentAudioFile,
         isPlaying,
         playAudioFile,

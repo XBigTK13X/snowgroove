@@ -100,103 +100,6 @@ def row_to_dict(row):
 
 def get_crate_by_id(crate_id: int):
     with dbi.session() as db:
-        if search_query:
-            search_query = search_query.replace("'", "''")
-        raw_query = f"""
-        select
-            crate.id as crate_id,
-            crate.title as crate_title,
-
-            shelf.id as shelf_id,
-            shelf.name as shelf_name,
-
-            (
-                select json_agg(json_build_object(
-                    'id', pi.id,
-                    'local_path', pi.local_path,
-                    'web_path', pi.web_path,
-                    'kind', pi.kind,
-                    'thumbnail_web_path', pi.thumbnail_web_path
-                ))
-                from image_file as pi
-                where pi.crate_id = crate.id
-            ) as image_files,
-
-            (
-                select json_agg(json_build_object(
-                    'id', pa.id,
-                    'kind', pa.kind,
-                    'local_path', pa.local_path,
-                    'network_path', pa.network_path,
-                    'snowgroove_info_json', pa.snowgroove_info_json,
-                    'version', pa.version
-                ))
-                from audio_file as pa
-                where pa.crate_id = crate.id
-            ) as audio_files,
-
-            (
-                select json_agg(json_build_object(
-                    'id', pm.id,
-                    'kind', pm.kind,
-                    'local_path', pm.local_path,
-                    'xml_content', pm.xml_content
-                ))
-                from metadata_file as pm
-                where pm.crate_id = crate.id
-            ) as metadata_files,
-
-            (
-                select json_agg(json_build_object(
-                    'id', child.id,
-                    'title', child.title,
-                    'parent_crate_id', child.parent_crate_id,
-                    'image_files', (
-                        select json_agg(json_build_object(
-                            'id', ci.id,
-                            'local_path', ci.local_path,
-                            'web_path', ci.web_path,
-                            'kind', ci.kind,
-                            'thumbnail_web_path', ci.thumbnail_web_path
-                        ))
-                        from image_file as ci
-                        where ci.crate_id = child.id
-                    )
-                ) order by child.title)
-                from crate as child
-                where child.parent_crate_id = crate.id
-            ) as children
-
-        from crate as crate
-        join crate_shelf as cs on cs.crate_id = crate.id
-        join shelf as shelf on shelf.id = cs.shelf_id
-        where crate.id = :crate_id
-        """
-
-        result = (
-            db.execute(dbi.sql_text(raw_query), {'crate_id': crate_id})
-            .mappings()
-            .first()
-        )
-
-        if not result:
-            return None
-
-        crate = dict(result)
-
-        # Ensure collections fallback to empty lists instead of None if no records exist
-        for collection in ['image_files', 'audio_files', 'metadata_files', 'children']:
-            if crate[collection] is None:
-                crate[collection] = []
-
-        for child in crate.children:
-            child = db.dm.load_primary_images(child)
-
-        return crate
-
-
-def get_crate_by_id(crate_id: int):
-    with dbi.session() as db:
         crate = (
             db.query(dbi.dm.Crate)
             .filter(dbi.dm.Crate.id == crate_id)
@@ -216,6 +119,9 @@ def get_crate_by_id(crate_id: int):
             crate.children.sort(key=lambda xx: xx.title)
             for child in crate.children:
                 child = dbi.dm.set_primary_images(child)
+            for audio_file in crate.audio_files:
+                if not audio_file.thumbnail_web_path:
+                    audio_file.thumbnail_web_path = crate.album_cover_image_url
         return crate
 
 

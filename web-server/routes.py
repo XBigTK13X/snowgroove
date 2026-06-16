@@ -310,10 +310,9 @@ def music_session_routes(router):
         music_session_id: int = Body(),
         music_queue: dict = Body(),
     ):
-        db.op.update_music_session_music_queue(
+        return db.op.update_music_session_music_queue(
             music_session_id=music_session_id, music_queue=music_queue
         )
-        return True
 
     @router.delete('/music-session/song/next', tags=['Music Session'])
     def play_next_song_in_session(

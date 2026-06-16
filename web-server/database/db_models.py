@@ -15,9 +15,8 @@ BaseModel.updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
 def set_primary_images(model):
     model.album_cover_image_url = None
-    if not model.image_files:
-        return model
-    model.album_cover_image_url = model.image_files[0].thumbnail_web_path
+    if model.image_files:
+        model.album_cover_image_url = model.image_files[0].thumbnail_web_path
     return model
 
 

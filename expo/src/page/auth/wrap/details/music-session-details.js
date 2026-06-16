@@ -7,7 +7,7 @@ export default function MusicSessionDetailsPage(props) {
     } = C.useSnowContext(props)
 
 
-    const { playAudioFile, reorderMusicQueue } = useAudioContext()
+    const { playAudioFile, reorderMusicQueue, clearMusicQueue } = useAudioContext()
     const { apiClient, routes, isAdmin } = useAppContext()
     const [musicSession, setMusicSession] = C.React.useState(null)
 
@@ -39,9 +39,13 @@ export default function MusicSessionDetailsPage(props) {
                 items={musicSession.music_queue.songs}
                 renderItem={(item) => {
                     return (
-                        <C.SnowView>
+                        <C.SnowGrid leftAlignRows>
+                            <C.Image
+                                style={{ width: 50, height: 50 }}
+                                source={{ uri: item.thumbnail_web_path }}
+                            />
                             <C.SnowText>{item.position} - {item.title}</C.SnowText>
-                        </C.SnowView>
+                        </C.SnowGrid>
                     )
                 }}
                 onPress={(item) => {
@@ -58,10 +62,17 @@ export default function MusicSessionDetailsPage(props) {
 
     return (
         <C.FillView>
-            <C.SnowView>
+            <C.SnowGrid itemsPerRow={1}>
                 <C.SnowLabel center>Targeting: {playerTarget}</C.SnowLabel>
-                {audioFiles}
-            </C.SnowView>
+                {musicSession?.music_queue?.songs?.length ?
+                    <C.SnowTextButton
+                        title="Clear Queue"
+                        onPress={() => {
+                            clearMusicQueue()
+                        }} /> : null
+                }
+            </C.SnowGrid>
+            {audioFiles}
         </C.FillView>
     )
 }
