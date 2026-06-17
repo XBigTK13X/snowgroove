@@ -32,7 +32,7 @@ export function AppContextProvider(props) {
     const [displayName, setDisplayName] = React.useState(null)
     const [isLoading, setIsLoading] = React.useState(true)
     const [clientOptions, setClientOptions] = React.useState(null)
-    const [targetPlayerId, setTargetPlayerId] = React.useState(null)
+    const [targetPlayer, setTargetPlayer] = React.useState(null)
 
     const navToItem = (arg) => {
         let isFunc = true
@@ -219,10 +219,16 @@ export function AppContextProvider(props) {
         }
     }
 
-    const changeTargetPlayerId = (targetPlayerId) => {
-        return Snow.saveData(CONST.storageKey.targetPlayerId, targetPlayerId)
+    const changeTargetPlayer = (remotePlayerId, remotePlayerName) => {
+        return Snow.saveData(CONST.storageKey.targetPlayerId, remotePlayerId)
             .then(() => {
-                setTargetPlayerId(targetPlayerId)
+                return Snow.saveData(CONST.storageKey.targetPlayerName, remotePlayerName)
+            })
+            .then(() => {
+                setTargetPlayer({
+                    id: remotePlayerId,
+                    name: remotePlayerName
+                })
             })
     }
 
@@ -246,7 +252,13 @@ export function AppContextProvider(props) {
                 setApiClientKey((prev) => { return prev + 1 })
             }
             const storedTargetPlayerId = Snow.loadData(CONST.storageKey.targetPlayerId)
-            setTargetPlayerId(storedTargetPlayerId)
+            const storedTargetPlayerName = Snow.loadData(CONST.storageKey.targetPlayerName)
+            if (storedTargetPlayerId && storedTargetPlayerName) {
+                setTargetPlayer({
+                    id: storedTargetPlayerId,
+                    name: storedTargetPlayerName
+                })
+            }
             setSessionLoaded(true)
         }
     }, [apiClient, sessionLoaded, apiClientKey])
@@ -331,8 +343,8 @@ export function AppContextProvider(props) {
         setWebApiUrl,
         signIn: login,
         signOut: logout,
-        changeTargetPlayerId,
-        targetPlayerId
+        changeTargetPlayer,
+        targetPlayer
     }
 
     return (

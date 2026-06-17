@@ -5,7 +5,7 @@ import { useAppContext } from './app-context'
 const AudioContext = React.createContext(null)
 
 export function AudioContextProvider({ children }) {
-    const { targetPlayerId, apiClient } = useAppContext()
+    const { targetPlayer, apiClient } = useAppContext()
     const [musicSession, setMusicSession] = React.useState(null)
     const [sound, setSound] = React.useState(null)
     const [isPlaying, setIsPlaying] = React.useState(false)
@@ -17,10 +17,10 @@ export function AudioContextProvider({ children }) {
         if (!apiClient) {
             return
         }
-        apiClient.getMusicSession(targetPlayerId).then(response => {
+        apiClient.getMusicSession(targetPlayer?.id).then(response => {
             setMusicSession(response)
         })
-    }, [apiClient])
+    }, [apiClient, targetPlayer])
 
     React.useEffect(() => {
         return () => {
@@ -31,20 +31,26 @@ export function AudioContextProvider({ children }) {
     }, [sound])
 
     async function updateMusicQueue(updater) {
-        let updatedSession = structuredClone(musicSession)
-        updatedSession.music_queue = updater(updatedSession.music_queue)
-        apiClient.updateMusicSessionMusicQueue(musicSession.id, updatedSession.music_queue).then((response) => {
-            setMusicSession(response)
+        let latestQueue
+        setMusicSession((currentSession) => {
+            let updatedSession = structuredClone(currentSession)
+            updatedSession.music_queue = updater(updatedSession.music_queue)
+            latestQueue = updatedSession.music_queue
+            return updatedSession
         })
+
+        if (musicSession?.id && latestQueue) {
+            await apiClient.updateMusicSessionMusicQueue(musicSession.id, latestQueue)
+        }
     }
 
-    function handlePlaybackStatusUpdate(status) {
+    async function handlePlaybackStatusUpdate(status) {
         if (status.isLoaded) {
             setPositionSeconds(status.positionMillis / 1000)
             if (status.didJustFinish) {
                 setIsPlaying(false)
                 setPositionSeconds(0)
-                updateMusicQueue((queue) => {
+                await updateMusicQueue((queue) => {
                     queue.current_song_index += 1
                     if (queue.current_song_index > queue?.songs?.length - 1) {
                         queue.current_song_index = 0
@@ -58,8 +64,15 @@ export function AudioContextProvider({ children }) {
     }
 
     async function addAudioFileToQueue(audioFile) {
-        updateMusicQueue((queue) => {
-            queue.songs.push(audioFile)
+        console.log({ audioFile })
+        await updateMusicQueue((queue) => {
+            if (!queue.hasOwnProperty('dedupe')) {
+                queue.dedupe = {}
+            }
+            if (!queue.dedupe.hasOwnProperty(audioFile.fingerprint)) {
+                queue.dedupe[audioFile.fingerprint] = true
+                queue.songs.push(audioFile)
+            }
             return queue
         })
         if (!isPlaying) {
@@ -68,7 +81,7 @@ export function AudioContextProvider({ children }) {
     }
 
     async function reorderMusicQueue(updatedList) {
-        updateMusicQueue(queue => {
+        await updateMusicQueue(queue => {
             queue.songs = updatedList
             if (currentAudioFile) {
                 let ii = 0;
@@ -90,7 +103,7 @@ export function AudioContextProvider({ children }) {
     }
 
     async function clearMusicQueue() {
-        updateMusicQueue(queue => {
+        await updateMusicQueue(queue => {
             stopAudio()
             queue.songs = []
             queue.current_song_index = 0
@@ -169,6 +182,7 @@ export function AudioContextProvider({ children }) {
         reorderMusicQueue,
         seekToSeconds,
         togglePlayback,
+        musicSession
     }
 
     return (

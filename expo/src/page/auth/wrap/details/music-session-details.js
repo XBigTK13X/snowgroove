@@ -7,28 +7,19 @@ export default function MusicSessionDetailsPage(props) {
     } = C.useSnowContext(props)
 
 
-    const { playAudioFile, reorderMusicQueue, clearMusicQueue } = useAudioContext()
-    const { apiClient, routes, isAdmin } = useAppContext()
-    const [musicSession, setMusicSession] = C.React.useState(null)
-
-    C.React.useEffect(() => {
-        if (!apiClient) {
-            return
-        }
-        apiClient.getMusicSession().then(response => {
-            setMusicSession(response)
-        })
-    }, [apiClient])
-
+    const { playAudioFile, reorderMusicQueue, clearMusicQueue, musicSession } = useAudioContext()
+    const { apiClient, targetPlayer, changeTargetPlayer } = useAppContext()
 
 
     if (!musicSession) {
         return <C.SnowLabel center>Loading music session...</C.SnowLabel>
     }
 
-    let playerTarget = "Local Device"
-    if (currentRoute?.routeParams?.remotePlayerName) {
-        playerTarget = currentRoute.routeParams.remotePlayerName
+    let playerTarget = "Local"
+    let clearTarget = null
+    if (targetPlayer?.name) {
+        playerTarget = `${targetPlayer.name}`
+        clearTarget = <C.SnowTextButton title="Stop Targeting" onPress={() => { changeTargetPlayer(null, null) }} />
     }
 
     let audioFiles = null
@@ -63,7 +54,7 @@ export default function MusicSessionDetailsPage(props) {
     return (
         <C.FillView>
             <C.SnowGrid itemsPerRow={1}>
-                <C.SnowLabel center>Targeting: {playerTarget}</C.SnowLabel>
+                <C.SnowLabel center>Active Queue: {playerTarget}</C.SnowLabel>
                 {musicSession?.music_queue?.songs?.length ?
                     <C.SnowTextButton
                         title="Clear Queue"
@@ -71,6 +62,7 @@ export default function MusicSessionDetailsPage(props) {
                             clearMusicQueue()
                         }} /> : null
                 }
+                {clearTarget}
             </C.SnowGrid>
             {audioFiles}
         </C.FillView>

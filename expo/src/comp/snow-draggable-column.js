@@ -54,7 +54,7 @@ export function SnowDraggableColumn(props) {
     const rowHeight = props.rowHeight ?? 120
     const longPressDelay = 500
 
-    const [itemsOrder, setItemsOrder] = React.useState(props.items)
+    const [itemsOrder, setItemsOrder] = React.useState(props.items || [])
     const [draggingIndex, setDraggingIndex] = React.useState(null)
     const [targetIndex, setTargetIndex] = React.useState(null)
 
@@ -66,7 +66,7 @@ export function SnowDraggableColumn(props) {
     const stateRef = React.useRef({ draggingIndex: null, targetIndex: null, itemsOrder: [] })
 
     React.useEffect(() => {
-        setItemsOrder(props.items)
+        setItemsOrder(props.items || [])
     }, [props.items])
 
     React.useEffect(() => {
@@ -82,14 +82,12 @@ export function SnowDraggableColumn(props) {
 
     const panResponder = React.useRef(
         PanResponder.create({
-            onStartShouldSetPanResponder: () => !props.disableDrag,
+            onStartShouldSetPanResponder: () => true,
             onMoveShouldSetPanResponder: (event, gestureState) => {
                 if (props.disableDrag) return false
                 return isDragging.current || Math.abs(gestureState.dy) > 2
             },
             onPanResponderGrant: (event, gestureState) => {
-                if (props.disableDrag) return
-
                 const locationY = event.nativeEvent.locationY
                 let calculatedIndex = Math.floor(locationY / rowHeight)
                 if (calculatedIndex < 0 || calculatedIndex >= stateRef.current.itemsOrder.length) {
@@ -99,6 +97,8 @@ export function SnowDraggableColumn(props) {
                 panY.current = 0
                 dragY.setValue(0)
 
+                if (props.disableDrag) return
+
                 longPressTimeout.current = setTimeout(() => {
                     isDragging.current = true
                     setDraggingIndex(calculatedIndex)
@@ -106,6 +106,8 @@ export function SnowDraggableColumn(props) {
                 }, longPressDelay)
             },
             onPanResponderMove: (event, gestureState) => {
+                if (props.disableDrag) return
+
                 if (!isDragging.current) {
                     if (Math.abs(gestureState.dy) > 10) {
                         clearTimeout(longPressTimeout.current)
@@ -220,9 +222,11 @@ export function SnowDraggableColumn(props) {
                         rowStyle.push({ backgroundColor: SnowStyle.color.coreDark + '50' })
                     }
 
+                    const componentKey = item.id ? `drag-item-${item.id}-${ii}` : `drag-index-${ii}`
+
                     return (
                         <Animated.View
-                            key={item.id}
+                            key={componentKey}
                             style={rowStyle}
                             accessibilityRole="button"
                             data-focus-key={`${props.focusKey}-item-${ii}`}
@@ -230,7 +234,7 @@ export function SnowDraggableColumn(props) {
                             data-xx={props.xx}
                             data-yy={ii}
                         >
-                            <View pointerEvents="none" style={[styles.innerRow, isCurrentDragging && styles.innerRowDragging]}>
+                            <View style={[styles.innerRow, isCurrentDragging && styles.innerRowDragging]}>
                                 {props.renderItem(item)}
                             </View>
                         </Animated.View>
@@ -239,7 +243,6 @@ export function SnowDraggableColumn(props) {
 
                 {draggingIndex !== null && targetIndex !== null && draggingIndex !== targetIndex ? (
                     <View
-                        pointerEvents="none"
                         style={[
                             styles.dropIndicator,
                             { top: targetIndex * rowHeight + (draggingIndex < targetIndex ? rowHeight : 0) }

@@ -5,7 +5,8 @@ const constants = {
         isAdmin: 'isAdmin',
         displayName: 'displayName',
         webApiUrl: 'webApiUrl',
-        targetPlayerId: 'targetPlayerId'
+        targetPlayerId: 'targetPlayerId',
+        targetPlayerName: 'targetPlayerName'
     }
 }
 
