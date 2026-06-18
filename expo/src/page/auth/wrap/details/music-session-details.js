@@ -25,27 +25,7 @@ export default function MusicSessionDetailsPage(props) {
     let audioFiles = null
     if (musicSession?.music_queue?.songs?.length) {
         audioFiles = (
-            <C.SnowDraggableColumn
-                title="Songs"
-                items={musicSession.music_queue.songs}
-                renderItem={(item) => {
-                    return (
-                        <C.SnowGrid leftAlignRows>
-                            <C.Image
-                                style={{ width: 50, height: 50 }}
-                                source={{ uri: item.thumbnail_web_path }}
-                            />
-                            <C.SnowText>{item.position} - {item.title}</C.SnowText>
-                        </C.SnowGrid>
-                    )
-                }}
-                onPress={(item) => {
-                    playAudioFile(item)
-                }}
-                onReorder={(updatedList) => {
-                    reorderMusicQueue(updatedList)
-                }}
-            />
+            <C.SnowSongList audioFiles={musicSession.music_queue.songs} />
         )
     } else {
         audioFiles = <C.SnowLabel center>No songs found in the queue.</C.SnowLabel>
@@ -62,6 +42,7 @@ export default function MusicSessionDetailsPage(props) {
                             clearMusicQueue()
                         }} /> : null
                 }
+                <C.SnowTextButton title="Repeat Mode" />
                 {clearTarget}
             </C.SnowGrid>
             {audioFiles}
