@@ -1,5 +1,6 @@
 import React from 'react'
 import { Audio } from 'expo-av'
+import { useDebouncedCallback } from 'use-debounce'
 import { useAppContext } from './app-context'
 
 const AudioContext = React.createContext(null)
@@ -13,12 +14,22 @@ export function AudioContextProvider({ children }) {
     const [currentAudioFile, setCurrentAudioFile] = React.useState(null)
     const [positionSeconds, setPositionSeconds] = React.useState(0)
 
+    const sessionRef = React.useRef(null)
+
+    const changeMusicSession = (updater) => {
+        setMusicSession((current) => {
+            const next = typeof updater === 'function' ? updater(current) : updater
+            sessionRef.current = next
+            return next
+        })
+    }
+
     React.useEffect(() => {
         if (!apiClient) {
             return
         }
         apiClient.getMusicSession(targetPlayer?.id).then(response => {
-            setMusicSession(response)
+            changeMusicSession(response)
         })
     }, [apiClient, targetPlayer])
 
@@ -30,18 +41,25 @@ export function AudioContextProvider({ children }) {
         }
     }, [sound])
 
+    const debouncedServerSync = useDebouncedCallback(async () => {
+        const latestSession = sessionRef.current
+        if (latestSession?.id && latestSession?.music_queue) {
+            try {
+                await apiClient.updateMusicSessionMusicQueue(latestSession.id, latestSession.music_queue)
+            } catch (error) {
+                console.error('Failed to sync music queue with server', error)
+            }
+        }
+    }, 1000)
+
     async function updateMusicQueue(updater) {
-        let latestQueue
-        setMusicSession((currentSession) => {
+        changeMusicSession((currentSession) => {
             let updatedSession = structuredClone(currentSession)
             updatedSession.music_queue = updater(updatedSession.music_queue)
-            latestQueue = updatedSession.music_queue
             return updatedSession
         })
 
-        if (musicSession?.id && latestQueue) {
-            await apiClient.updateMusicSessionMusicQueue(musicSession.id, latestQueue)
-        }
+        debouncedServerSync()
     }
 
     async function handlePlaybackStatusUpdate(status) {
@@ -64,7 +82,6 @@ export function AudioContextProvider({ children }) {
     }
 
     async function addAudioFileToQueue(audioFile) {
-        console.log({ audioFile })
         await updateMusicQueue((queue) => {
             if (!queue.hasOwnProperty('dedupe')) {
                 queue.dedupe = {}
@@ -84,7 +101,7 @@ export function AudioContextProvider({ children }) {
         await updateMusicQueue(queue => {
             queue.songs = updatedList
             if (currentAudioFile) {
-                let ii = 0;
+                let ii = 0
                 for (let ii = 0; ii < queue.songs.length; ii++) {
                     if (queue.songs[ii].id === currentAudioFile.id) {
                         queue.current_song_index = ii
