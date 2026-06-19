@@ -1,7 +1,9 @@
 from database.operation.db_internal import dbi
 
 
-def upsert_remote_player(name: str, kind: str, connection_info_json: str):
+def upsert_remote_player(
+    name: str, kind: str, device_make: str, connection_info_json: str
+):
     with dbi.session() as db:
         remote_player = (
             db.query(dbi.dm.RemotePlayer)
@@ -12,6 +14,7 @@ def upsert_remote_player(name: str, kind: str, connection_info_json: str):
             dbm = dbi.dm.RemotePlayer()
             dbm.name = name
             dbm.kind = kind
+            dbm.device_make = device_make
             dbm.connection_info_json = connection_info_json
 
             db.add(dbm)
@@ -20,6 +23,7 @@ def upsert_remote_player(name: str, kind: str, connection_info_json: str):
             return dbm
 
         remote_player.kind = kind
+        remote_player.device_make = device_make
         remote_player.connection_info_json = connection_info_json
         db.commit()
         db.refresh(remote_player)

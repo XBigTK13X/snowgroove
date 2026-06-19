@@ -384,6 +384,7 @@ class TagRule(BaseModel):
 class RemotePlayer(BaseModel):
     __tablename__ = 'remote_player'
     kind = sa.Column(sa.Text)
+    device_make = sa.Column(sa.Text)
     name = sa.Column(sa.Text)
     connection_info_json = sa.Column(sa.Text)
     music_session: orm.Mapped['MusicSession'] = orm.relationship(

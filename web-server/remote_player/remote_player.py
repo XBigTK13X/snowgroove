@@ -1,3 +1,4 @@
+import json
 from log import log
 import queue
 import threading
@@ -21,6 +22,7 @@ def scan_remote_players(job_id: int):
         db.op.upsert_remote_player(
             name=remote_player['name'],
             kind=remote_player['kind'],
+            device_make=remote_player['device_make'],
             connection_info_json=remote_player['connection_info_json'],
         )
     return remote_players
@@ -32,13 +34,15 @@ class RemotePlayers:
         self.registry_lock = threading.Lock()
 
     def _device_worker(self, remote_player, initial_action, message_queue):
-        self._execute_action(initial_action)
+        self._execute_action(remote_player=remote_player, remote_action=initial_action)
 
         try:
             while True:
                 try:
-                    action_data = message_queue.get(timeout=1)
-                    self._execute_action(action_data)
+                    remote_action = message_queue.get(timeout=1)
+                    self._execute_action(
+                        remote_player=remote_player, remote_action=remote_action
+                    )
                     message_queue.task_done()
                 except queue.Empty:
                     pass
@@ -53,8 +57,20 @@ class RemotePlayers:
                 ):
                     self.active_connections.pop(remote_player.id, None)
 
-    def _execute_action(self, remote_action: str):
-        log.info(f'Executing action: {remote_action}')
+    def _execute_action(self, remote_player, remote_action):
+        log.info(
+            f'Executing action {remote_action} on [{remote_player.name}] [{remote_player.kind}]'
+        )
+        music_session = db.op.get_music_session_by_remote_player_id(
+            remote_player_id=remote_player.id
+        )
+        music_session.music_queue = json.loads(music_session.music_queue_json)
+        if remote_player.kind == 'sonos':
+            action_handler = sonos
+            action_handler.act(remote_player, remote_action, music_session)
+        elif remote_player.kind == 'chromecast':
+            action_handler = chromecast
+            action_handler.act(remote_player, remote_action, music_session)
 
     def dispatch(self, remote_player, remote_action):
         with self.registry_lock:

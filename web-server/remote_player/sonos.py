@@ -1,5 +1,12 @@
+import time
+import urllib
 import json
 import soco
+from db import db
+from log import log
+import urllib.parse
+from soco.data_structures import DidlMusicTrack, DidlResource
+import xml.etree.ElementTree as ET
 
 
 def scan_remote_players():
@@ -12,28 +19,91 @@ def scan_remote_players():
         return remote_players
 
     for player in zone_players:
-        # Fetch device information dictionary from the hardware
         device_info = player.get_current_track_info()
         speaker_info = player.get_speaker_info()
 
-        # Isolate model identifiers to distinguish Era 100 SL hardware
         model_name = speaker_info.get('model_name', 'Sonos Player')
         friendly_name = player.player_name
 
         network_payload = {
             'host': player.ip_address,
-            'uid': player.uid,  # e.g. RINCON_XXXXXXXXXXXXXXXXX
+            'uid': player.uid,
             'is_visible': player.is_visible,  # False if speaker is a hidden stereo pair secondary
         }
 
         remote_player = {
-            'kind': model_name,  # Returns 'Sonos Era 100 SL' or similar hardware identifier
-            'name': friendly_name,  # e.g. 'Living Room (L)'
+            'kind': 'sonos',
+            'device_make': model_name,
+            'name': friendly_name,
             'connection_info_json': json.dumps(network_payload),
         }
         remote_players.append(remote_player)
 
     return remote_players
+
+
+def act(remote_player, remote_action, music_session):
+    connection_info = json.loads(remote_player.connection_info_json)
+    current_audio_file = music_session.music_queue['songs'][
+        music_session.music_queue['current_song_index']
+    ]
+
+    if remote_action == 'play':
+        play(device_ip=connection_info['host'], audio_file=current_audio_file)
+    else:
+        pass
+
+
+def fmt_duration(seconds):
+    h, r = divmod(int(seconds), 3600)
+    m, s = divmod(r, 60)
+    return f'{h}:{m:02}:{s:02}'
+
+
+def play(device_ip, audio_file):
+    audio_url = audio_file['web_path']
+    log.info(f'Playing [{audio_url}] on [{device_ip}]')
+
+    def encode_url(url):
+        parts = list(urllib.parse.urlparse(url))
+        parts[2] = urllib.parse.quote(parts[2])
+        return urllib.parse.urlunparse(parts)
+
+    encoded_audio_url = encode_url(audio_url)
+    cover_art_url = (
+        encode_url(audio_file['thumbnail_web_path'])
+        if audio_file.get('thumbnail_web_path')
+        else ''
+    )
+
+    title = audio_file.get('title', 'Unknown Title')
+    artist = audio_file.get('artist', 'Unknown Artist')
+    album = audio_file.get('album', 'Unknown Album')
+
+    meta_xml = (
+        '<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"'
+        ' xmlns:dc="http://purl.org/dc/elements/1.1/"'
+        ' xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/">'
+        '<item id="-1" parentID="-1" restricted="true">'
+        f'<dc:title>{title}</dc:title>'
+        f'<dc:creator>{artist}</dc:creator>'
+        f'<upnp:artist>{artist}</upnp:artist>'
+        f'<upnp:album>{album}</upnp:album>'
+        + (
+            f'<upnp:albumArtURI>{cover_art_url}</upnp:albumArtURI>'
+            if cover_art_url
+            else ''
+        )
+        + f'<upnp:class>object.item.audioItem.musicTrack</upnp:class>'
+        f'<res protocolInfo="http-get:*:audio/mpeg:*" duration="{fmt_duration(audio_file.get("duration", 0))}">{encoded_audio_url}</res>'
+        '</item>'
+        '</DIDL-Lite>'
+    )
+
+    sonos_player = soco.SoCo(device_ip)
+    sonos_player.clear_queue()
+    sonos_player.add_uri_to_queue(encoded_audio_url, meta=meta_xml)
+    sonos_player.play_from_queue(0)
 
 
 comment = """

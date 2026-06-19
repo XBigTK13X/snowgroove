@@ -26,13 +26,11 @@ function HeaderNav(props) {
                     short
                     onPress={navPush({ path: routes.landing })}
                 />
-                {targetPlayer?.id !== null ?
-                    <SnowTextButton
-                        title="Queue"
-                        onPress={navPush({ path: routes.musicSessionDetails })}
-                        short
-                    />
-                    : null}
+                <SnowTextButton
+                    title={targetPlayer?.name ?? "Queue"}
+                    onPress={navPush({ path: routes.musicSessionDetails })}
+                    short
+                />
                 <SnowTextButton title="Sign Out" short onPress={signOut} />
                 {isAdmin ? <SnowTextButton
                     title="Dashboard"

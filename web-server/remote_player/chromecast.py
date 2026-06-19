@@ -17,13 +17,18 @@ def scan_remote_players():
         }
 
         remote_player = {
-            'kind': device.cast_info.model_name,
+            'kind': 'chromecast',
+            'device_make': device.cast_info.model_name,
             'name': device.cast_info.friendly_name,
             'connection_info_json': json.dumps(network_payload),
         }
         remote_players.append(remote_player)
 
     return remote_players
+
+
+def act(remote_player, remote_action, music_session):
+    pass
 
 
 def play_to_static_ip(target_ip, media_url, mime_type='audio/mp3'):
