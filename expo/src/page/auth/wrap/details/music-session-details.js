@@ -33,8 +33,8 @@ export default function MusicSessionDetailsPage(props) {
 
     return (
         <C.FillView>
-            <C.SnowGrid itemsPerRow={1}>
-                <C.SnowLabel center>Active Queue: {playerTarget}</C.SnowLabel>
+            <C.SnowLabel center>Active Queue: {playerTarget}</C.SnowLabel>
+            <C.SnowGrid>
                 {musicSession?.music_queue?.songs?.length ?
                     <C.SnowTextButton
                         title="Clear Queue"

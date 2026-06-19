@@ -324,6 +324,22 @@ export class ApiClient {
         return this.post('/music-session', { music_queue: musicQueue, music_session_id: musicSessionId })
     }
 
+    musicSessionPlay = (musicSessionId) => {
+        return this.post('/music-session/play', { music_session_id: musicSessionId })
+    }
+
+    musicSessionPause = (musicSessionId) => {
+        return this.post('/music-session/pause', { music_session_id: musicSessionId })
+    }
+
+    musicSessionStop = (musicSessionId) => {
+        return this.post('/music-session/stop', { music_session_id: musicSessionId })
+    }
+
+    musicSessionSeek = (musicSessionId, seekToSeconds) => {
+        return this.post('/music-session/pause', { music_session_id: musicSessionId, seek_to_seconds: seekToSeconds })
+    }
+
     getSessionList = () => {
         return this.get('/session/list')
     }

@@ -32,6 +32,16 @@ def update_music_session_music_queue(music_session_id: int, music_queue: dict):
         )
 
 
+def get_music_session_by_id(id: int):
+    with dbi.session() as db:
+        return (
+            db.query(dbi.dm.MusicSession)
+            .filter(dbi.dm.MusicSession.id == id)
+            .options(dbi.orm.joinedload(dbi.dm.MusicSession.remote_player))
+            .first()
+        )
+
+
 def get_music_session_by_remote_player_id(remote_player_id: int):
     with dbi.session() as db:
         return (

@@ -1,3 +1,6 @@
+import queue
+import threading
+import time
 from db import db
 import remote_player.chromecast as chromecast
 import remote_player.sonos as sonos
@@ -20,3 +23,52 @@ def scan_remote_players(job_id: int):
             connection_info_json=remote_player['connection_info_json'],
         )
     return remote_players
+
+
+class RemotePlayers:
+    def __init__(self):
+        self.active_connections = {}
+        self.registry_lock = threading.Lock()
+
+    def _device_worker(self, remote_player, initial_action, message_queue):
+        self._execute_action(initial_action)
+
+        try:
+            while True:
+                try:
+                    action_data = message_queue.get(timeout=1)
+                    self._execute_action(action_data)
+                    message_queue.task_done()
+                except queue.Empty:
+                    pass
+
+        except Exception as error_message:
+            pass
+        finally:
+            with self.registry_lock:
+                if (
+                    self.active_connections.get(remote_player.id)
+                    == threading.current_thread()
+                ):
+                    self.active_connections.pop(remote_player.id, None)
+
+    def _execute_action(self, remote_action: str):
+        print(f'Executing action: {remote_action}')
+
+    def dispatch(self, remote_player, remote_action):
+        with self.registry_lock:
+            if remote_player.id in self.active_connections:
+                worker_thread, message_queue = self.active_connections[remote_player.id]
+                if worker_thread.is_alive():
+                    message_queue.put(remote_action)
+                    return 'forwarded'
+
+            message_queue = queue.Queue()
+            worker_thread = threading.Thread(
+                target=self._device_worker,
+                args=(remote_player, remote_action, message_queue),
+                daemon=True,
+            )
+            self.active_connections[remote_player.id] = (worker_thread, message_queue)
+            worker_thread.start()
+            return 'created'

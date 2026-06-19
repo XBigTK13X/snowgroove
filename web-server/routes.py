@@ -17,6 +17,9 @@ from typing import Annotated
 import api_models as am
 import message.write
 import snow_media
+from remote_player import remote_player
+
+remote_players = remote_player.RemotePlayers()
 
 
 def register(router):
@@ -316,30 +319,46 @@ def music_session_routes(router):
     @router.delete('/music-session/song/next', tags=['Music Session'])
     def play_next_song_in_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+        music_session_id: int = Body(),
     ):
         return True
 
     @router.post('/music-session/song/previous', tags=['Music Session'])
     def play_previous_song_in_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+        music_session_id: int = Body(),
     ):
         return True
 
     @router.post('/music-session/play', tags=['Music Session'])
-    def play_mussic_session(
+    def play_music_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+        music_session_id: int = Body(),
     ):
-        return True
+        music_session = db.op.get_music_session_by_id(id=music_session_id)
+        remote_players.dispatch(
+            remote_player=music_session.remote_player, action='play'
+        )
 
     @router.post('/music-session/pause', tags=['Music Session'])
     def pause_music_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+        music_session_id: int = Body(),
     ):
         return True
 
     @router.post('/music-session/stop', tags=['Music Session'])
     def stop_music_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+        music_session_id: int = Body(),
+    ):
+        return True
+
+    @router.post('/music-session/seek', tags=['Music Session'])
+    def seek_music_session(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+        music_session_id: int = Body(),
+        seek_to_seconds: int = Body(),
     ):
         return True
 
