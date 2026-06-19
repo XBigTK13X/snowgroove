@@ -14,17 +14,25 @@ const styles = {
 
 function HeaderNav(props) {
     const { navPush, navPop } = C.useSnowContext()
-    const { displayName, routes, isAdmin, signOut } = useAppContext();
+    const { displayName, routes, isAdmin, signOut, targetPlayer } = useAppContext();
 
     return (
         <Snow.View yy={0} style={styles.header}>
             <SnowGrid
+                itemsPerRow={6}
                 focusKey="header" >
                 <SnowTextButton
                     title="Home"
                     short
                     onPress={navPush({ path: routes.landing })}
                 />
+                {targetPlayer?.id !== null ?
+                    <SnowTextButton
+                        title="Queue"
+                        onPress={navPush({ path: routes.musicSessionDetails })}
+                        short
+                    />
+                    : null}
                 <SnowTextButton title="Sign Out" short onPress={signOut} />
                 {isAdmin ? <SnowTextButton
                     title="Dashboard"

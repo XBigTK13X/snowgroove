@@ -7,8 +7,8 @@ export default function MusicSessionDetailsPage(props) {
     } = C.useSnowContext(props)
 
 
-    const { playAudioFile, reorderMusicQueue, clearMusicQueue, musicSession } = useAudioContext()
-    const { apiClient, targetPlayer, changeTargetPlayer } = useAppContext()
+    const { clearMusicQueue, musicSession } = useAudioContext()
+    const { targetPlayer, changeTargetPlayer } = useAppContext()
 
 
     if (!musicSession) {
@@ -19,7 +19,7 @@ export default function MusicSessionDetailsPage(props) {
     let clearTarget = null
     if (targetPlayer?.name) {
         playerTarget = `${targetPlayer.name}`
-        clearTarget = <C.SnowTextButton title="Stop Targeting" onPress={() => { changeTargetPlayer(null, null) }} />
+        clearTarget = <C.SnowTextButton short title="Stop Targeting" onPress={() => { changeTargetPlayer(null, null) }} />
     }
 
     let audioFiles = null
@@ -40,9 +40,10 @@ export default function MusicSessionDetailsPage(props) {
                         title="Clear Queue"
                         onPress={() => {
                             clearMusicQueue()
-                        }} /> : null
+                        }}
+                        short /> : null
                 }
-                <C.SnowTextButton title="Repeat Mode" />
+                <C.SnowTextButton short title="Repeat Mode" />
                 {clearTarget}
             </C.SnowGrid>
             {audioFiles}

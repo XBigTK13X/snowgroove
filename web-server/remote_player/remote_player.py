@@ -1,3 +1,4 @@
+from log import log
 import queue
 import threading
 import time
@@ -53,7 +54,7 @@ class RemotePlayers:
                     self.active_connections.pop(remote_player.id, None)
 
     def _execute_action(self, remote_action: str):
-        print(f'Executing action: {remote_action}')
+        log.info(f'Executing action: {remote_action}')
 
     def dispatch(self, remote_player, remote_action):
         with self.registry_lock:

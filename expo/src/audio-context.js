@@ -60,6 +60,7 @@ export function AudioContextProvider({ children }) {
 
     const remotePlayer = {
         async play(audioFile) {
+            console.log({ musicSession })
             if (soundRef.current) {
                 await soundRef.current.unloadAsync()
                 setSound(null)

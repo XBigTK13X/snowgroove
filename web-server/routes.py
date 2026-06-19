@@ -65,8 +65,8 @@ def job_routes(router):
     @router.post('/job', tags=['Job'])
     def create_job(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        name: str = Body(),
-        input: dict = Body(),
+        name: str = Body(embed=True),
+        input: dict = Body(embed=True),
     ):
         if not auth_user.is_admin():
             return False
@@ -239,11 +239,11 @@ def shelf_routes(router):
     @router.post('/shelf', tags=['Shelf'])
     def save_shelf(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        kind: str = Body(),
-        name: str = Body(),
-        local_path: str = Body(),
-        network_path: str = Body(),
-        id: int = Body(default=None),
+        kind: str = Body(embed=True),
+        name: str = Body(embed=True),
+        local_path: str = Body(embed=True),
+        network_path: str = Body(embed=True),
+        id: int = Body(embed=True, default=None),
     ):
         if not auth_user.is_admin():
             return None
@@ -309,8 +309,8 @@ def music_session_routes(router):
     @router.post('/music-session', tags=['Music Session'])
     def upsert_music_queue(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        music_session_id: int = Body(),
-        music_queue: dict = Body(),
+        music_session_id: int = Body(embed=True),
+        music_queue: dict = Body(embed=True),
     ):
         return db.op.update_music_session_music_queue(
             music_session_id=music_session_id, music_queue=music_queue
@@ -319,46 +319,46 @@ def music_session_routes(router):
     @router.delete('/music-session/song/next', tags=['Music Session'])
     def play_next_song_in_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        music_session_id: int = Body(),
+        music_session_id: int = Body(embed=True),
     ):
         return True
 
     @router.post('/music-session/song/previous', tags=['Music Session'])
     def play_previous_song_in_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        music_session_id: int = Body(),
+        music_session_id: int = Body(embed=True),
     ):
         return True
 
     @router.post('/music-session/play', tags=['Music Session'])
     def play_music_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        music_session_id: int = Body(),
+        music_session_id: int = Body(embed=True),
     ):
         music_session = db.op.get_music_session_by_id(id=music_session_id)
         remote_players.dispatch(
-            remote_player=music_session.remote_player, action='play'
+            remote_player=music_session.remote_player, remote_action='play'
         )
 
     @router.post('/music-session/pause', tags=['Music Session'])
     def pause_music_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        music_session_id: int = Body(),
+        music_session_id: int = Body(embed=True),
     ):
         return True
 
     @router.post('/music-session/stop', tags=['Music Session'])
     def stop_music_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        music_session_id: int = Body(),
+        music_session_id: int = Body(embed=True),
     ):
         return True
 
     @router.post('/music-session/seek', tags=['Music Session'])
     def seek_music_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        music_session_id: int = Body(),
-        seek_to_seconds: int = Body(),
+        music_session_id: int = Body(embed=True),
+        seek_to_seconds: int = Body(embed=True),
     ):
         return True
 

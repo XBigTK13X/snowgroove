@@ -39,21 +39,20 @@ export default function LandingPage(props) {
     }
 
     let destinations = [
-        <C.SnowTextButton title="Queue" onPress={navPush({ path: routes.musicSessionDetails })} />,
         <C.SnowTextButton title="Search" onPress={navPush({ path: routes.search })} />,
         <C.SnowTextButton title="Playlists" onPress={navPush({ path: routes.playlistList })} />,
         <C.SnowTextButton title="Devices" onPress={navPush({ path: routes.deviceList })} />,
     ]
 
     if (shelves) {
-        destinations = destinations.concat(shelves.map((shelf) => {
+        destinations = (shelves.map((shelf) => {
             return (
                 <C.SnowTextButton
                     title={"Browse"}
                     onPress={navPush({ path: routes.crateDetails, params: { shelfId: shelf.id } })}
                 />
             )
-        }))
+        })).concat(destinations)
     }
 
     if (destinations) {
@@ -88,7 +87,7 @@ export default function LandingPage(props) {
                     focusStart
                     focusKey="destinations"
                     items={destinations}
-                    itemsPerRow={3} />
+                    itemsPerRow={2} />
                 <C.SnowText style={styles.footer} center>{`[built ${config.clientBuildDate}] [snowgroove v${config.clientVersion}] [snowui v${snowuiPackageInfo.version}]`}</C.SnowText>
             </>
         )
