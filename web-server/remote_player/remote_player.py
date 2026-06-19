@@ -58,9 +58,6 @@ class RemotePlayers:
                     self.active_connections.pop(remote_player.id, None)
 
     def _execute_action(self, remote_player, remote_action):
-        log.info(
-            f'Executing action {remote_action} on [{remote_player.name}] [{remote_player.kind}]'
-        )
         music_session = db.op.get_music_session_by_remote_player_id(
             remote_player_id=remote_player.id
         )
@@ -71,6 +68,8 @@ class RemotePlayers:
         elif remote_player.kind == 'chromecast':
             action_handler = chromecast
             action_handler.act(remote_player, remote_action, music_session)
+        else:
+            log.info(f'Unhandled remote_player kind [{remote_player.kind}]')
 
     def dispatch(self, remote_player, remote_action):
         with self.registry_lock:

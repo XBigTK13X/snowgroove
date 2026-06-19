@@ -1,5 +1,14 @@
 import json
 import pychromecast
+import urllib.parse
+from log import log
+import pychromecast
+import urllib.parse
+from pychromecast.models import CastInfo
+import pychromecast
+import urllib.parse
+from pychromecast.models import CastInfo
+from pychromecast.discovery import HostServiceInfo
 
 
 def scan_remote_players():
@@ -28,7 +37,72 @@ def scan_remote_players():
 
 
 def act(remote_player, remote_action, music_session):
-    pass
+    connection_info = json.loads(remote_player.connection_info_json)
+    current_audio_file = music_session.music_queue['songs'][
+        music_session.music_queue['current_song_index']
+    ]
+
+    if remote_action == 'play':
+        play(connection_info=connection_info, audio_file=current_audio_file)
+    else:
+        pass
+
+
+def play(connection_info, audio_file):
+    audio_url = audio_file['web_path']
+    device_ip = connection_info['host']
+
+    def encode_url(url):
+        parts = list(urllib.parse.urlparse(url))
+        parts[2] = urllib.parse.quote(parts[2])
+        return urllib.parse.urlunparse(parts)
+
+    encoded_audio_url = encode_url(audio_url)
+    cover_art_url = (
+        encode_url(audio_file['thumbnail_web_path'])
+        if audio_file.get('thumbnail_web_path')
+        else None
+    )
+
+    title = audio_file.get('title', 'Unknown Title')
+    artist = audio_file.get('artist', 'Unknown Artist')
+    album = audio_file.get('album', 'Unknown Album')
+
+    cast_info = CastInfo(
+        services={HostServiceInfo(host=device_ip, port=connection_info['port'])},
+        uuid=connection_info['uuid'],
+        model_name=None,
+        friendly_name=None,
+        host=device_ip,
+        port=connection_info['port'],
+        cast_type=connection_info['cast_type'],
+        manufacturer=None,
+    )
+
+    cast_device = pychromecast.Chromecast(cast_info=cast_info)
+    cast_device.wait()
+
+    media_metadata = {
+        'metadataType': 3,
+        'title': title,
+        'artist': artist,
+        'albumName': album,
+        'images': [{'url': cover_art_url, 'width': 600, 'height': 600}]
+        if cover_art_url
+        else [],
+    }
+
+    media_controller = cast_device.media_controller
+    media_controller.play_media(
+        url=encoded_audio_url,
+        content_type='audio/mpeg',
+        title=title,
+        thumb=cover_art_url,
+        metadata=media_metadata,
+        stream_type='BUFFERED',
+    )
+    media_controller.block_until_active()
+    media_controller.update_status()
 
 
 def play_to_static_ip(target_ip, media_url, mime_type='audio/mp3'):

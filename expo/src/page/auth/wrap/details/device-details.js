@@ -28,10 +28,11 @@ export default function DeviceDetailsPage(props) {
         )
     }
 
+
     return (
         <>
             <C.SnowText center>{remotePlayer.name}</C.SnowText>
-            <C.SnowText center>{remotePlayer.kind}</C.SnowText>
+            <C.SnowText center>{remotePlayer.device_make}</C.SnowText>
             <C.SnowGrid>
                 <C.SnowTextButton title="Target This Device" onPress={() => {
                     changeTargetPlayer(remotePlayer.id, remotePlayer.name)

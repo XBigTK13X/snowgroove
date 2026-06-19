@@ -54,15 +54,8 @@ def act(remote_player, remote_action, music_session):
         pass
 
 
-def fmt_duration(seconds):
-    h, r = divmod(int(seconds), 3600)
-    m, s = divmod(r, 60)
-    return f'{h}:{m:02}:{s:02}'
-
-
 def play(device_ip, audio_file):
     audio_url = audio_file['web_path']
-    log.info(f'Playing [{audio_url}] on [{device_ip}]')
 
     def encode_url(url):
         parts = list(urllib.parse.urlparse(url))
@@ -95,7 +88,7 @@ def play(device_ip, audio_file):
             else ''
         )
         + f'<upnp:class>object.item.audioItem.musicTrack</upnp:class>'
-        f'<res protocolInfo="http-get:*:audio/mpeg:*" duration="{fmt_duration(audio_file.get("duration", 0))}">{encoded_audio_url}</res>'
+        f'<res protocolInfo="http-get:*:audio/mpeg:*">{encoded_audio_url}</res>'
         '</item>'
         '</DIDL-Lite>'
     )
