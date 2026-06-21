@@ -304,6 +304,10 @@ export class ApiClient {
         return this.get(url)
     }
 
+    getCrateSongList = (crateId) => {
+        return this.get(`/crate/song/list?crate_id=${crateId}`)
+    }
+
     getRemotePlayerList = () => {
         return this.get('/remote-player/list')
     }

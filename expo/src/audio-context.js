@@ -60,7 +60,6 @@ export function AudioContextProvider({ children }) {
 
     const remotePlayer = {
         async play(audioFile) {
-            console.log({ musicSession })
             if (soundRef.current) {
                 await soundRef.current.unloadAsync()
                 setSound(null)
@@ -193,6 +192,29 @@ export function AudioContextProvider({ children }) {
         }
     }
 
+    async function addCrateToQueue(crateId) {
+        let response = await apiClient.getCrateSongList(crateId)
+        if (response.audio_files.length) {
+            await updateMusicQueue((queue) => {
+                if (!queue.hasOwnProperty('dedupe')) {
+                    queue.dedupe = {}
+                }
+                for (let audioFile of response.audio_files) {
+                    if (!queue.dedupe.hasOwnProperty(audioFile.fingerprint)) {
+                        queue.dedupe[audioFile.fingerprint] = true
+                        queue.songs.push(audioFile)
+                    }
+                }
+                return queue
+            })
+            if (!isPlaying) {
+                setCurrentAudioFile(response.audio_files[0])
+                setPositionSeconds(0)
+                await currentPlayer.play(response.audio_files[0])
+            }
+        }
+    }
+
     async function reorderMusicQueue(updatedList) {
         await updateMusicQueue(queue => {
             queue.songs = updatedList
@@ -248,6 +270,7 @@ export function AudioContextProvider({ children }) {
 
     let contextValue = {
         addAudioFileToQueue,
+        addCrateToQueue,
         clearMusicQueue,
         currentAudioFile,
         isPlaying,

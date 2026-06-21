@@ -85,20 +85,6 @@ def get_crate_list_by_shelf_id(shelf_id: int):
         )
 
 
-def row_to_dict(row):
-    # Convert Row object to a standard mutable dictionary
-    data = dict(row)
-
-    # Handle JSON string parsing if your driver doesn't auto-deserialize json_agg
-    for key in ['image_files', 'audio_files', 'metadata_files', 'children']:
-        if isinstance(data.get(key), str):
-            data[key] = json.loads(data[key])
-        elif data.get(key) is None:
-            data[key] = []
-
-    return data
-
-
 def get_crate_by_id(crate_id: int):
     with dbi.session() as db:
         crate = (
@@ -118,38 +104,18 @@ def get_crate_by_id(crate_id: int):
         if crate:
             crate = dbi.dm.set_primary_images(crate)
             crate.children.sort(key=lambda xx: xx.title)
+            crate.kind = 'crate'
             for child in crate.children:
                 child = dbi.dm.set_primary_images(child)
+                if child.album_cover_image_url != None and crate.kind == 'crate':
+                    crate.kind = 'artist'
             for audio_file in crate.audio_files:
                 if not audio_file.thumbnail_web_path:
                     audio_file.thumbnail_web_path = crate.album_cover_image_url
+                if crate.kind != 'album':
+                    crate.kind = 'album'
             crate.audio_files.sort(key=lambda xx: (xx.disc or 0, xx.track or 0))
         return crate
-
-
-def get_crate_list_by_directory(directory: str, load_files: bool = True):
-    with dbi.session() as db:
-        query = db.query(dbi.dm.Crate).filter(
-            dbi.dm.Crate.directory.contains(directory)
-        )
-        if load_files:
-            query = (
-                query.options(dbi.orm.joinedload(dbi.dm.Crate.audio_files))
-                .options(dbi.orm.joinedload(dbi.dm.Crate.image_files))
-                .options(dbi.orm.joinedload(dbi.dm.Crate.shelf))
-            )
-        return query.order_by(
-            dbi.func.length(dbi.dm.Crate.directory), dbi.dm.Crate.directory
-        ).all()
-
-
-def get_crate_subdirectories(directory: str):
-    with dbi.session() as db:
-        return (
-            db.query(dbi.dm.Crate.directory)
-            .filter(dbi.dm.Crate.directory.contains(directory))
-            .all()
-        )
 
 
 def get_crate_list(search_query: str):
@@ -184,3 +150,44 @@ def get_crate_list(search_query: str):
                 xx.display = xx.directory.replace(xx.shelf.local_path + '/', '')
 
         return {'directories': directories, 'images': images, 'videos': videos}
+
+
+def get_crate_audio_file_list(crate_id: int):
+    with dbi.session() as db:
+        crate_cte = (
+            dbi.sa.select(dbi.dm.Crate.id, dbi.dm.Crate.parent_crate_id)
+            .filter(dbi.dm.Crate.id == crate_id)
+            .cte(name='crate_tree', recursive=True)
+        )
+
+        recursive_select = dbi.sa.select(
+            dbi.dm.Crate.id, dbi.dm.Crate.parent_crate_id
+        ).join(crate_cte, dbi.dm.Crate.parent_crate_id == crate_cte.c.id)
+
+        crate_cte = crate_cte.union_all(recursive_select)
+
+        crates = (
+            db.query(dbi.dm.Crate)
+            .filter(dbi.dm.Crate.id.in_(dbi.sa.select(crate_cte.c.id)))
+            .options(dbi.orm.joinedload(dbi.dm.Crate.audio_files))
+            .options(dbi.orm.joinedload(dbi.dm.Crate.image_files))
+            .all()
+        )
+
+        flat_audio_files = []
+
+        for crate in crates:
+            crate = dbi.dm.set_primary_images(crate)
+
+            for audio_file in crate.audio_files:
+                if not audio_file.thumbnail_web_path:
+                    audio_file.thumbnail_web_path = crate.album_cover_image_url
+
+                audio_file.crate_title = crate.title
+                flat_audio_files.append(audio_file)
+
+        flat_audio_files.sort(
+            key=lambda xx: (xx.crate_title or '', xx.disc or 0, xx.track or 0)
+        )
+
+        return {'audio_files': flat_audio_files}

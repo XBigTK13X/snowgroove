@@ -7,6 +7,7 @@ export default function CrateDetailsPage(props) {
     } = C.useSnowContext(props)
 
 
+    const { addCrateToQueue } = useAudioContext()
     const { apiClient, routes, isAdmin } = useAppContext()
     const [crateList, setCrateList] = C.React.useState(null)
     const [crateDetails, setCrateDetails] = C.React.useState(null)
@@ -82,6 +83,18 @@ export default function CrateDetailsPage(props) {
         )
     }
 
+
+    let crateControls = null
+    if (crateDetails && crateDetails?.kind !== 'crate' && crateDetails?.kind !== 'crate-list') {
+        crateControls = (
+            <C.SnowGrid>
+                <C.SnowTextButton title={`Add ${crateDetails.title} to Queue`} onPress={() => {
+                    addCrateToQueue(crateDetails.id)
+                }} />
+            </C.SnowGrid>
+        )
+    }
+
     let admin = null
     if (isAdmin) {
         admin = (
@@ -100,6 +113,8 @@ export default function CrateDetailsPage(props) {
     return (
         <C.FillView>
             <C.SnowView>
+                {admin}
+                {crateControls}
                 {parentCrates}
                 {childCrates}
                 {audioFiles}
