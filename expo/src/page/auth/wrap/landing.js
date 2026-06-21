@@ -5,7 +5,16 @@ const snowuiPackageInfo = require('expo-snowui/package.json')
 export default function LandingPage(props) {
     const { apiClient, routes, config } = useAppContext()
     const { SnowStyle, navPush } = C.useSnowContext(props)
-    const { currentAudioFile, progressPercent, seekToSeconds, positionSeconds } = useAudioContext()
+    const {
+        currentAudioFile,
+        progressPercent,
+        seekToSeconds,
+        positionSeconds,
+        isPlaying,
+        togglePlayback,
+        playPreviousSong,
+        playNextSong
+    } = useAudioContext()
     const [shelves, setShelves] = C.React.useState(null)
 
     C.React.useEffect(() => {
@@ -68,7 +77,15 @@ export default function LandingPage(props) {
             let progressDisplay = `${C.util.secondsToTimestamp(positionSeconds)} / ${C.util.secondsToTimestamp(currentAudioFile.duration)}`
             playerControls = (
                 <>
-                    <C.SnowText center>{nowPlaying}</C.SnowText>
+                    <C.View style={{ height: 40, justifyContent: 'center', overflow: 'hidden', width: '100%' }}>
+                        <C.SnowLabel marquee center>{nowPlaying}</C.SnowLabel>
+                    </C.View>
+                    <C.SnowGrid>
+                        <C.Image
+                            style={{ width: 300, height: 300 }}
+                            source={{ uri: currentAudioFile.thumbnail_web_path }}
+                            contentFit="contain" />
+                    </C.SnowGrid>
                     <C.SnowRangeSlider
                         onValueChange={(seekPercent) => {
                             seekToSeconds(seekPercent * currentAudioFile.duration)
@@ -76,6 +93,17 @@ export default function LandingPage(props) {
                         percent={progressPercent}
                     />
                     <C.SnowText center>{progressDisplay}</C.SnowText>
+                    <C.SnowGrid>
+                        <C.SnowTextButton short title="Previous" onPress={() => {
+                            playPreviousSong()
+                        }} />
+                        <C.SnowTextButton short title={isPlaying ? "Pause" : "Play"} onPress={() => {
+                            togglePlayback()
+                        }} />
+                        <C.SnowTextButton short title="Next" onPress={() => {
+                            playNextSong()
+                        }} />
+                    </C.SnowGrid>
                     <C.SnowBreak />
                 </>
             )

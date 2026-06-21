@@ -273,6 +273,32 @@ export function AudioContextProvider({ children }) {
         await currentPlayer.seek(targetSeconds)
     }
 
+    async function moveCurrentIndex(amount) {
+        updateMusicQueue((queue) => {
+            queue.current_song_index += amount
+            if (queue.current_song_index < 0) {
+                queue.current_song_index = queue.songs.length - 1
+            }
+            else {
+                if (queue.current_song_index > queue.songs.length - 1) {
+                    queue.current_song_index = 0
+                }
+            }
+            setCurrentAudioFile(queue.songs[queue.current_song_index])
+            setPositionSeconds(0)
+            currentPlayer.play(queue.songs[queue.current_song_index])
+            return queue
+        })
+    }
+
+    async function playNextSong() {
+        return await moveCurrentIndex(1)
+    }
+
+    async function playPreviousSong() {
+        return await moveCurrentIndex(-1)
+    }
+
     let progressPercent = currentAudioFile && currentAudioFile.duration > 0
         ? positionSeconds / currentAudioFile.duration
         : 0
@@ -290,7 +316,9 @@ export function AudioContextProvider({ children }) {
         reorderMusicQueue,
         seekToSeconds,
         togglePlayback,
-        musicSession
+        musicSession,
+        playNextSong,
+        playPreviousSong
     }
 
     return (

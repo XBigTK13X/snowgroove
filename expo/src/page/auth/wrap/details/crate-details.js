@@ -51,29 +51,49 @@ export default function CrateDetailsPage(props) {
     }
 
     let childCrates = null
+    let childAlbums = null
     if (crateDetails?.children?.length) {
-        childCrates = <C.SnowGrid items={crateDetails.children} renderItem={(childCrate) => {
-            if (childCrate.album_cover_image_url) {
-                return (
-                    <C.SnowImageButton title={childCrate.title} imageUrl={childCrate.album_cover_image_url} onPress={navPush({
-                        params: {
-                            shelfId: currentRoute.routeParams.shelfId,
-                            crateId: childCrate.id
-                        },
-                        replace: false
-                    })} />
-                )
-            }
-            return (
-                <C.SnowTextButton title={childCrate.title} onPress={navPush({
-                    params: {
-                        shelfId: currentRoute.routeParams.shelfId,
-                        crateId: childCrate.id
-                    },
-                    replace: false
-                })} />
-            )
-        }} />
+        let crates = crateDetails?.children?.filter(xx => { return !xx.album_cover_image_url })
+        let albums = crateDetails?.children?.filter(xx => { return xx.album_cover_image_url })
+        if (crates?.length) {
+            childCrates = (
+                <C.SnowView>
+                    <C.SnowLabel center>Crates</C.SnowLabel>
+                    <C.SnowGrid items={crates} renderItem={(childCrate) => {
+                        return (
+                            <C.SnowTextButton
+                                title={childCrate.title}
+                                onPress={navPush({
+                                    params: {
+                                        shelfId: currentRoute.routeParams.shelfId,
+                                        crateId: childCrate.id
+                                    },
+                                    replace: false
+                                })} />
+                        )
+                    }} />
+                </C.SnowView>)
+        }
+        if (albums?.length) {
+            childAlbums = (
+                <C.SnowView>
+                    <C.SnowLabel center>Albums</C.SnowLabel>
+                    <C.SnowGrid items={albums} renderItem={(childAlbum) => {
+                        return (
+                            <C.SnowImageButton
+                                title={childAlbum.title}
+                                imageUrl={childAlbum.album_cover_image_url}
+                                onPress={navPush({
+                                    params: {
+                                        shelfId: currentRoute.routeParams.shelfId,
+                                        crateId: childAlbum.id
+                                    },
+                                    replace: false
+                                })} />
+                        )
+                    }} />
+                </C.SnowView>)
+        }
     }
 
     let audioFiles = null
@@ -84,39 +104,34 @@ export default function CrateDetailsPage(props) {
     }
 
 
-    let crateControls = null
+    let topButtons = []
     if (crateDetails && crateDetails?.kind !== 'crate' && crateDetails?.kind !== 'crate-list') {
-        crateControls = (
-            <C.SnowGrid>
-                <C.SnowTextButton title={`Add ${crateDetails.title} to Queue`} onPress={() => {
-                    addCrateToQueue(crateDetails.id)
-                }} />
-            </C.SnowGrid>
+        topButtons.push(
+            <C.SnowTextButton title={`Add ${crateDetails.title} to Queue`} onPress={() => {
+                addCrateToQueue(crateDetails.id)
+            }} />
         )
     }
 
-    let admin = null
     if (isAdmin) {
-        admin = (
-            <C.SnowGrid>
-                <C.SnowCreateJobButton
-                    title="Create Job"
-                    jobDetails={{
-                        targetId: currentRoute?.routeParams?.shelfId,
-                        targetKind: 'shelf',
-                        updateVideos: true,
-                        skipExisting: false
-                    }} />
-            </C.SnowGrid>
+        topButtons.push(
+            <C.SnowCreateJobButton
+                title="Create Job"
+                jobDetails={{
+                    targetId: currentRoute?.routeParams?.shelfId,
+                    targetKind: 'shelf',
+                    updateVideos: true,
+                    skipExisting: false
+                }} />
         )
     }
     return (
         <C.FillView>
             <C.SnowView>
-                {admin}
-                {crateControls}
+                {topButtons?.length ? <C.SnowGrid items={topButtons} /> : null}
                 {parentCrates}
                 {childCrates}
+                {childAlbums}
                 {audioFiles}
             </C.SnowView>
         </C.FillView>
