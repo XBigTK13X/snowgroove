@@ -4,12 +4,18 @@ import SnowDraggableColumn from './snow-draggable-column'
 
 export function SnowSongList(props) {
     const { pushModal, popModal } = Snow.useSnowContext()
-    const { addAudioFileToQueue } = useAudioContext()
+    const { addAudioFileToQueue, playAudioFile, musicSession } = useAudioContext()
+
+    let activeItemIndex = -1
+    if (musicSession?.music_queue?.current_song_index > -1) {
+        activeItemIndex = musicSession?.music_queue?.current_song_index
+    }
 
     return (
         <SnowDraggableColumn
             {...props}
             title="Songs"
+            activeIndex={props.activeQueue ? activeItemIndex : -1}
             disableDrag={props.disableDrag}
             items={props.audioFiles}
             rowHeight={100}
@@ -26,11 +32,13 @@ export function SnowSongList(props) {
                                         render: (props) => {
                                             return (
                                                 <Snow.Grid itemsPerRow={1}>
-                                                    <Snow.TextButton title="Album" onPress={popModal} />
-                                                    <Snow.TextButton title="Artist" onPress={popModal} />
-                                                    <Snow.TextButton title="Add to Queue" onPress={popModal} />
                                                     <Snow.TextButton title="Play Next" onPress={popModal} />
-                                                    <Snow.TextButton title="Remove from Queue" onPress={popModal} />
+                                                    <Snow.TextButton title="Add Song to Queue" onPress={popModal} />
+                                                    <Snow.TextButton title="Goto Album" onPress={popModal} />
+                                                    <Snow.TextButton title="Goto Artist" onPress={popModal} />
+                                                    <Snow.TextButton title="Remove Song from Queue" onPress={popModal} />
+                                                    <Snow.TextButton title="Remove Album from Queue" onPress={popModal} />
+                                                    <Snow.TextButton title="Remove Artist from Queue" onPress={popModal} />
                                                 </Snow.Grid>
                                             )
                                         },
@@ -50,7 +58,12 @@ export function SnowSongList(props) {
                 )
             }}
             onPress={(item) => {
-                addAudioFileToQueue(item)
+                if (props.activeQueue) {
+                    playAudioFile(item)
+                }
+                else {
+                    addAudioFileToQueue(item)
+                }
             }}
         />
     )

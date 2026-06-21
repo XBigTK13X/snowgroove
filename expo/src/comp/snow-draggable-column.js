@@ -217,9 +217,17 @@ export function SnowDraggableColumn(props) {
                         ]
 
                     if (ii % 2 == 0) {
-                        rowStyle.push({ backgroundColor: SnowStyle.color.core + '50' })
+                        if (props.activeIndex === ii) {
+                            rowStyle.push({ backgroundColor: SnowStyle.color.core })
+                        } else {
+                            rowStyle.push({ backgroundColor: SnowStyle.color.core + '50' })
+                        }
                     } else {
-                        rowStyle.push({ backgroundColor: SnowStyle.color.coreDark + '50' })
+                        if (props.activeIndex === ii) {
+                            rowStyle.push({ backgroundColor: SnowStyle.color.coreDark })
+                        } else {
+                            rowStyle.push({ backgroundColor: SnowStyle.color.coreDark + '50' })
+                        }
                     }
 
                     const componentKey = item.id ? `drag-item-${item.id}-${ii}` : `drag-index-${ii}`

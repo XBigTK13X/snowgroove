@@ -231,10 +231,6 @@ export function AudioContextProvider({ children }) {
         })
     }
 
-    async function stopAudio() {
-        await currentPlayer.stop()
-    }
-
     async function clearMusicQueue() {
         await updateMusicQueue(queue => {
             currentPlayer.stop()
@@ -244,10 +240,23 @@ export function AudioContextProvider({ children }) {
         })
     }
 
+
+    async function stopAudio() {
+        await currentPlayer.stop()
+    }
+
     async function playAudioFile(audioFile) {
-        setCurrentAudioFile(audioFile)
-        setPositionSeconds(0)
-        await currentPlayer.play(audioFile)
+        await updateMusicQueue((queue) => {
+            const targetIndex = queue.songs.findIndex((song) => song.id === audioFile.id)
+            if (targetIndex !== -1) {
+                queue.current_song_index = targetIndex
+            }
+            setCurrentAudioFile(audioFile)
+            setPositionSeconds(0)
+            currentPlayer.play(audioFile)
+            return queue
+        })
+
     }
 
     async function togglePlayback() {

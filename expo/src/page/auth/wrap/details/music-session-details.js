@@ -25,7 +25,7 @@ export default function MusicSessionDetailsPage(props) {
     let audioFiles = null
     if (musicSession?.music_queue?.songs?.length) {
         audioFiles = (
-            <C.SnowSongList audioFiles={musicSession.music_queue.songs} />
+            <C.SnowSongList activeQueue audioFiles={musicSession.music_queue.songs} />
         )
     } else {
         audioFiles = <C.SnowLabel center>No songs found in the queue.</C.SnowLabel>
