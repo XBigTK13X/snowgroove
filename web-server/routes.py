@@ -370,6 +370,31 @@ def music_session_routes(router):
         return True
 
 
+def playlist_routes(router):
+    @router.post('/playlist', tags=['Playlist'])
+    def upsert_playlist(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+        playlist_id: int = Body(embed=True, default=None),
+        audio_file_fingerprints: int = Body(embed=True),
+        name: str = Body(embed=True),
+        snowgroove_user_id: int = Body(embed=True),
+    ):
+        pass
+
+    @router.get('/playlist', tags=['Playlist'])
+    def get_playlist(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+        playlist_id: int = Body(embed=True, default=None),
+    ):
+        pass
+
+    @router.get('/playlist/list', tags=['Playlist'])
+    def get_playlist_list(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+    ):
+        return db.op.get_playlist_list()
+
+
 def auth_required(router):
     @router.get('/auth/check', tags=['User'])
     def auth_check(
@@ -410,6 +435,7 @@ def auth_required(router):
     tag_routes(router)
     shelf_routes(router)
     music_session_routes(router)
+    playlist_routes(router)
 
     return router
 

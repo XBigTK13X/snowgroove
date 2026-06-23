@@ -13,6 +13,7 @@ export var routes = {
     options: '/auth/wrap/options',
     playlistDetails: '/auth/wrap/details/playlist',
     playlistList: '/auth/wrap/list/playlist',
+    playlistUpdate: '/auth/wrap/update/playlist',
     search: '/auth/wrap/search',
 
     adminDashboard: '/auth/wrap/admin/dashboard',

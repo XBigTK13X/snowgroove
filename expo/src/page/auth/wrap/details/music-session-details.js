@@ -2,13 +2,11 @@ import { C, useAppContext, useAudioContext } from 'snowgroove'
 
 export default function MusicSessionDetailsPage(props) {
     const {
-        currentRoute,
         navPush
     } = C.useSnowContext(props)
-
-
+    const { targetPlayer, changeTargetPlayer, routes } = useAppContext()
     const { clearMusicQueue, musicSession } = useAudioContext()
-    const { targetPlayer, changeTargetPlayer } = useAppContext()
+
 
 
     if (!musicSession) {
@@ -44,6 +42,9 @@ export default function MusicSessionDetailsPage(props) {
                         short /> : null
                 }
                 <C.SnowTextButton short title="Repeat Mode" />
+                <C.SnowTextButton short title="Save as Playlist" onPress={navPush({
+                    path: routes.playlistUpdate
+                })} />
                 {clearTarget}
             </C.SnowGrid>
             {audioFiles}

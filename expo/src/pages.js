@@ -12,6 +12,7 @@ import MusicSessionDetailsPage from './page/auth/wrap/details/music-session-deta
 import OptionsPage from './page/auth/wrap/options'
 import PlaylistDetailsPage from './page/auth/wrap/details/playlist'
 import PlaylistListPage from './page/auth/wrap/list/playlist'
+import PlaylistUpdatePage from './page/auth/wrap/details/playlist-update'
 import SearchPage from './page/auth/wrap/search'
 
 import DashboardPage from './page/auth/wrap/admin/dashboard'
@@ -46,6 +47,7 @@ export var pages = {
     [routes.options]: OptionsPage,
     [routes.playlistDetails]: PlaylistDetailsPage,
     [routes.playlistList]: PlaylistListPage,
+    [routes.playlistUpdate]: PlaylistUpdatePage,
     [routes.search]: SearchPage,
 
     [routes.adminDashboard]: DashboardPage,

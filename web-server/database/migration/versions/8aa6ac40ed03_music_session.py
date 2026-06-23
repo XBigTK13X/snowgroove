@@ -30,23 +30,14 @@ def upgrade() -> None:
         sa.Column('name', sa.Text, nullable=False),
         sa.Column('connection_info_json', sa.Text, nullable=False),
     )
+
     op.create_table(
         'music_session',
         sa.Column('id', sa.Integer, primary_key=True),
         sa.Column('created_at', sa.DateTime, nullable=False),
         sa.Column('updated_at', sa.DateTime, nullable=False),
-        sa.Column(
-            'remote_player_id',
-            sa.Integer,
-            sa.ForeignKey('remote_player.id', ondelete='CASCADE'),
-            nullable=True,
-        ),
-        sa.Column(
-            'client_device_user_id',
-            sa.Integer,
-            sa.ForeignKey('client_device_user.id', ondelete='CASCADE'),
-            nullable=True,
-        ),
+        fk(sa, 'remote_player.id'),
+        fk(sa, 'client_device_user.id'),
         sa.Column('kind', sa.Text, nullable=False),
         sa.Column('music_queue_json', sa.Text, nullable=True),
         sa.CheckConstraint(

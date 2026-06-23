@@ -1,7 +1,8 @@
 import { C, useAppContext } from 'snowgroove'
 
 export default function PlaylistListPage() {
-    const { apiClient } = useAppContext()
+    const { apiClient, routes } = useAppContext()
+    const { navPush } = C.useSnowContext()
     const [playlistList, setPlaylistList] = C.React.useState(null)
 
     C.React.useEffect(() => {
@@ -11,15 +12,25 @@ export default function PlaylistListPage() {
             })
         }
     }, [playlistList])
-    if (!playlistList) {
+    if (playlistList === null) {
         return <C.SnowLabel center> Loading playlist list.</C.SnowLabel>
     }
 
-    if (!playlistList.length) {
-        return < C.SnowText > No playlists found.</C.SnowText >
+    if (!playlistList?.length) {
+        return <C.SnowLabel center>No playlists found.</C.SnowLabel>
     }
 
     return (
-        <C.SnowPosterGrid focusStart focusKey="page-entry" items={playlistList} />
+        <C.SnowGrid items={playlistList} renderItem={(item) => {
+            return (
+                <C.SnowTextButton title={item.name} onPress={navPush({
+                    path: routes.playlistDetails,
+                    params: {
+                        playlistName: item.name,
+                        playlistId: item.id
+                    }
+                })} />
+            )
+        }} />
     )
 }
