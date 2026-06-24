@@ -85,6 +85,7 @@ def get_or_create_music_session(remote_player_id: int = None, cduid: int = None)
         )
     if music_session.music_queue_json:
         music_session.music_queue = dbi.json.loads(music_session.music_queue_json)
+        del music_session.music_queue_json
     return music_session
 
 

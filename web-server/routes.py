@@ -377,16 +377,20 @@ def playlist_routes(router):
         playlist_id: int = Body(embed=True, default=None),
         audio_file_fingerprints: int = Body(embed=True),
         name: str = Body(embed=True),
-        snowgroove_user_id: int = Body(embed=True),
     ):
-        pass
+        return db.op.upsert_playlist(
+            id=playlist_id,
+            name=name,
+            audio_file_fingerprints=audio_file_fingerprints,
+            snowgroove_user_id=auth_user.id,
+        )
 
     @router.get('/playlist', tags=['Playlist'])
     def get_playlist(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        playlist_id: int = Body(embed=True, default=None),
+        playlist_id: int,
     ):
-        pass
+        return db.op.get_playlist_by_id(id=playlist_id)
 
     @router.get('/playlist/list', tags=['Playlist'])
     def get_playlist_list(

@@ -19,19 +19,26 @@ def is_image(file_path):
 
 
 def parse_song_info(file_path):
-    location = Path(file_path).as_posix()
+    location = file_path.replace('\\', '/')
     if is_image(location) and not 'scans' in location.lower():
         parts = location.split('/')
         return {'album': parts[-2], 'path': location}
     if is_audio(file_path):
         parts = location.split('/')
-        name = (
-            parts[-1]
-            .replace('.adjusted.', '')
-            .replace('.mp3', '')
-            .replace('.flac', '')
-            .replace('.wav', '')
-        )
+
+        name = parts[-1]
+        for suffix in [
+            '.adjusted.mp3',
+            '.adjusted.flac',
+            '.adjusted.wav',
+            '.mp3',
+            '.flac',
+            '.wav',
+        ]:
+            if name.endswith(suffix):
+                name = name[: -len(suffix)]
+                break
+
         album = parts[-2]
         year = None
         if '(' in album:
@@ -55,7 +62,7 @@ def parse_song_info(file_path):
         else:
             track = int(position)
         title = pieces[1]
-        fingerprint = pieces[-1].split('.')[0]
+        fingerprint = pieces[-1]
         artist = None
         if count > 3:
             artist = ' - '.join(pieces[2:-1])

@@ -292,8 +292,16 @@ export class ApiClient {
         return this.get('/playlist/list')
     }
 
-    getPlaylist = (tagId) => {
-        return this.get('/playlist', { tag_id: tagId })
+    getPlaylist = (playlistId) => {
+        return this.get(`/playlist?playlist_id=${playlistId}`)
+    }
+
+    updatePlaylist = (playlistId, playlistName, audioFileFingerprints) => {
+        return this.post('/playlist', {
+            playlist_id: playlistId,
+            playlist_name: playlistName,
+            audio_file_fingerprints: audioFileFingerprints
+        })
     }
 
     getCrate = (shelfId, crateId) => {

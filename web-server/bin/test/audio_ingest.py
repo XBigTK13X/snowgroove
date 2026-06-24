@@ -100,7 +100,7 @@ def test_game_song_id_collision():
     second = parse_file(
         'Game/SNES/Super Mario All-Stars (1993)/D01T001 - Title - Super Mario Bros. - 1ac7c9cbb5c038a66f7802a3b9f6f221.adjusted.mp3'
     )
-    assert first.id != second.id
+    assert first.fingerprint != second.fingerprint
 
 
 def test_movie_metadata():
@@ -190,3 +190,10 @@ def test_failing_year_parse_anime():
     assert song.title == 'Seize The Day -off vocal-'
     assert song.track == 5
     assert song.year == 2021
+
+
+def test_mp3_not_in_fingerprint():
+    song = parse_file(
+        'Anime/Yuru Camp/Seize the Day (OP 2) (2021)/005 - Seize The Day -off vocal- - 63286c50f4b38dff1e8e5ff82dfb0b4b.adjusted.mp3'
+    )
+    assert song.fingerprint == '63286c50f4b38dff1e8e5ff82dfb0b4b'

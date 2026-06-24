@@ -37,32 +37,69 @@ def update_playlist(id: int, name: str, audio_file_fingerprints: list[str]):
 
 
 def get_playlist_by_id(id: int):
+    dbi.log.info(id)
     with dbi.session() as db:
-        return db.query(dbi.dm.Playlist).filter(dbi.dm.Playlist.id == id).first()
+        playlist = db.query(dbi.dm.Playlist).filter(dbi.dm.Playlist.id == id).first()
+        if not playlist or not playlist.audio_file_fingerprints_json:
+            return playlist
+
+        fingerprints = dbi.json.loads(playlist.audio_file_fingerprints_json)
+        if not fingerprints:
+            playlist.audio_files = []
+            return playlist
+
+        audio_files = (
+            db.query(dbi.dm.AudioFile)
+            .filter(dbi.dm.AudioFile.fingerprint.in_(fingerprints))
+            .all()
+        )
+
+        order_map = {fingerprint: idx for idx, fingerprint in enumerate(fingerprints)}
+
+        audio_files.sort(key=lambda x: order_map.get(x.fingerprint, 0))
+
+        playlist.audio_files = audio_files
+
+        del playlist.audio_file_fingerprints_json
+
+        return playlist
+
+
+def get_playlist_by_name(name: str):
+    with dbi.session() as db:
+        return db.query(dbi.dm.Playlist).filter(dbi.dm.Playlist.name == name).first()
 
 
 def upsert_playlist(
     id: int, name: str, audio_file_fingerprints: list[str], snowgroove_user_id: int
 ):
-    if id:
-        playlist = update_playlist(
-            id=id, name=name, audio_file_fingerprints=audio_file_fingerprints
+    with dbi.session() as db:
+        existing = (
+            db.query(dbi.dm.Playlist)
+            .filter(dbi.or_(dbi.dm.Playlist.name == name, dbi.dm.Playlist.id == id))
+            .first()
         )
-    else:
-        playlist = create_playlist(
-            snowgroove_user_id=snowgroove_user_id,
-            name=name,
-            audio_file_fingerprints=audio_file_fingerprints,
-        )
+        if existing:
+            playlist = update_playlist(
+                id=existing.id,
+                name=name,
+                audio_file_fingerprints=audio_file_fingerprints,
+            )
+        else:
+            playlist = create_playlist(
+                snowgroove_user_id=snowgroove_user_id,
+                name=name,
+                audio_file_fingerprints=audio_file_fingerprints,
+            )
 
-    if playlist.audio_file_fingerprints_json:
-        playlist.audio_file_fingerprints = dbi.json.loads(
-            playlist.audio_file_fingerprints_json
-        )
-        playlist.audio_files = []
-    return playlist
+        if playlist.audio_file_fingerprints_json:
+            playlist.audio_file_fingerprints = dbi.json.loads(
+                playlist.audio_file_fingerprints_json
+            )
+            playlist.audio_files = []
+        return playlist
 
 
 def get_playlist_list():
     with dbi.session() as db:
-        return db.query(dbi.dm.Playlist).all()
+        return db.query(dbi.dm.Playlist).order_by(dbi.dm.Playlist.name).all()

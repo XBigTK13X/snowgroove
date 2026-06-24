@@ -1,7 +1,7 @@
 import { C, useAppContext, useAudioContext } from 'snowgroove'
 
 export default function PlaylistUpdatePage() {
-    const { navPush } = C.useSnowContext()
+    const { navPush, toast } = C.useSnowContext()
     const { apiClient, routes } = useAppContext()
     const { musicSession } = useAudioContext()
 
@@ -19,21 +19,24 @@ export default function PlaylistUpdatePage() {
         return <C.SnowLabel center>Loading playlist list.</C.SnowLabel>
     }
 
-    if (!playlistList?.length) {
-
+    const saveQueueAsPlaylist = (playlistId, playlistName) => {
+        if (musicSession?.music_queue?.songs?.length) {
+            apiClient.updatePlaylist(playlistId, playlistName, musicSession?.music_queue?.songs?.map(xx => xx.fingerprint))
+        } else {
+            toast.show(`The queue is empty, did not save playlist [${playlistName}].`, {
+                duration: 1000,
+                position: 'bottom',
+            });
+        }
     }
 
     let playlistPicker = null
     if (playlistList?.length) {
         playlistPicker = (<C.SnowGrid items={playlistList} renderItem={(item) => {
             return (
-                <C.SnowTextButton title={item.name} onPress={navPush({
-                    path: routes.playlistDetails,
-                    params: {
-                        playlistName: item.name,
-                        playlistId: item.id
-                    }
-                })} />
+                <C.SnowTextButton title={item.name} onPress={() => {
+                    saveQueueAsPlaylist(item.id, item.name)
+                }} />
             )
         }} />
         )
@@ -46,7 +49,7 @@ export default function PlaylistUpdatePage() {
             <C.SnowGrid itemsPerRow={2}>
                 <C.SnowInput value={playlistName} onValueChange={setPlaylistName} />
                 <C.SnowTextButton disabled={playlistName === ''} title="Create New Playlist" onPress={() => {
-
+                    saveQueueAsPlaylist(null, playlistName)
                 }} />
             </C.SnowGrid>
             {playlistPicker}
