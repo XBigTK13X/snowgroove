@@ -375,7 +375,7 @@ def playlist_routes(router):
     def upsert_playlist(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
         playlist_id: int = Body(embed=True, default=None),
-        audio_file_fingerprints: int = Body(embed=True),
+        audio_file_fingerprints: list[str] = Body(embed=True),
         name: str = Body(embed=True),
     ):
         return db.op.upsert_playlist(

@@ -299,7 +299,7 @@ export class ApiClient {
     updatePlaylist = (playlistId, playlistName, audioFileFingerprints) => {
         return this.post('/playlist', {
             playlist_id: playlistId,
-            playlist_name: playlistName,
+            name: playlistName,
             audio_file_fingerprints: audioFileFingerprints
         })
     }

@@ -192,14 +192,13 @@ export function AudioContextProvider({ children }) {
         }
     }
 
-    async function addCrateToQueue(crateId) {
-        let response = await apiClient.getCrateSongList(crateId)
-        if (response.audio_files.length) {
+    async function addAudioFileListToQueue(audioFiles) {
+        if (audioFiles?.length) {
             await updateMusicQueue((queue) => {
                 if (!queue.hasOwnProperty('dedupe')) {
                     queue.dedupe = {}
                 }
-                for (let audioFile of response.audio_files) {
+                for (let audioFile of audioFiles) {
                     if (!queue.dedupe.hasOwnProperty(audioFile.fingerprint)) {
                         queue.dedupe[audioFile.fingerprint] = true
                         queue.songs.push(audioFile)
@@ -208,11 +207,16 @@ export function AudioContextProvider({ children }) {
                 return queue
             })
             if (!isPlaying) {
-                setCurrentAudioFile(response.audio_files[0])
+                setCurrentAudioFile(audioFiles[0])
                 setPositionSeconds(0)
-                await currentPlayer.play(response.audio_files[0])
+                await currentPlayer.play(audioFiles[0])
             }
         }
+    }
+
+    async function addCrateToQueue(crateId) {
+        let response = await apiClient.getCrateSongList(crateId)
+        await addAudioFileListToQueue(response?.audio_files)
     }
 
     async function reorderMusicQueue(updatedList) {
@@ -234,8 +238,10 @@ export function AudioContextProvider({ children }) {
     async function clearMusicQueue() {
         await updateMusicQueue(queue => {
             currentPlayer.stop()
+            queue.dedupe = {}
             queue.songs = []
             queue.current_song_index = 0
+            setCurrentAudioFile(null)
             return queue
         })
     }
@@ -305,6 +311,7 @@ export function AudioContextProvider({ children }) {
 
     let contextValue = {
         addAudioFileToQueue,
+        addAudioFileListToQueue,
         addCrateToQueue,
         clearMusicQueue,
         currentAudioFile,

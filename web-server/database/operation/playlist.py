@@ -55,11 +55,30 @@ def get_playlist_by_id(id: int):
         )
 
         order_map = {fingerprint: idx for idx, fingerprint in enumerate(fingerprints)}
-
         audio_files.sort(key=lambda x: order_map.get(x.fingerprint, 0))
 
-        playlist.audio_files = audio_files
+        crate_ids = [
+            file.crate_id
+            for file in audio_files
+            if not file.thumbnail_web_path and file.crate_id
+        ]
 
+        if crate_ids:
+            crates = (
+                db.query(dbi.dm.Crate).filter(dbi.dm.Crate.id.in_(set(crate_ids))).all()
+            )
+
+            crate_map = {}
+            for crate in crates:
+                crate_with_images = dbi.dm.set_primary_images(crate)
+                crate_map[crate_with_images.id] = crate_with_images
+
+            for file in audio_files:
+                if not file.thumbnail_web_path and file.crate_id in crate_map:
+                    matched_crate = crate_map[file.crate_id]
+                    file.thumbnail_web_path = matched_crate.album_cover_image_url
+
+        playlist.audio_files = audio_files
         del playlist.audio_file_fingerprints_json
 
         return playlist

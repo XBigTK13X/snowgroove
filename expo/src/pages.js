@@ -4,15 +4,14 @@ import EnterPasswordPage from './page/password'
 import LandingPage from './page/auth/wrap/landing'
 import InfoPage from './page/auth/wrap/info'
 
-import ContinueWatchingPage from './page/auth/wrap/list/continue-watching'
-import DeviceDetailsPage from './page/auth/wrap/details/device-details'
-import DeviceListPage from './page/auth/wrap/list/device-list'
-import CrateDetailsPage from './page/auth/wrap/details/crate-details'
-import MusicSessionDetailsPage from './page/auth/wrap/details/music-session-details'
+import DeviceDetailsPage from './page/auth/wrap/device-details'
+import DeviceListPage from './page/auth/wrap/device-list'
+import CrateDetailsPage from './page/auth/wrap/crate-details'
+import MusicSessionDetailsPage from './page/auth/wrap/music-session-details'
 import OptionsPage from './page/auth/wrap/options'
-import PlaylistDetailsPage from './page/auth/wrap/details/playlist'
-import PlaylistListPage from './page/auth/wrap/list/playlist'
-import PlaylistUpdatePage from './page/auth/wrap/details/playlist-update'
+import PlaylistDetailsPage from './page/auth/wrap/playlist-details'
+import PlaylistListPage from './page/auth/wrap/playlist-list'
+import PlaylistUpdatePage from './page/auth/wrap/playlist-update'
 import SearchPage from './page/auth/wrap/search'
 
 import DashboardPage from './page/auth/wrap/admin/dashboard'
@@ -39,7 +38,6 @@ export var pages = {
     [routes.landing]: LandingPage,
     [routes.info]: InfoPage,
 
-    [routes.continueWatching]: ContinueWatchingPage,
     [routes.deviceDetails]: DeviceDetailsPage,
     [routes.deviceList]: DeviceListPage,
     [routes.crateDetails]: CrateDetailsPage,

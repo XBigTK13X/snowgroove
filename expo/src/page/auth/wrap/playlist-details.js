@@ -1,8 +1,9 @@
-import { C, useAppContext } from 'snowgroove'
+import { C, useAppContext, useAudioContext } from 'snowgroove'
 
 export default function PlaylistDetailsPage() {
     const { currentRoute, navPush } = C.useSnowContext()
     const { apiClient, routes } = useAppContext()
+    const { addAudioFileListToQueue } = useAudioContext()
 
     const [playlist, setPlaylist] = C.React.useState(null)
 
@@ -18,7 +19,12 @@ export default function PlaylistDetailsPage() {
 
     return (
         <C.SnowView>
-            <C.SnowText center>Found {playlist.audio_files.length} items from playlist {currentRoute?.routeParams?.playlistName}.</C.SnowText>
+            <C.SnowGrid>
+                <C.SnowTextButton title="Add Playlist to Queue" onPress={() => {
+                    addAudioFileListToQueue(playlist?.audio_files)
+                }} />
+            </C.SnowGrid>
+            <C.SnowLabel center>Found {playlist.audio_files.length} items from playlist {currentRoute?.routeParams?.playlistName}.</C.SnowLabel>
             <C.SnowSongList disableDrag audioFiles={playlist.audio_files} />
         </C.SnowView>
     )

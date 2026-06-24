@@ -5,7 +5,6 @@ export var routes = {
     landing: '/auth/wrap/landing',
     info: '/auth/wrap/info',
 
-    continueWatching: '/auth/wrap/list/continue-watching',
     deviceDetails: '/auth/wrap/details/device',
     deviceList: '/auth/wrap/list/device',
     crateDetails: '/auth/wrap/details/crate',
