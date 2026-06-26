@@ -80,6 +80,7 @@ def get_crate_list_by_shelf_id(shelf_id: int):
             .options(dbi.orm.joinedload(dbi.dm.Crate.image_files))
             .options(dbi.orm.joinedload(dbi.dm.Crate.metadata_files))
             .options(dbi.orm.joinedload(dbi.dm.Crate.shelf))
+            .options(dbi.orm.joinedload(dbi.dm.Crate.tags))
             .order_by(dbi.dm.Crate.title)
             .all()
         )
@@ -94,6 +95,7 @@ def get_crate_by_id(crate_id: int):
             .options(dbi.orm.joinedload(dbi.dm.Crate.image_files))
             .options(dbi.orm.joinedload(dbi.dm.Crate.metadata_files))
             .options(dbi.orm.joinedload(dbi.dm.Crate.shelf))
+            .options(dbi.orm.joinedload(dbi.dm.Crate.tags))
             .options(
                 dbi.orm.selectinload(dbi.dm.Crate.children).options(
                     dbi.orm.selectinload(dbi.dm.Crate.image_files)
@@ -127,6 +129,7 @@ def get_crate_list(search_query: str):
         directories = (
             db.query(dbi.dm.Crate)
             .options(dbi.orm.joinedload(dbi.dm.Crate.shelf))
+            .options(dbi.orm.joinedload(dbi.dm.Crate.tags))
             .filter(u(dbi.dm.Crate.directory).ilike(uq))
             .all()
         )
@@ -171,6 +174,7 @@ def get_crate_audio_file_list(crate_id: int):
             .filter(dbi.dm.Crate.id.in_(dbi.sa.select(crate_cte.c.id)))
             .options(dbi.orm.joinedload(dbi.dm.Crate.audio_files))
             .options(dbi.orm.joinedload(dbi.dm.Crate.image_files))
+            .options(dbi.orm.joinedload(dbi.dm.Crate.tags))
             .all()
         )
 
@@ -191,3 +195,25 @@ def get_crate_audio_file_list(crate_id: int):
         )
 
         return {'audio_files': flat_audio_files}
+
+
+def get_crate_tag(crate_id: int, tag_id: int):
+    with dbi.session() as db:
+        return (
+            db.query(dbi.dm.CrateTag)
+            .filter(
+                dbi.dm.CrateTag.crate_id == crate_id, dbi.dm.CrateTag.tag_id == tag_id
+            )
+            .first()
+        )
+
+
+def create_crate_tag(crate_id: int, tag_id: int):
+    with dbi.session() as db:
+        dbm = dbi.dm.CrateTag()
+        dbm.crate_id = crate_id
+        dbm.tag_id = tag_id
+
+        db.add(dbm)
+        db.commit()
+        db.refresh(dbm)

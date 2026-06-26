@@ -2,6 +2,7 @@ from box import Box
 from datetime import datetime, timezone
 import json
 import os
+import snow_media.toml
 
 import sqlalchemy as sa
 import sqlalchemy.orm as orm
@@ -28,6 +29,7 @@ dbi = Box(
         'log': log,
         'os': os,
         'sa': sa,
+        'toml': snow_media.toml,
         'orm': orm,
         'sql_text': sql_text,
         'Ticket': dm.Ticket,

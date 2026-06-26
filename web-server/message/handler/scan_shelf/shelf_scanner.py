@@ -6,10 +6,11 @@ mimetypes.init()
 from typing import Callable
 from settings import config
 from db import db
+import json
 
 
 def get_file_kind(file_path):
-    if file_path.endswith('.nfo'):
+    if file_path.endswith('.nfo') or file_path.endswith('.toml'):
         return 'metadata'
 
     if (
@@ -59,6 +60,7 @@ class ShelfScanner:
             'subtitle': [],
         }
         self.batch_lookup = {}
+        self.tag_lookup = {}
         self.file_kind_identifier = identifier
         self.file_info_parser = parser
         self.target_directory = target_directory
@@ -158,15 +160,6 @@ class ShelfScanner:
         parsed_files = sorted(parsed_files, key=lambda x: x['file_path'])
         return parsed_files
 
-    def organize_audio(self):
-        return True
-
-    def organize_images(self):
-        return True
-
-    def organize_metadata(self):
-        return True
-
     def ingest_content(self, kind):
         items = self.ingest_files(kind=kind)
         progress_count = 0
@@ -195,6 +188,28 @@ class ShelfScanner:
                     kind=info['kind'],
                     local_path=local_path,
                 )
+                metadata = json.loads(dbm.file_content_json)
+                if 'crate' in metadata and 'tags' in metadata['crate']:
+                    for tag_name in metadata['crate']['tags']:
+                        if not tag_name in self.tag_lookup:
+                            db.op.update_job(
+                                job_id=self.scope.job_id,
+                                message=f'Encountered tag [{tag_name}] for the first time in [{crate_dir}]',
+                            )
+                            tag = db.op.get_tag_by_name(tag_name)
+                            if not tag:
+                                tag = db.op.create_tag(name=tag_name)
+                            self.tag_lookup[tag_name] = tag.id
+                        crate_tag = db.op.get_crate_tag(
+                            crate_id=self.crate_lookup[crate_dir],
+                            tag_id=self.tag_lookup[tag_name],
+                        )
+                        if not crate_tag:
+                            db.op.create_crate_tag(
+                                crate_id=self.crate_lookup[crate_dir],
+                                tag_id=self.tag_lookup[tag_name],
+                            )
+
             if not dbm:
                 db.op.update_job(
                     job_id=self.scope.job_id,

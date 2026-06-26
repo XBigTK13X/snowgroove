@@ -20,6 +20,7 @@ def is_image(file_path):
 
 def parse_song_info(file_path):
     location = file_path.replace('\\', '/')
+
     if is_image(location) and not 'scans' in location.lower():
         parts = location.split('/')
         return {'album': parts[-2], 'path': location}
@@ -85,7 +86,7 @@ def parse_song_info(file_path):
             'audio_url': '',
             'kind': '',
         }
-    if '.nfo' in location:
+    if '.nfo' in location or '.toml' in location:
         return {'path': location}
     return None
 
@@ -109,64 +110,3 @@ class SongScanHandler(ShelfScanner):
             parser=parse_song_info,
             target_directory=target_directory,
         )
-
-    def organize_images(self):
-        progress_count = 0
-        for info in self.file_info_lookup['image']:
-            try:
-                progress_count += 1
-                if progress_count % 500 == 0:
-                    db.op.update_job(
-                        job_id=self.scope.job_id,
-                        message=f'Organize movie image {progress_count} out of {len(self.file_info_lookup["image"])}',
-                    )
-                # not sure if this is needed anymore?
-            except Exception as e:
-                db.op.update_job(
-                    job_id=self.scope.job_id,
-                    message=f'An error occurred while processing image [{info["file_path"]}]',
-                )
-                import traceback
-
-                db.op.update_job(
-                    job_id=self.scope.job_id, message=f'{traceback.format_exc()}'
-                )
-
-    def organize_metadata(self):
-        progress_count = 0
-        for info in self.file_info_lookup['metadata']:
-            try:
-                progress_count += 1
-                if progress_count % 500 == 0:
-                    db.op.update_job(
-                        job_id=self.scope.job_id,
-                        message=f'Organize movie metadata {progress_count} out of {len(self.file_info_lookup["metadata"])}',
-                    )
-                # Read metadata and provide album/artist mappings?
-            except Exception as e:
-                db.op.update_job(
-                    job_id=self.scope.job_id,
-                    message=f'An error occurred while processing metadata [{info["file_path"]}]',
-                )
-                import traceback
-
-                db.op.update_job(
-                    job_id=self.scope.job_id, message=f'{traceback.format_exc()}'
-                )
-
-    def organize_audio(self):
-        progress_count = 0
-        for info in self.file_info_lookup['audio']:
-            try:
-                pass
-                # Create albums/artists/etc
-            except Exception as e:
-                db.op.update_job(
-                    job_id=self.scope.job_id,
-                    message=f'An error occurred while processing audio [{info["file_path"]}]',
-                )
-                import traceback
-
-                db.op.update_job(
-                    job_id=self.scope.job_id, message=f'{traceback.format_exc()}'
-                )

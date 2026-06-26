@@ -225,7 +225,7 @@ class MetadataFile(BaseModel):
     local_path = sa.Column(sa.Text)
     web_path = sa.Column(sa.Text)
     network_path = sa.Column(sa.Text)
-    file_content = sa.Column(sa.Text)
+    file_content_json = sa.Column(sa.Text)
 
 
 class AudioFile(BaseModel):

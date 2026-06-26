@@ -2,6 +2,10 @@ import tomllib
 import tomli_w
 
 
+def toml_string_to_dict(toml: str):
+    return tomllib.loads(toml)
+
+
 def toml_path_to_dict(toml_path: str):
     with open(toml_path, 'rb') as read_handle:
         return tomllib.load(read_handle)

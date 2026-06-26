@@ -287,7 +287,7 @@ def upgrade() -> None:
         sa.Column('local_path', sa.Text, nullable=False),
         sa.Column('web_path', sa.Text, nullable=False),
         sa.Column('network_path', sa.Text, nullable=False),
-        sa.Column('file_content', sa.Text, nullable=False),
+        sa.Column('file_content_json', sa.Text, nullable=False),
     )
 
     op.create_unique_constraint(
@@ -303,6 +303,7 @@ def upgrade() -> None:
     audio_schema()
 
     m2m(op, sa, 'crate.id', 'artist.id')
+    m2m(op, sa, 'crate.id', 'tag.id')
 
     m2m(op, sa, 'snowgroove_user.id', 'tag.id')
     m2m(op, sa, 'snowgroove_user.id', 'shelf.id')

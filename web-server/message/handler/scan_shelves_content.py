@@ -94,13 +94,5 @@ def handle(scope: JobMediaScope):
         job_id=scope.job_id,
         message='Finished walking the files on disk for shelves. Add found files to database.',
     )
-    for handler in handlers:
-        db.op.update_job(
-            job_id=scope.job_id,
-            message=f'Organizing [{handler.shelf.name} -> {handler.shelf.kind}] files into the library',
-        )
-        handler.organize_metadata()
-        handler.organize_images()
-        handler.organize_audio()
 
     return True

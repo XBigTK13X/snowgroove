@@ -11,6 +11,7 @@ def create_metadata_file(crate_id: int, kind: str, local_path: str, file_content
             crate.shelf.local_path, crate.shelf.network_path
         )
     web_path = dbi.config.web_media_url + local_path
+    file_content_json = dbi.json.dumps(dbi.toml.toml_string_to_dict(file_content))
     with dbi.session() as db:
         dbm = dbi.dm.MetadataFile()
         dbm.crate_id = crate_id
@@ -18,7 +19,7 @@ def create_metadata_file(crate_id: int, kind: str, local_path: str, file_content
         dbm.web_path = web_path
         dbm.network_path = network_path
         dbm.kind = kind
-        dbm.file_content = file_content
+        dbm.file_content_json = file_content_json
         db.add(dbm)
         db.commit()
         db.refresh(dbm)
@@ -42,7 +43,7 @@ def get_or_create_metadata_file(crate_id: int, kind: str, local_path: str):
                 crate_id=crate_id,
                 kind=kind,
                 local_path=local_path,
-                xml_content=read_handle.read(),
+                file_content=read_handle.read(),
             )
     return metadata_file
 
@@ -72,7 +73,7 @@ def get_metadata_file_list(directory: str = None):
         return query
 
 
-def update_metadata_file_content(metadata_file_id: int, xml_content: str):
+def update_metadata_file_content(metadata_file_id: int, file_content: str):
     with dbi.session() as db:
         dbm = (
             db.query(dbi.dm.MetadataFile)
@@ -81,6 +82,6 @@ def update_metadata_file_content(metadata_file_id: int, xml_content: str):
         )
         if not dbm:
             return None
-        dbm.xml_content = xml_content
+        dbm.file_content_json = file_content
         db.commit()
         return dbm
