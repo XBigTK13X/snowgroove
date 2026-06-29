@@ -87,6 +87,7 @@ def get_crate_list_by_shelf_id(shelf_id: int):
 
 
 def get_crate_by_id(crate_id: int):
+    tags = get_tags_for_crate(crate_id=crate_id)
     with dbi.session() as db:
         crate = (
             db.query(dbi.dm.Crate)
@@ -95,7 +96,6 @@ def get_crate_by_id(crate_id: int):
             .options(dbi.orm.joinedload(dbi.dm.Crate.image_files))
             .options(dbi.orm.joinedload(dbi.dm.Crate.metadata_files))
             .options(dbi.orm.joinedload(dbi.dm.Crate.shelf))
-            .options(dbi.orm.joinedload(dbi.dm.Crate.tags))
             .options(
                 dbi.orm.selectinload(dbi.dm.Crate.children).options(
                     dbi.orm.selectinload(dbi.dm.Crate.image_files)
@@ -117,7 +117,33 @@ def get_crate_by_id(crate_id: int):
                 if crate.kind != 'album':
                     crate.kind = 'album'
             crate.audio_files.sort(key=lambda xx: (xx.disc or 0, xx.track or 0))
+        crate.active_tags = tags
         return crate
+
+
+def get_tags_for_crate(crate_id: int):
+    with dbi.session() as db:
+        crate_cte = (
+            db.query(dbi.dm.Crate.id, dbi.dm.Crate.parent_crate_id)
+            .filter(dbi.dm.Crate.id == crate_id)
+            .cte(name='crate_tree', recursive=True)
+        )
+
+        parent_crate = dbi.orm.aliased(dbi.dm.Crate, name='parent_crate')
+
+        crate_cte = crate_cte.union_all(
+            db.query(parent_crate.id, parent_crate.parent_crate_id).join(
+                crate_cte, parent_crate.id == crate_cte.c.parent_crate_id
+            )
+        )
+
+        tags = (
+            db.query(dbi.dm.Tag)
+            .join(dbi.dm.Crate.tags)
+            .join(crate_cte, dbi.dm.Crate.id == crate_cte.c.id)
+            .all()
+        )
+        return tags
 
 
 def get_crate_list(search_query: str):
