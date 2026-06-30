@@ -44,8 +44,8 @@ export default function DeviceListPage(props) {
     let groups = remotePlayers.filter(xx => xx.name.includes('zGroup')).map(xx => { xx.name = xx.name.replace('zGroup - ', ''); return xx })
     return (
         <>
-            <DeviceGroup title="Speakers" items={speakers} />
-            <DeviceGroup title="Groups" items={groups} />
+            {speakers?.length ? <DeviceGroup title="Speakers" items={speakers} /> : null}
+            {groups?.length ? <DeviceGroup title="Groups" items={groups} /> : null}
         </>
 
     )

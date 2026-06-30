@@ -66,6 +66,7 @@ class Ticket:
         self.tag_ids = None
         self.shelf_ids = None
         self.crate_ids = None
+        self.remote_player_ids = None
 
     def tag_csv(self):
         return ','.join([f'{xx}' for xx in self.tag_ids])
@@ -79,6 +80,9 @@ class Ticket:
     def has_crate_restrictions(self):
         return self.crate_ids != None
 
+    def has_remote_player_restrictions(self):
+        return self.remote_player_ids != None
+
     def is_allowed(
         self,
         crate_id: int = None,
@@ -86,6 +90,7 @@ class Ticket:
         shelf_id: int = None,
         tag_ids: list[int] = None,
         tag_provider=None,
+        remote_player_id: int = None,
     ):
         if crate_id != None:
             if self.crate_ids == None:
@@ -118,6 +123,10 @@ class Ticket:
                 if allowed_tag_id in tag_ids:
                     return True
             return False
+        if remote_player_id != None:
+            if self.remote_player_ids == None:
+                return True
+            return remote_player_id in self.remote_player_ids
         return True
 
 

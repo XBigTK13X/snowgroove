@@ -30,7 +30,10 @@ def upsert_remote_player(
         return remote_player
 
 
-def get_remote_player_by_id(id: int):
+def get_remote_player_by_id(ticket: dbi.dm.Ticket, id: int):
+    if ticket.has_remote_player_restrictions():
+        if not ticket.is_allowed(remote_player_id=id):
+            return None
     with dbi.session() as db:
         return (
             db.query(dbi.dm.RemotePlayer)
@@ -49,6 +52,9 @@ def get_remote_player_by_name(name: str):
         )
 
 
-def get_remote_player_list():
+def get_remote_player_list(ticket: dbi.dm.Ticket):
     with dbi.session() as db:
-        return db.query(dbi.dm.RemotePlayer).order_by(dbi.dm.RemotePlayer.name).all()
+        query = db.query(dbi.dm.RemotePlayer)
+        if ticket.has_remote_player_restrictions():
+            query = query.filter(dbi.dm.RemotePlayer.id.in_(ticket.remote_player_ids))
+        return query.order_by(dbi.dm.RemotePlayer.name).all()

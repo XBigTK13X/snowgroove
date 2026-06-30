@@ -302,14 +302,16 @@ def music_session_routes(router):
     def get_remote_player_list(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
     ):
-        return db.op.get_remote_player_list()
+        return db.op.get_remote_player_list(ticket=auth_user.ticket)
 
     @router.get('/remote-player', tags=['Music Session'])
     def get_remote_player_by_id(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
         remote_player_id: int,
     ):
-        player = db.op.get_remote_player_by_id(id=remote_player_id)
+        player = db.op.get_remote_player_by_id(
+            ticket=auth_user.ticket, id=remote_player_id
+        )
         if player.music_session:
             player.music_queue = json.loads(player.music_session.music_queue_json)
         return player

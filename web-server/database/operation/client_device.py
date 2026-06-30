@@ -69,6 +69,7 @@ def get_ticket_by_cduid(cduid: int):
         ticket.tag_ids = [xx.tag_id for xx in ticket.tag_ids]
         if len(ticket.tag_ids) == 0:
             ticket.tag_ids = None
+
         ticket.shelf_ids = (
             db.query(dbi.dm.UserShelf)
             .filter(
@@ -79,6 +80,20 @@ def get_ticket_by_cduid(cduid: int):
         ticket.shelf_ids = [xx.shelf_id for xx in ticket.shelf_ids]
         if len(ticket.shelf_ids) == 0:
             ticket.shelf_ids = None
+
+        ticket.remote_player_ids = (
+            db.query(dbi.dm.UserRemotePlayer)
+            .filter(
+                dbi.dm.UserRemotePlayer.snowgroove_user_id
+                == ticket.client.snowgroove_user_id
+            )
+            .all()
+        )
+        ticket.remote_player_ids = [
+            xx.remote_player_id for xx in ticket.remote_player_ids
+        ]
+        if len(ticket.remote_player_ids) == 0:
+            ticket.remote_player_ids = None
 
         if isolation == 'Silent' or isolation == 'Shout':
             ticket.watch_group = [ticket.cduid]
