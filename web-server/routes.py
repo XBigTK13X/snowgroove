@@ -281,10 +281,12 @@ def shelf_routes(router):
         if crate_id == None:
             return {
                 'kind': 'crate-list',
-                'items': db.op.get_crate_list_by_shelf_id(shelf_id=shelf_id),
+                'items': db.op.get_crate_list_by_shelf_id(
+                    ticket=auth_user.ticket, shelf_id=shelf_id
+                ),
             }
         else:
-            crate = db.op.get_crate_by_id(crate_id=crate_id)
+            crate = db.op.get_crate_by_id(ticket=auth_user.ticket, crate_id=crate_id)
             return {'kind': 'crate-details', 'item': crate}
 
     @router.get('/crate/song/list')

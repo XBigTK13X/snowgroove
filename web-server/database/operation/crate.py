@@ -69,13 +69,102 @@ def get_crate_by_shelf_and_directory(
         return query.first()
 
 
-def get_crate_list_by_shelf_id(shelf_id: int):
+def get_crate_list_by_shelf_id(ticket: dbi.dm.Ticket, shelf_id: int):
     with dbi.session() as db:
-        return (
-            db.query(dbi.dm.Crate)
-            .filter(
+        if ticket and ticket.has_tag_restrictions():
+            base_query = db.query(
+                dbi.dm.Crate.id,
+                dbi.dm.Crate.parent_crate_id,
+                dbi.sa.literal(1).label('depth'),
+            ).filter(
                 dbi.dm.Crate.shelf_id == shelf_id, dbi.dm.Crate.parent_crate_id == None
             )
+
+            crate_cte = base_query.cte(name='crate_tree', recursive=True)
+
+            child_crate = dbi.orm.aliased(dbi.dm.Crate, name='child_crate')
+            crate_cte = crate_cte.union_all(
+                db.query(
+                    child_crate.id,
+                    child_crate.parent_crate_id,
+                    (crate_cte.c.depth + 1).label('depth'),
+                ).join(child_crate, child_crate.parent_crate_id == crate_cte.c.id)
+            )
+
+            tagged_crates = (
+                db.query(
+                    crate_cte.c.id.label('crate_id'), crate_cte.c.depth.label('depth')
+                )
+                .join(dbi.dm.Crate, dbi.dm.Crate.id == crate_cte.c.id)
+                .join(dbi.dm.Crate.tags)
+                .filter(dbi.dm.Tag.id.in_(ticket.tag_ids))
+                .subquery()
+            )
+
+            ancestor_cte = db.query(
+                tagged_crates.c.crate_id.label('target_id'),
+                tagged_crates.c.crate_id.label('ancestor_id'),
+            ).cte(name='ancestor_tree', recursive=True)
+
+            parent_lookup = dbi.orm.aliased(dbi.dm.Crate, name='parent_lookup')
+            ancestor_cte = ancestor_cte.union_all(
+                db.query(
+                    ancestor_cte.c.target_id,
+                    parent_lookup.parent_crate_id.label('ancestor_id'),
+                )
+                .join(parent_lookup, parent_lookup.id == ancestor_cte.c.ancestor_id)
+                .filter(parent_lookup.parent_crate_id != None)
+            )
+
+            branch_mapping = (
+                db.query(
+                    ancestor_cte.c.target_id.label('crate_id'),
+                    ancestor_cte.c.ancestor_id.label('root_id'),
+                )
+                .join(dbi.dm.Crate, dbi.dm.Crate.id == ancestor_cte.c.ancestor_id)
+                .filter(dbi.dm.Crate.parent_crate_id == None)
+                .subquery()
+            )
+
+            min_depth_per_branch = (
+                db.query(
+                    branch_mapping.c.root_id,
+                    dbi.sa.func.min(tagged_crates.c.depth).label('min_depth'),
+                )
+                .join(
+                    tagged_crates, tagged_crates.c.crate_id == branch_mapping.c.crate_id
+                )
+                .group_by(branch_mapping.c.root_id)
+                .subquery()
+            )
+
+            allowed_crate_ids = [
+                row.crate_id
+                for row in db.query(tagged_crates.c.crate_id)
+                .join(
+                    branch_mapping,
+                    branch_mapping.c.crate_id == tagged_crates.c.crate_id,
+                )
+                .join(
+                    min_depth_per_branch,
+                    min_depth_per_branch.c.root_id == branch_mapping.c.root_id,
+                )
+                .filter(tagged_crates.c.depth == min_depth_per_branch.c.min_depth)
+                .all()
+            ]
+
+            if not allowed_crate_ids:
+                return []
+
+            base_filter = dbi.dm.Crate.id.in_(allowed_crate_ids)
+        else:
+            base_filter = dbi.sa.and_(
+                dbi.dm.Crate.shelf_id == shelf_id, dbi.dm.Crate.parent_crate_id == None
+            )
+
+        return (
+            db.query(dbi.dm.Crate)
+            .filter(base_filter)
             .options(dbi.orm.joinedload(dbi.dm.Crate.audio_files))
             .options(dbi.orm.joinedload(dbi.dm.Crate.image_files))
             .options(dbi.orm.joinedload(dbi.dm.Crate.metadata_files))
@@ -86,8 +175,11 @@ def get_crate_list_by_shelf_id(shelf_id: int):
         )
 
 
-def get_crate_by_id(crate_id: int):
+def get_crate_by_id(ticket: dbi.dm.Ticket, crate_id: int):
     tags = get_tags_for_crate(crate_id=crate_id)
+    if ticket.has_tag_restrictions():
+        if not ticket.is_allowed(tag_ids=[xx.id for xx in tags]):
+            return None
     with dbi.session() as db:
         crate = (
             db.query(dbi.dm.Crate)
@@ -147,7 +239,6 @@ def get_tags_for_crate(crate_id: int):
 
 
 def get_crate_list(search_query: str):
-
     with dbi.session() as db:
         u = dbi.func.unaccent
         uq = u(f'%{search_query}%')
