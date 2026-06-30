@@ -67,6 +67,7 @@ def get_user_by_id(user_id: int):
             .filter(dbi.dm.User.id == user_id)
             .options(dbi.orm.joinedload(dbi.dm.User.access_tags))
             .options(dbi.orm.joinedload(dbi.dm.User.access_shelves))
+            .options(dbi.orm.joinedload(dbi.dm.User.access_remote_players))
             .first()
         )
 
@@ -89,31 +90,38 @@ def delete_user_by_id(user_id: int):
         return deleted
 
 
-def save_user_access(user_access: am.UserAccess):
+def save_user_access(
+    user_id: int, tag_ids: list[int], shelf_ids: list[int], remote_player_ids: list[int]
+):
+    if not user_id:
+        return False
+
     user_tags = []
-    for tag_id in user_access.tag_ids:
-        user_tag = dbi.dm.UserTag()
-        user_tag.user_id = user_access.user_id
-        user_tag.tag_id = tag_id
-        user_tags.append({'user_id': user_access.user_id, 'tag_id': tag_id})
+    for tag_id in tag_ids:
+        user_tags.append({'snowgroove_user_id': user_id, 'tag_id': tag_id})
+
     user_shelves = []
-    for shelf_id in user_access.shelf_ids:
-        user_shelf = dbi.dm.UserShelf()
-        user_shelf.user_id = user_access.user_id
-        user_shelf.shelf_id = shelf_id
-        user_shelves.append({'user_id': user_access.user_id, 'shelf_id': shelf_id})
+    for shelf_id in shelf_ids:
+        user_shelves.append({'snowgroove_user_id': user_id, 'shelf_id': shelf_id})
+
+    user_remote_players = []
+    for remote_player_id in remote_player_ids:
+        user_remote_players.append(
+            {'snowgroove_user_id': user_id, 'remote_player_id': remote_player_id}
+        )
     with dbi.session() as db:
         db.query(dbi.dm.UserTag).filter(
-            dbi.dm.UserTag.user_id == user_access.user_id
+            dbi.dm.UserTag.snowgroove_user_id == user_id
         ).delete()
         db.query(dbi.dm.UserShelf).filter(
-            dbi.dm.UserShelf.user_id == user_access.user_id
+            dbi.dm.UserShelf.snowgroove_user_id == user_id
         ).delete()
-        db.query(dbi.dm.UserStreamSource).filter(
-            dbi.dm.UserStreamSource.user_id == user_access.user_id
+        db.query(dbi.dm.UserRemotePlayer).filter(
+            dbi.dm.UserRemotePlayer.snowgroove_user_id == user_id
         ).delete()
         db.commit()
         db.bulk_insert_mappings(dbi.dm.UserTag, user_tags)
         db.bulk_insert_mappings(dbi.dm.UserShelf, user_shelves)
+        db.bulk_insert_mappings(dbi.dm.UserRemotePlayer, user_remote_players)
         db.commit()
     return True

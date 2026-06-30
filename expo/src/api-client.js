@@ -261,6 +261,7 @@ export class ApiClient {
             user_id: payload.userId,
             tag_ids: payload.tagIds,
             shelf_ids: payload.shelfIds,
+            remote_player_ids: payload.remotePlayerIds
         }, false)
     }
 

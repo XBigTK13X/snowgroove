@@ -41,6 +41,9 @@ class User(BaseModel):
     access_crates: orm.Mapped[List['Crate']] = orm.relationship(
         secondary='snowgroove_user_crate'
     )
+    access_remote_players: orm.Mapped[List['RemotePlayer']] = orm.relationship(
+        secondary='snowgroove_user_remote_player'
+    )
 
     def is_admin(self):
         return 'admin' in self.permissions
@@ -140,6 +143,16 @@ class UserCrate(BaseModel):
         sa.ForeignKey('snowgroove_user.id')
     )
     crate_id: orm.Mapped[int] = orm.mapped_column(sa.ForeignKey('crate.id'))
+
+
+class UserRemotePlayer(BaseModel):
+    __tablename__ = 'snowgroove_user_remote_player'
+    snowgroove_user_id: orm.Mapped[int] = orm.mapped_column(
+        sa.ForeignKey('snowgroove_user.id')
+    )
+    remote_player_id: orm.Mapped[int] = orm.mapped_column(
+        sa.ForeignKey('remote_player.id')
+    )
 
 
 class ClientDevice(BaseModel):

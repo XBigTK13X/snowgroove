@@ -54,11 +54,19 @@ def user_routes(router):
     @router.post('/user/access', tags=['User'])
     def save_user_access(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
-        user_access: am.UserAccess,
+        user_id: int = Body(embed=True),
+        tag_ids: list[int] = Body(embed=True, default=[]),
+        shelf_ids: list[int] = Body(embed=True, default=[]),
+        remote_player_ids: list[int] = Body(embed=True, default=[]),
     ):
         if not auth_user.is_admin():
             return None
-        return db.op.save_user_access(user_access=user_access)
+        return db.op.save_user_access(
+            user_id=user_id,
+            tag_ids=tag_ids,
+            shelf_ids=shelf_ids,
+            remote_player_ids=remote_player_ids,
+        )
 
 
 def job_routes(router):

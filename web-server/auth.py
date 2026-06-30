@@ -99,14 +99,12 @@ def register(router):
         login_form: Annotated[OAuth2PasswordRequestForm, Depends()],
         device_name: Annotated[str, Form()] = 'swagger-ui',
     ):
-        # FIXME Workaround Pydantic validation failures on empty passwords
-        if login_form.password == 'SNOWGROOVE_EMPTY':
-            login_form.password = ''
         user = authenticate_user(
             username=login_form.username,
             password=login_form.password,
             device_name=device_name,
         )
+
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
