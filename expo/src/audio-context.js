@@ -55,6 +55,11 @@ export function AudioContextProvider({ children }) {
         async seek(seconds) {
             if (!soundRef.current) return
             await soundRef.current.setPositionAsync(seconds * 1000)
+        },
+        async setVolume(percent) {
+            if (!soundRef.current) return
+            const volumeValue = Math.max(0, Math.min(100, percent)) / 100
+            await soundRef.current.setVolumeAsync(volumeValue)
         }
     }
 
@@ -90,6 +95,11 @@ export function AudioContextProvider({ children }) {
         async seek(seconds) {
             if (apiClient) {
                 await apiClient.musicSessionSeek(musicSession.id, seconds)
+            }
+        },
+        async volume(percent) {
+            if (apiClient) {
+                await apiClient.musicSessionVolume(musicSession.id, percent)
             }
         }
     }

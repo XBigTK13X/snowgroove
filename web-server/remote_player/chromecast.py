@@ -73,6 +73,12 @@ def act(remote_player, remote_action, music_session):
             if seek_target.isdigit():
                 seek_seconds = int(seek_target)
                 media_controller.seek(seek_seconds)
+        elif remote_action.startswith('volume--'):
+            volume_target = remote_action.split('volume--')[-1]
+            if volume_target.isdigit():
+                volume_percent = int(volume_target)
+                if 0 <= volume_percent <= 100:
+                    cast_device.set_volume(volume_percent / 100.0)
 
 
 def play(connection_info, audio_file):

@@ -397,6 +397,18 @@ def music_session_routes(router):
             remote_action=f'seek--{seek_to_seconds}',
         )
 
+    @router.post('/music-session/volume', tags=['Music Session'])
+    def volume_music_session(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+        music_session_id: int = Body(embed=True),
+        volume_percent: int = Body(embed=True),
+    ):
+        music_session = db.op.get_music_session_by_id(id=music_session_id)
+        remote_players.dispatch(
+            remote_player=music_session.remote_player,
+            remote_action=f'volume--{volume_percent}',
+        )
+
 
 def playlist_routes(router):
     @router.post('/playlist', tags=['Playlist'])

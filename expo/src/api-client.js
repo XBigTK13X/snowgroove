@@ -353,6 +353,10 @@ export class ApiClient {
         return this.post('/music-session/seek', { music_session_id: musicSessionId, seek_to_seconds: seekToSeconds })
     }
 
+    musicSessionVolume = (musicSessionId, volumePercent) => {
+        return this.post('/music-session/volume', { music_session_id: musicSessionId, volume_percent: volumePercent })
+    }
+
     getSessionList = () => {
         return this.get('/session/list')
     }

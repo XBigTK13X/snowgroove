@@ -65,8 +65,12 @@ def act(remote_player, remote_action, music_session):
             seek_seconds = int(seek_target)
             formatted_time = time.strftime('%H:%M:%S', time.gmtime(seek_seconds))
             sonos_player.seek(formatted_time)
-    else:
-        pass
+    elif remote_action.startswith('volume--'):
+        volume_target = remote_action.split('volume--')[-1]
+        if volume_target.isdigit():
+            volume_percent = int(volume_target)
+            if 0 <= volume_percent <= 100:
+                sonos_player.volume = volume_percent
 
 
 def play(device_ip, audio_file):
