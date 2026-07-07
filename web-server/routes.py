@@ -314,6 +314,7 @@ def music_session_routes(router):
         )
         if player.music_session:
             player.music_queue = json.loads(player.music_session.music_queue_json)
+        player.status = remote_players.get_status(remote_player=player)
         return player
 
     @router.get('/music-session', tags=['Music Session'])

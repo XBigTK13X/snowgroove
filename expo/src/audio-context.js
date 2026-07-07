@@ -6,7 +6,7 @@ import { useAppContext } from './app-context'
 const AudioContext = React.createContext(null)
 
 export function AudioContextProvider({ children }) {
-    const { targetPlayer, apiClient } = useAppContext()
+    const { targetPlayer, apiClient, session } = useAppContext()
     const [musicSession, setMusicSession] = React.useState(null)
     const [sound, setSound] = React.useState(null)
     const [isPlaying, setIsPlaying] = React.useState(false)
@@ -15,6 +15,7 @@ export function AudioContextProvider({ children }) {
 
     const sessionRef = React.useRef(null)
     const soundRef = React.useRef(null)
+    const pollIntervalRef = React.useRef(null)
 
     React.useEffect(() => {
         soundRef.current = sound
@@ -114,6 +115,15 @@ export function AudioContextProvider({ children }) {
                 setIsPlaying(false)
             })
         }
+
+        if (prevTargetPlayerRef.current?.id !== targetPlayer?.id) {
+            setIsPlaying(false)
+            setCurrentAudioFile(null)
+            setPositionSeconds(0)
+            setMusicSession(null)
+            stopRemotePolling()
+        }
+
         prevTargetPlayerRef.current = targetPlayer
     }, [targetPlayer, isRemote])
 
@@ -134,11 +144,42 @@ export function AudioContextProvider({ children }) {
         })
     }, [apiClient, targetPlayer])
 
+    function startRemotePolling() {
+        if (!apiClient || !isRemote || !targetPlayer?.id || !session || pollIntervalRef.current) {
+            return
+        }
+
+        const pollRemotePlaybackProgress = () => {
+            apiClient.getRemotePlayer(targetPlayer.id)
+                .then((response) => {
+                    if (response && response.status) {
+                        if (response.status.position_seconds !== undefined) {
+                            setPositionSeconds(response.status.position_seconds)
+                        }
+                        if (response.status.is_playing !== undefined) {
+                            setIsPlaying(response.status.is_playing)
+                        }
+                    }
+                })
+        }
+
+        pollRemotePlaybackProgress()
+        pollIntervalRef.current = setInterval(pollRemotePlaybackProgress, 1000)
+    }
+
+    function stopRemotePolling() {
+        if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current)
+            pollIntervalRef.current = null
+        }
+    }
+
     React.useEffect(() => {
         return () => {
             if (soundRef.current) {
                 soundRef.current.unloadAsync()
             }
+            stopRemotePolling()
         }
     }, [])
 
@@ -360,7 +401,9 @@ export function AudioContextProvider({ children }) {
         togglePlayback,
         musicSession,
         playNextSong,
-        playPreviousSong
+        playPreviousSong,
+        startRemotePolling,
+        stopRemotePolling
     }
 
     return (

@@ -4,6 +4,11 @@ from log import log
 import pychromecast
 from pychromecast.models import CastInfo
 from pychromecast.discovery import HostServiceInfo
+import threading
+import uuid
+
+_cast_cache = {}
+_cache_lock = threading.Lock()
 
 
 def scan_remote_players():
@@ -12,13 +17,14 @@ def scan_remote_players():
     pychromecast.discovery.stop_discovery(browser)
 
     remote_players = []
-
     for device in devices:
         network_payload = {
             'host': device.cast_info.host,
             'port': device.cast_info.port,
             'uuid': str(device.cast_info.uuid),
             'cast_type': device.cast_info.cast_type,
+            'model_name': device.cast_info.model_name,
+            'friendly_name': device.cast_info.friendly_name,
         }
 
         remote_player = {
@@ -33,6 +39,61 @@ def scan_remote_players():
     return remote_players
 
 
+def _get_cached_cast(connection_info, force_refresh=False):
+    player_uuid = connection_info.get('uuid')
+    if not player_uuid:
+        return None
+
+    with _cache_lock:
+        cast_device = _cast_cache.get(player_uuid)
+
+        if cast_device and not force_refresh:
+            if cast_device.socket_client and cast_device.socket_client.is_connected:
+                return cast_device
+            else:
+                try:
+                    cast_device.disconnect()
+                except Exception:
+                    pass
+                _cast_cache.pop(player_uuid, None)
+
+        if cast_device and force_refresh:
+            try:
+                cast_device.disconnect()
+            except Exception:
+                pass
+            _cast_cache.pop(player_uuid, None)
+
+        try:
+            cast_device = _connect(connection_info)
+        except Exception as connection_error:
+            log.warning(
+                f'Direct connection to host {connection_info["host"]} failed: {connection_error}'
+            )
+            raise connection_error
+
+        _cast_cache[player_uuid] = cast_device
+        return cast_device
+
+
+def _connect(connection_info):
+    device_ip = str(connection_info['host'])
+
+    cast_info = CastInfo(
+        services={HostServiceInfo(host=device_ip, port=int(connection_info['port']))},
+        uuid=uuid.UUID(connection_info['uuid']),
+        model_name=connection_info.get('model_name'),
+        friendly_name=connection_info.get('friendly_name'),
+        host=device_ip,
+        port=int(connection_info['port']),
+        cast_type=connection_info['cast_type'],
+        manufacturer=None,
+    )
+    cast_device = pychromecast.Chromecast(cast_info=cast_info)
+    cast_device.wait()
+    return cast_device
+
+
 def act(remote_player, remote_action, music_session):
     connection_info = json.loads(remote_player.connection_info_json)
     current_audio_file = music_session.music_queue['songs'][
@@ -41,23 +102,12 @@ def act(remote_player, remote_action, music_session):
 
     if remote_action == 'play':
         play(connection_info=connection_info, audio_file=current_audio_file)
-    else:
-        cast_info = CastInfo(
-            services={
-                HostServiceInfo(
-                    host=connection_info['host'], port=connection_info['port']
-                )
-            },
-            uuid=connection_info['uuid'],
-            model_name=None,
-            friendly_name=None,
-            host=connection_info['host'],
-            port=connection_info['port'],
-            cast_type=connection_info['cast_type'],
-            manufacturer=None,
-        )
-        cast_device = pychromecast.Chromecast(cast_info=cast_info)
-        cast_device.wait()
+        return
+
+    try:
+        cast_device = _get_cached_cast(connection_info)
+        if not cast_device:
+            return
 
         media_controller = cast_device.media_controller
 
@@ -69,7 +119,6 @@ def act(remote_player, remote_action, music_session):
                 pass
 
         current_state = media_controller.status.player_state
-
         has_active_session = current_state not in (None, 'UNKNOWN', 'IDLE')
 
         if remote_action == 'pause':
@@ -78,9 +127,7 @@ def act(remote_player, remote_action, music_session):
         elif remote_action == 'stop':
             if has_active_session:
                 media_controller.stop()
-        elif remote_action == 'next':
-            play(connection_info=connection_info, audio_file=current_audio_file)
-        elif remote_action == 'previous':
+        elif remote_action in ('next', 'previous'):
             play(connection_info=connection_info, audio_file=current_audio_file)
         elif remote_action.startswith('seek--'):
             if has_active_session:
@@ -94,11 +141,14 @@ def act(remote_player, remote_action, music_session):
                 volume_percent = int(volume_target)
                 if 0 <= volume_percent <= 100:
                     cast_device.set_volume(volume_percent / 100.0)
+    except Exception as error_message:
+        log.error(
+            f'Failed to execute action {remote_action} on {remote_player.name}: {error_message}'
+        )
 
 
 def play(connection_info, audio_file):
     audio_url = audio_file['web_path']
-    device_ip = connection_info['host']
 
     def encode_url(url):
         parts = list(urllib.parse.urlparse(url))
@@ -116,59 +166,89 @@ def play(connection_info, audio_file):
     artist = audio_file.get('artist', 'Unknown Artist')
     album = audio_file.get('album', 'Unknown Album')
 
-    cast_info = CastInfo(
-        services={HostServiceInfo(host=device_ip, port=connection_info['port'])},
-        uuid=connection_info['uuid'],
-        model_name=None,
-        friendly_name=None,
-        host=device_ip,
-        port=connection_info['port'],
-        cast_type=connection_info['cast_type'],
-        manufacturer=None,
-    )
+    try:
+        cast_device = _get_cached_cast(connection_info, force_refresh=False)
+        if not cast_device:
+            return
 
-    cast_device = pychromecast.Chromecast(cast_info=cast_info)
-    cast_device.wait()
+        media_controller = cast_device.media_controller
 
-    media_controller = cast_device.media_controller
+        if cast_device.app_id:
+            try:
+                media_controller.block_until_active(timeout=2.0)
+                media_controller.update_status()
 
-    if cast_device.app_id:
+                if media_controller.is_active:
+                    status = media_controller.status
+                    if (
+                        status.content_id == encoded_audio_url
+                        and status.player_state == 'PAUSED'
+                    ):
+                        media_controller.play()
+                        return
+            except pychromecast.error.PyChromecastError:
+                pass
+
+        media_metadata = {
+            'metadataType': 3,
+            'title': title,
+            'artist': artist,
+            'albumName': album,
+            'images': [{'url': cover_art_url, 'width': 600, 'height': 600}]
+            if cover_art_url
+            else [],
+        }
+
+        media_controller.play_media(
+            url=encoded_audio_url,
+            content_type='audio/mpeg',
+            title=title,
+            thumb=cover_art_url,
+            metadata=media_metadata,
+            stream_type='BUFFERED',
+        )
+
         try:
-            media_controller.block_until_active(timeout=2.0)
+            media_controller.block_until_active(timeout=5.0)
             media_controller.update_status()
-
-            if media_controller.is_active:
-                status = media_controller.status
-                if (
-                    status.content_id == encoded_audio_url
-                    and status.player_state == 'PAUSED'
-                ):
-                    media_controller.play()
-                    return
         except pychromecast.error.PyChromecastError:
             pass
+    except Exception as error_message:
+        log.error(f'Play routine failed: {error_message}')
 
-    media_metadata = {
-        'metadataType': 3,
-        'title': title,
-        'artist': artist,
-        'albumName': album,
-        'images': [{'url': cover_art_url, 'width': 600, 'height': 600}]
-        if cover_art_url
-        else [],
-    }
 
-    media_controller.play_media(
-        url=encoded_audio_url,
-        content_type='audio/mpeg',
-        title=title,
-        thumb=cover_art_url,
-        metadata=media_metadata,
-        stream_type='BUFFERED',
-    )
-
+def get_status(remote_player):
     try:
-        media_controller.block_until_active(timeout=5.0)
-        media_controller.update_status()
-    except pychromecast.error.PyChromecastError:
-        pass
+        connection_info = json.loads(remote_player.connection_info_json)
+        cast_device = _get_cached_cast(connection_info)
+        if not cast_device:
+            return {'position_seconds': 0, 'is_playing': False}
+
+        media_controller = cast_device.media_controller
+
+        if cast_device.app_id:
+            try:
+                media_controller.block_until_active(timeout=2.0)
+                media_controller.update_status()
+            except pychromecast.error.PyChromecastError:
+                pass
+
+        status = media_controller.status
+        player_state = status.player_state
+
+        position_seconds = (
+            int(status.current_time) if status.current_time is not None else 0
+        )
+        is_playing = player_state == 'PLAYING'
+
+        return {'position_seconds': position_seconds, 'is_playing': is_playing}
+    except Exception as error_message:
+        player_uuid = connection_info.get('uuid')
+        if player_uuid:
+            with _cache_lock:
+                _cast_cache.pop(player_uuid, None)
+
+        log.error(
+            f'Failed to fetch status from Chromecast device {remote_player.name}: {error_message}'
+        )
+        return {'position_seconds': 0, 'is_playing': False}

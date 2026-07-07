@@ -124,3 +124,18 @@ class RemotePlayers:
             self.active_connections[remote_player.id] = (worker_thread, message_queue)
             worker_thread.start()
             return 'created'
+
+    def get_status(self, remote_player):
+        try:
+            if remote_player.kind == 'sonos':
+                return sonos.get_status(remote_player)
+            elif remote_player.kind == 'chromecast':
+                return chromecast.get_status(remote_player)
+            else:
+                log.warning(f'Unhandled status lookup for kind [{remote_player.kind}]')
+                return {'position_seconds': 0, 'is_playing': False}
+        except Exception as ee:
+            log.error(
+                f'Failed to fetch hardware status for player {remote_player.id}: {ee}'
+            )
+            return {'position_seconds': 0, 'is_playing': False}

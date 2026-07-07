@@ -126,3 +126,31 @@ def play(device_ip, audio_file):
     sonos_player.clear_queue()
     sonos_player.add_uri_to_queue(encoded_audio_url, meta=meta_xml)
     sonos_player.play_from_queue(0)
+
+
+def get_status(remote_player):
+    connection_info = json.loads(remote_player.connection_info_json)
+    sonos_player = soco.SoCo(connection_info['host'])
+
+    try:
+        track_info = sonos_player.get_current_track_info()
+        transport_info = sonos_player.get_current_transport_info()
+
+        # Convert HH:MM:SS string to total seconds
+        position_str = track_info.get('position', '0:00:00')
+        parts = position_str.split(':')
+        position_seconds = 0
+        if len(parts) == 3:
+            position_seconds = int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+        elif len(parts) == 2:
+            position_seconds = int(parts[0]) * 60 + int(parts[1])
+
+        current_state = transport_info.get('current_transport_state', 'STOPPED')
+        is_playing = current_state == 'PLAYING'
+
+        return {'position_seconds': position_seconds, 'is_playing': is_playing}
+    except Exception as error_message:
+        log.error(
+            f'Failed to fetch status from Sonos device {remote_player.name}: {error_message}'
+        )
+        return {'position_seconds': 0, 'is_playing': False}

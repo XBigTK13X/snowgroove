@@ -13,7 +13,9 @@ export default function LandingPage(props) {
         isPlaying,
         togglePlayback,
         playPreviousSong,
-        playNextSong
+        playNextSong,
+        startRemotePolling,
+        stopRemotePolling
     } = useAudioContext()
     const [shelves, setShelves] = C.React.useState(null)
 
@@ -33,6 +35,14 @@ export default function LandingPage(props) {
         apiClient.getShelfList().then((response) => {
             setShelves(response)
         })
+    }, [])
+
+    C.React.useEffect(() => {
+        startRemotePolling()
+
+        return () => {
+            stopRemotePolling()
+        }
     }, [])
 
     if (config.debugVideoUrl) {
