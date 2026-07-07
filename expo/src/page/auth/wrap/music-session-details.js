@@ -13,7 +13,7 @@ export default function MusicSessionDetailsPage(props) {
         return <C.SnowLabel center>Loading music session...</C.SnowLabel>
     }
 
-    let playerTarget = "Local"
+    let playerTarget = "Local Queue"
     let clearTarget = null
     if (targetPlayer?.name) {
         playerTarget = `${targetPlayer.name}`
@@ -29,11 +29,13 @@ export default function MusicSessionDetailsPage(props) {
         audioFiles = <C.SnowLabel center>No songs found in the queue.</C.SnowLabel>
     }
 
+    let hasSongs = musicSession?.music_queue?.songs?.length
+
     return (
         <C.FillView>
-            <C.SnowLabel center>Active Queue: {playerTarget}</C.SnowLabel>
+            <C.SnowLabel center>{playerTarget}</C.SnowLabel>
             <C.SnowGrid>
-                {musicSession?.music_queue?.songs?.length ?
+                {hasSongs ?
                     <C.SnowTextButton
                         title="Clear Queue"
                         onPress={() => {
@@ -42,9 +44,10 @@ export default function MusicSessionDetailsPage(props) {
                         short /> : null
                 }
                 <C.SnowTextButton short title="Repeat Mode" />
-                <C.SnowTextButton short title="Save as Playlist" onPress={navPush({
-                    path: routes.playlistUpdate
-                })} />
+                {hasSongs ?
+                    <C.SnowTextButton short title="Save as Playlist" onPress={navPush({
+                        path: routes.playlistUpdate
+                    })} /> : null}
                 {clearTarget}
             </C.SnowGrid>
             {audioFiles}

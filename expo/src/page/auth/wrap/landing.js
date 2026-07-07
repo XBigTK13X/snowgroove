@@ -3,7 +3,7 @@ import Snow from 'expo-snowui'
 const snowuiPackageInfo = require('expo-snowui/package.json')
 
 export default function LandingPage(props) {
-    const { apiClient, routes, config } = useAppContext()
+    const { apiClient, routes, config, targetPlayer } = useAppContext()
     const { SnowStyle, navPush } = C.useSnowContext(props)
     const {
         currentAudioFile,
@@ -73,8 +73,12 @@ export default function LandingPage(props) {
             </>
         )
         if (currentAudioFile) {
+            let playerTarget = "Local Queue"
+            if (targetPlayer?.name) {
+                playerTarget = `${targetPlayer.name}`
+            }
             nowPlaying = `${currentAudioFile.title} - ${currentAudioFile.album} - ${currentAudioFile.artist}`
-            let progressDisplay = `${C.util.secondsToTimestamp(positionSeconds)} / ${C.util.secondsToTimestamp(currentAudioFile.duration)}`
+            let progressDisplay = `[${playerTarget}] ${C.util.secondsToTimestamp(positionSeconds)} / ${C.util.secondsToTimestamp(currentAudioFile.duration)}`
             playerControls = (
                 <>
                     <C.View style={{ height: 40, justifyContent: 'center', overflow: 'hidden', width: '100%' }}>
