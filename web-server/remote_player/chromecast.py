@@ -7,6 +7,7 @@ from pychromecast.discovery import HostServiceInfo
 
 
 def scan_remote_players():
+    log.info('Starting remote player scan...')
     devices, browser = pychromecast.get_chromecasts()
     pychromecast.discovery.stop_discovery(browser)
 
@@ -28,6 +29,7 @@ def scan_remote_players():
         }
         remote_players.append(remote_player)
 
+    log.info(f'Scan complete. Found {len(remote_players)} players.')
     return remote_players
 
 
@@ -56,23 +58,36 @@ def act(remote_player, remote_action, music_session):
         )
         cast_device = pychromecast.Chromecast(cast_info=cast_info)
         cast_device.wait()
+
         media_controller = cast_device.media_controller
 
+        if cast_device.app_id:
+            try:
+                media_controller.block_until_active(timeout=2.0)
+                media_controller.update_status()
+            except pychromecast.error.PyChromecastError:
+                pass
+
+        current_state = media_controller.status.player_state
+
+        has_active_session = current_state not in (None, 'UNKNOWN', 'IDLE')
+
         if remote_action == 'pause':
-            media_controller.pause()
+            if has_active_session:
+                media_controller.pause()
         elif remote_action == 'stop':
-            media_controller.stop()
+            if has_active_session:
+                media_controller.stop()
         elif remote_action == 'next':
-            # Chromecast media controller does not natively handle a track-queue skip;
-            # triggering play on the new queue item instead if application logic demands it.
             play(connection_info=connection_info, audio_file=current_audio_file)
         elif remote_action == 'previous':
             play(connection_info=connection_info, audio_file=current_audio_file)
         elif remote_action.startswith('seek--'):
-            seek_target = remote_action.split('seek--')[-1]
-            if seek_target.isdigit():
-                seek_seconds = int(seek_target)
-                media_controller.seek(seek_seconds)
+            if has_active_session:
+                seek_target = remote_action.split('seek--')[-1]
+                if seek_target.isdigit():
+                    seek_seconds = int(seek_target)
+                    media_controller.seek(seek_seconds)
         elif remote_action.startswith('volume--'):
             volume_target = remote_action.split('volume--')[-1]
             if volume_target.isdigit():
@@ -115,6 +130,24 @@ def play(connection_info, audio_file):
     cast_device = pychromecast.Chromecast(cast_info=cast_info)
     cast_device.wait()
 
+    media_controller = cast_device.media_controller
+
+    if cast_device.app_id:
+        try:
+            media_controller.block_until_active(timeout=2.0)
+            media_controller.update_status()
+
+            if media_controller.is_active:
+                status = media_controller.status
+                if (
+                    status.content_id == encoded_audio_url
+                    and status.player_state == 'PAUSED'
+                ):
+                    media_controller.play()
+                    return
+        except pychromecast.error.PyChromecastError:
+            pass
+
     media_metadata = {
         'metadataType': 3,
         'title': title,
@@ -125,7 +158,6 @@ def play(connection_info, audio_file):
         else [],
     }
 
-    media_controller = cast_device.media_controller
     media_controller.play_media(
         url=encoded_audio_url,
         content_type='audio/mpeg',
@@ -134,203 +166,9 @@ def play(connection_info, audio_file):
         metadata=media_metadata,
         stream_type='BUFFERED',
     )
-    media_controller.block_until_active()
-    media_controller.update_status()
 
-
-def play_to_static_ip(target_ip, media_url, mime_type='audio/mp3'):
-    # Directly queries the specific IP to fetch its active port and UUID instantly
-    chromecasts, browser = pychromecast.get_chromecasts(known_hosts=[target_ip])
-    pychromecast.discovery.stop_discovery(browser)
-
-    if not chromecasts:
-        return False
-
-    cast_device = chromecasts[0]
-    cast_device.wait()
-
-    media_ctrl = cast_device.media_controller
-    media_ctrl.play_media(media_url, mime_type)
-    media_ctrl.block_until_active()
-    return True
-
-
-comment = """
-class DatabaseSessionListener:
-    def __init__(self, player_id: int, host_ip: str, db_session_factory):
-        self.player_id = player_id
-        self.host_ip = host_ip
-        self.db_factory = db_session_factory
-
-    def new_media_status(self, status):
-        if status.player_state == 'IDLE' and status.idle_reason == 'FINISHED':
-            logger.info(
-                f'Player ID {self.player_id} reached track boundary. Advancing session.'
-            )
-
-            # Instantly handle top-off asynchronously
-            db_session = self.db_factory()
-            try:
-                player = db_session.query(RemotePlayer).get(self.player_id)
-                if not player or not player.is_active:
-                    return
-
-                # Advance track index pointer inside the DB row state
-                player.current_index += 1
-                playlist_id = player.playlist_id
-                current_index = player.current_index
-                db_session.commit()
-
-                # Fetch target cast device using its static IP
-                chromecasts, browser = pychromecast.get_chromecasts(
-                    known_hosts=[self.host_ip]
-                )
-                pychromecast.discovery.stop_discovery(browser)
-
-                if chromecasts:
-                    cast_device = chromecasts[0]
-                    cast_device.wait()
-
-                    next_track_url = f'http://media-host:8080/tracks/playlist_{playlist_id}/track_{current_index}.mp3'
-                    logger.info(
-                        f'Enqueuing track {current_index} to hardware window: {next_track_url}'
-                    )
-
-                    # Push track down the live sliding hardware buffer
-                    cast_device.media_controller.play_media(
-                        next_track_url, 'audio/mp3', enqueue=True
-                    )
-            except Exception as error:
-                logger.error(f'Failed to auto-advance database session window: {error}')
-            finally:
-                db_session.close()
-
-
-def media_control_play(
-    player_id: int, host_ip: str, playlist_id: int, db_session_factory
-):
     try:
-        chromecasts, browser = pychromecast.get_chromecasts(known_hosts=[host_ip])
-        pychromecast.discovery.stop_discovery(browser)
-
-        if not chromecasts:
-            logger.error(f'Device at {host_ip} unreachable during session bootstrap')
-            return
-
-        cast_device = chromecasts[0]
-        cast_device.wait()
-
-        # Attach the custom database listener right into this connection session
-        listener = DatabaseSessionListener(player_id, host_ip, db_session_factory)
-        cast_device.media_controller.register_status_listener(listener)
-
-        # Pull foundational track parameters
-        track_1_url = (
-            f'http://media-host:8080/tracks/playlist_{playlist_id}/track_0.mp3'
-        )
-        track_2_url = (
-            f'http://media-host:8080/tracks/playlist_{playlist_id}/track_1.mp3'
-        )
-
-        # Seed the hardware layer buffer
-        cast_device.media_controller.play_media(track_1_url, 'audio/mp3')
-        cast_device.media_controller.play_media(track_2_url, 'audio/mp3', enqueue=True)
-
-        # Keep the background listener alive for the duration of active playback
-        # pychromecast uses internal worker threads that persist as long as the socket stays open
-
-    except Exception as error:
-        logger.error(f'Error handling play worker routing: {error}')
-
-
-def media_control_stop(host_ip: str):
-    try:
-        chromecasts, browser = pychromecast.get_chromecasts(known_hosts=[host_ip])
-        pychromecast.discovery.stop_discovery(browser)
-
-        if chromecasts:
-            cast_device = chromecasts[0]
-            cast_device.wait()
-            cast_device.media_controller.stop()
-            cast_device.quit_app()
-    except Exception as error:
-        logger.error(f'Error executing stop sequence worker: {error}')
-
-
-async def media_control_play(
-    player_id: int,
-    playlist_id: int = Body(..., embed=True),
-    background_tasks: BackgroundTasks = BackgroundTasks(),
-    db_session: Session = Depends(get_db),
-):
-    player = db_session.query(RemotePlayer).get(player_id)
-    if not player:
-        raise HTTPException(
-            status_code=404, detail='Player registration record missing'
-        )
-
-    connection_data = json.loads(player.connection_info)
-    host_ip = connection_data['host']
-
-    # Commit the state boundaries to the central row immediately
-    player.is_active = True
-    player.playlist_id = playlist_id
-    player.current_index = 0
-    db_session.commit()
-
-    # Hand off execution thread work using SessionLocal factory for thread safety
-    from core.database import SessionLocalFactory
-
-    background_tasks.add_task(
-        network_play_worker, player.id, host_ip, playlist_id, SessionLocalFactory
-    )
-
-    return {'status': 'session_initiated', 'player': player.name}
-
-async def media_control_next_song(
-    player_id: int
-):
-    player = db_session.query(RemotePlayer).get(player_id)
-    if not player or not player.is_active:
-        raise HTTPException(
-            status_code=400, detail='No active session found for target device'
-        )
-
-    connection_data = json.loads(player.connection_info)
-    host_ip = connection_data['host']
-
-    # Just-in-time control routing to skip the item on hardware buffer
-    def execute_skip():
-        chromecasts, browser = pychromecast.get_chromecasts(known_hosts=[host_ip])
-        pychromecast.discovery.stop_discovery(browser)
-        if chromecasts:
-            cast_device = chromecasts[0]
-            cast_device.wait()
-            cast_device.media_controller.queue_next()
-    background_tasks.add_task(execute_skip)
-    return {'status': 'skip_dispatched'}
-
-
-@app.post('/api/player/{player_id}/stop')
-async def terminate_session(
-    player_id: int,
-    background_tasks: BackgroundTasks = BackgroundTasks(),
-    db_session: Session = Depends(get_db),
-):
-    player = db_session.query(RemotePlayer).get(player_id)
-    if not player:
-        raise HTTPException(status_code=404, detail='Player entry missing')
-
-    connection_data = json.loads(player.connection_info)
-    host_ip = connection_data['host']
-
-    # Clean up state indicators inside DB row
-    player.is_active = False
-    player.playlist_id = None
-    player.current_index = 0
-    db_session.commit()
-
-    background_tasks.add_task(network_stop_worker, host_ip)
-    return {'status': 'session_stopped'}
-
-    """
+        media_controller.block_until_active(timeout=5.0)
+        media_controller.update_status()
+    except pychromecast.error.PyChromecastError:
+        pass

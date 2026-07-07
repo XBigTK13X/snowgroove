@@ -220,16 +220,19 @@ export function AppContextProvider(props) {
     }
 
     const changeTargetPlayer = (remotePlayerId, remotePlayerName) => {
-        return Snow.saveData(CONST.storageKey.targetPlayerId, remotePlayerId)
-            .then(() => {
-                return Snow.saveData(CONST.storageKey.targetPlayerName, remotePlayerName)
-            })
-            .then(() => {
-                setTargetPlayer({
-                    id: remotePlayerId,
-                    name: remotePlayerName
+        return new Promise((resolve) => {
+            Snow.saveData(CONST.storageKey.targetPlayerId, remotePlayerId)
+                .then(() => {
+                    return Snow.saveData(CONST.storageKey.targetPlayerName, remotePlayerName)
                 })
-            })
+                .then(() => {
+                    setTargetPlayer({
+                        id: remotePlayerId,
+                        name: remotePlayerName
+                    })
+                    resolve()
+                })
+        })
     }
 
     React.useEffect(() => {

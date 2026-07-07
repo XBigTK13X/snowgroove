@@ -10,7 +10,6 @@ import xml.etree.ElementTree as ET
 
 
 def scan_remote_players():
-    # Discovers all Sonos components on the local subnet via UPnP
     zone_players = soco.discover()
 
     remote_players = []
@@ -28,7 +27,7 @@ def scan_remote_players():
         network_payload = {
             'host': player.ip_address,
             'uid': player.uid,
-            'is_visible': player.is_visible,  # False if speaker is a hidden stereo pair secondary
+            'is_visible': player.is_visible,
         }
 
         remote_player = {
@@ -92,6 +91,18 @@ def play(device_ip, audio_file):
     artist = audio_file.get('artist', 'Unknown Artist')
     album = audio_file.get('album', 'Unknown Album')
 
+    sonos_player = soco.SoCo(device_ip)
+
+    current_track = sonos_player.get_current_track_info()
+    transport_info = sonos_player.get_current_transport_info()
+
+    if (
+        current_track.get('uri') == encoded_audio_url
+        and transport_info.get('current_transport_state') == 'PAUSED_PLAYBACK'
+    ):
+        sonos_player.play()
+        return
+
     meta_xml = (
         '<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"'
         ' xmlns:dc="http://purl.org/dc/elements/1.1/"'
@@ -112,51 +123,6 @@ def play(device_ip, audio_file):
         '</DIDL-Lite>'
     )
 
-    sonos_player = soco.SoCo(device_ip)
     sonos_player.clear_queue()
     sonos_player.add_uri_to_queue(encoded_audio_url, meta=meta_xml)
     sonos_player.play_from_queue(0)
-
-
-comment = """
-def sync_sonos_to_db(session, remote_player_table):
-    records = scan_sonos_network()
-    if not records:
-        return
-
-    for record in records:
-        existing = (
-            session.query(remote_player_table).filter_by(name=record['name']).first()
-        )
-
-        if existing:
-            existing.connection_info = record['connection_info']
-            existing.kind = record['kind']
-            existing.updated_at = record['updated_at']
-        else:
-            new_player = remote_player_table(**record)
-            session.add(new_player)
-
-    session.commit()
-
-
-import json
-import soco
-
-
-def play_to_sonos_player(connection_info_str, media_url):
-    info = json.loads(connection_info_str)
-    target_ip = info['host']
-
-    # Direct instantiation via specific IP — zero discovery overhead
-    sonos_player = soco.SoCo(target_ip)
-
-    # Clear the queue and stage the direct HTTP stream asset URL
-    sonos_player.clear_queue()
-    sonos_player.play_uri(media_url)
-
-    # Execute actual playback transport control
-    sonos_player.play()
-
-
-"""

@@ -34,27 +34,63 @@ class RemotePlayers:
         self.registry_lock = threading.Lock()
 
     def _device_worker(self, remote_player, initial_action, message_queue):
-        self._execute_action(remote_player=remote_player, remote_action=initial_action)
+        pending_seek = None
+        seek_execution_time = 0.0
+        debounce_wait = 0.35
+
+        if initial_action.startswith('seek--'):
+            pending_seek = initial_action
+            seek_execution_time = time.time() + debounce_wait
+        else:
+            self._execute_action(
+                remote_player=remote_player, remote_action=initial_action
+            )
 
         try:
             while True:
+                now = time.time()
+                timeout = None
+
+                if pending_seek is not None:
+                    timeout = max(0.0, seek_execution_time - now)
+
                 try:
-                    remote_action = message_queue.get(timeout=1)
-                    self._execute_action(
-                        remote_player=remote_player, remote_action=remote_action
+                    if timeout == 0.0:
+                        raise queue.Empty
+
+                    remote_action = message_queue.get(
+                        timeout=timeout if timeout is not None else 1.0
                     )
+
+                    if remote_action.startswith('seek--'):
+                        pending_seek = remote_action
+                        seek_execution_time = time.time() + debounce_wait
+                    else:
+                        if pending_seek is not None:
+                            self._execute_action(
+                                remote_player=remote_player, remote_action=pending_seek
+                            )
+                            pending_seek = None
+
+                        self._execute_action(
+                            remote_player=remote_player, remote_action=remote_action
+                        )
+
                     message_queue.task_done()
+
                 except queue.Empty:
-                    pass
+                    if pending_seek is not None and time.time() >= seek_execution_time:
+                        self._execute_action(
+                            remote_player=remote_player, remote_action=pending_seek
+                        )
+                        pending_seek = None
 
         except Exception as error_message:
-            pass
+            log.error(f'Error encountered in device worker loop: {error_message}')
         finally:
             with self.registry_lock:
-                if (
-                    self.active_connections.get(remote_player.id)
-                    == threading.current_thread()
-                ):
+                connection_pair = self.active_connections.get(remote_player.id)
+                if connection_pair and connection_pair[0] == threading.current_thread():
                     self.active_connections.pop(remote_player.id, None)
 
     def _execute_action(self, remote_player, remote_action):
