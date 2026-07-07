@@ -340,14 +340,20 @@ def music_session_routes(router):
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
         music_session_id: int = Body(embed=True),
     ):
-        return True
+        music_session = db.op.get_music_session_by_id(id=music_session_id)
+        remote_players.dispatch(
+            remote_player=music_session.remote_player, remote_action='next'
+        )
 
     @router.post('/music-session/song/previous', tags=['Music Session'])
     def play_previous_song_in_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
         music_session_id: int = Body(embed=True),
     ):
-        return True
+        music_session = db.op.get_music_session_by_id(id=music_session_id)
+        remote_players.dispatch(
+            remote_player=music_session.remote_player, remote_action='previous'
+        )
 
     @router.post('/music-session/play', tags=['Music Session'])
     def play_music_session(
@@ -364,14 +370,20 @@ def music_session_routes(router):
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
         music_session_id: int = Body(embed=True),
     ):
-        return True
+        music_session = db.op.get_music_session_by_id(id=music_session_id)
+        remote_players.dispatch(
+            remote_player=music_session.remote_player, remote_action='pause'
+        )
 
     @router.post('/music-session/stop', tags=['Music Session'])
     def stop_music_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
         music_session_id: int = Body(embed=True),
     ):
-        return True
+        music_session = db.op.get_music_session_by_id(id=music_session_id)
+        remote_players.dispatch(
+            remote_player=music_session.remote_player, remote_action='stop'
+        )
 
     @router.post('/music-session/seek', tags=['Music Session'])
     def seek_music_session(
@@ -379,7 +391,11 @@ def music_session_routes(router):
         music_session_id: int = Body(embed=True),
         seek_to_seconds: int = Body(embed=True),
     ):
-        return True
+        music_session = db.op.get_music_session_by_id(id=music_session_id)
+        remote_players.dispatch(
+            remote_player=music_session.remote_player,
+            remote_action=f'seek--{seek_to_seconds}',
+        )
 
 
 def playlist_routes(router):

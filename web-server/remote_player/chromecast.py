@@ -1,12 +1,7 @@
 import json
-import pychromecast
 import urllib.parse
 from log import log
 import pychromecast
-import urllib.parse
-from pychromecast.models import CastInfo
-import pychromecast
-import urllib.parse
 from pychromecast.models import CastInfo
 from pychromecast.discovery import HostServiceInfo
 
@@ -45,7 +40,39 @@ def act(remote_player, remote_action, music_session):
     if remote_action == 'play':
         play(connection_info=connection_info, audio_file=current_audio_file)
     else:
-        pass
+        cast_info = CastInfo(
+            services={
+                HostServiceInfo(
+                    host=connection_info['host'], port=connection_info['port']
+                )
+            },
+            uuid=connection_info['uuid'],
+            model_name=None,
+            friendly_name=None,
+            host=connection_info['host'],
+            port=connection_info['port'],
+            cast_type=connection_info['cast_type'],
+            manufacturer=None,
+        )
+        cast_device = pychromecast.Chromecast(cast_info=cast_info)
+        cast_device.wait()
+        media_controller = cast_device.media_controller
+
+        if remote_action == 'pause':
+            media_controller.pause()
+        elif remote_action == 'stop':
+            media_controller.stop()
+        elif remote_action == 'next':
+            # Chromecast media controller does not natively handle a track-queue skip;
+            # triggering play on the new queue item instead if application logic demands it.
+            play(connection_info=connection_info, audio_file=current_audio_file)
+        elif remote_action == 'previous':
+            play(connection_info=connection_info, audio_file=current_audio_file)
+        elif remote_action.startswith('seek--'):
+            seek_target = remote_action.split('seek--')[-1]
+            if seek_target.isdigit():
+                seek_seconds = int(seek_target)
+                media_controller.seek(seek_seconds)
 
 
 def play(connection_info, audio_file):

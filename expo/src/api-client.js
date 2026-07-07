@@ -350,7 +350,7 @@ export class ApiClient {
     }
 
     musicSessionSeek = (musicSessionId, seekToSeconds) => {
-        return this.post('/music-session/pause', { music_session_id: musicSessionId, seek_to_seconds: seekToSeconds })
+        return this.post('/music-session/seek', { music_session_id: musicSessionId, seek_to_seconds: seekToSeconds })
     }
 
     getSessionList = () => {

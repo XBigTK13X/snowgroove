@@ -47,9 +47,24 @@ def act(remote_player, remote_action, music_session):
     current_audio_file = music_session.music_queue['songs'][
         music_session.music_queue['current_song_index']
     ]
+    sonos_player = soco.SoCo(connection_info['host'])
 
     if remote_action == 'play':
         play(device_ip=connection_info['host'], audio_file=current_audio_file)
+    elif remote_action == 'pause':
+        sonos_player.pause()
+    elif remote_action == 'stop':
+        sonos_player.stop()
+    elif remote_action == 'next':
+        sonos_player.next()
+    elif remote_action == 'previous':
+        sonos_player.previous()
+    elif remote_action.startswith('seek--'):
+        seek_target = remote_action.split('seek--')[-1]
+        if seek_target.isdigit():
+            seek_seconds = int(seek_target)
+            formatted_time = time.strftime('%H:%M:%S', time.gmtime(seek_seconds))
+            sonos_player.seek(formatted_time)
     else:
         pass
 
