@@ -46,13 +46,17 @@
     ],
     "splash": {
       "image": "./assets/icon/splash.png",
-      "backgroundColor": "#FD6F01"
+      "resizeMode": "contain",
+      "backgroundColor": "#AC03F4"
     },
     "icon": "./assets/icon/appicon.png",
     "name": "snowgroove",
     "slug": "snowgroove",
     "orientation": "landscape",
     "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#AC03F4"
+      },
       "package": "com.simplepathstudios.snowgroove",
       "edgeToEdgeEnabled": true,
       "backgroundColor": "#000000",
