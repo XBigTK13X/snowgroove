@@ -41,10 +41,10 @@ export function SnowSongList(props) {
 
     }
 
-    const removeCrate = (crateId) => {
+    const removeCrate = (crateId, kind) => {
         return () => {
             popModal()
-            removeCrateFromQueue(crateId)
+            removeCrateFromQueue(crateId, kind)
         }
     }
 
@@ -92,8 +92,8 @@ export function SnowSongList(props) {
                                                     <Snow.TextButton title="Goto Album" onPress={gotoCrate(item.album_crate_id)} />
                                                     <Snow.TextButton title="Goto Artist" onPress={gotoCrate(item.artist_crate_id)} />
                                                     <Snow.TextButton title="Remove Song from Queue" onPress={removeSong(item)} />
-                                                    <Snow.TextButton title="Remove Album from Queue" onPress={removeCrate(item.album_crate_id)} />
-                                                    <Snow.TextButton title="Remove Artist from Queue" onPress={removeCrate(item.artist_crate_id)} />
+                                                    <Snow.TextButton title="Remove Album from Queue" onPress={removeCrate(item.album_crate_id, 'album')} />
+                                                    <Snow.TextButton title="Remove Artist from Queue" onPress={removeCrate(item.artist_crate_id, 'artist')} />
                                                 </Snow.Grid>
                                             )
                                         },
@@ -106,7 +106,7 @@ export function SnowSongList(props) {
                                     })
                                 }}
                             />
-                            <Snow.Text>{itemDisplay}</Snow.Text>
+                            <Snow.Text noSelect>{itemDisplay}</Snow.Text>
 
                         </Snow.Grid>
                     </>

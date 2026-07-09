@@ -306,12 +306,65 @@ export function AudioContextProvider({ children }) {
         await addAudioFileListToQueue(response?.audio_files)
     }
 
-    async function removeAudioFileFromQueue(audioFile) {
+    async function removeAudioFileFromQueue(audioFile, skipPlay) {
+        let hasSongs = null
+        let newIndex = null
+        let songs = null
+        await updateMusicQueue((queue) => {
+            delete queue.dedupe[audioFile.fingerprint]
+            let foundIndex = queue.songs.findIndex(item => item.id === audioFile.id)
+            let lastItem = foundIndex === queue.songs.length - 1
+            queue.songs.splice(foundIndex, 1)
+            if (foundIndex < queue.current_song_index) {
+                queue.current_song_index -= 1
+            }
+            else if (foundIndex === queue.current_song_index) {
+                if (lastItem) {
+                    queue.current_song_index -= 1
+                }
+                if (queue.current_song_index < 0) {
+                    queue.current_song_index = 0
+                }
+                hasSongs = !!queue.songs.length
+            }
 
+            newIndex = queue.current_song_index
+            songs = queue.songs
+
+            return queue
+        })
+        if (!skipPlay) {
+            if (hasSongs === true) {
+                playAudioFile(songs[newIndex])
+            }
+            else if (hasSongs === false) {
+                stopAudio()
+            }
+        }
     }
 
-    async function removeCrateFromQueue(crateId) {
-
+    async function removeCrateFromQueue(crateId, kind) {
+        let targets = []
+        for (let song of musicSession.music_queue?.songs) {
+            if (!kind) {
+                if (song.crate_id === crateId) {
+                    targets.push(song)
+                }
+            }
+            else if (kind === 'artist') {
+                if (song.artist_crate_id === crateId) {
+                    targets.push(song)
+                }
+            }
+            else if (kind === 'album') {
+                if (song.album_crate_id === crateId) {
+                    targets.push(song)
+                }
+            }
+        }
+        for (let target of targets) {
+            await removeAudioFileFromQueue(target, true)
+        }
     }
 
     async function reorderMusicQueue(updatedList) {
@@ -320,7 +373,6 @@ export function AudioContextProvider({ children }) {
             if (currentAudioFileRef.current) {
                 for (let ii = 0; ii < queue.songs.length; ii++) {
                     if (queue.songs[ii].id === currentAudioFileRef.current?.id) {
-                        console.log(ii)
                         queue.current_song_index = ii
                         break
                     }
@@ -430,7 +482,8 @@ export function AudioContextProvider({ children }) {
         removeAudioFileFromQueue,
         removeCrateFromQueue,
         startRemotePolling,
-        stopRemotePolling
+        stopRemotePolling,
+        stopAudio
     }
 
     return (

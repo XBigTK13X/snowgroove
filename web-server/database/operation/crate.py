@@ -208,6 +208,11 @@ def get_crate_by_id(ticket: dbi.dm.Ticket, crate_id: int):
                     audio_file.thumbnail_web_path = crate.album_cover_image_url
                 if crate.kind != 'album':
                     crate.kind = 'album'
+
+                audio_file.album_crate_id = crate.id
+                audio_file.artist_crate_id = (
+                    crate.parent_crate_id if crate.parent_crate_id else None
+                )
             crate.audio_files.sort(key=lambda xx: (xx.disc or 0, xx.track or 0))
         crate.active_tags = tags
         return crate
@@ -305,6 +310,10 @@ def get_crate_audio_file_list(crate_id: int):
                     audio_file.thumbnail_web_path = crate.album_cover_image_url
 
                 audio_file.crate_title = crate.title
+                audio_file.album_crate_id = crate.id
+                audio_file.artist_crate_id = (
+                    crate.parent_crate_id if crate.parent_crate_id else None
+                )
                 flat_audio_files.append(audio_file)
 
         flat_audio_files.sort(
