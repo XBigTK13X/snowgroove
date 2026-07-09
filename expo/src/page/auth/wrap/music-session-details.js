@@ -5,7 +5,7 @@ export default function MusicSessionDetailsPage(props) {
         navPush
     } = C.useSnowContext(props)
     const { targetPlayer, changeTargetPlayer, routes } = useAppContext()
-    const { clearMusicQueue, musicSession } = useAudioContext()
+    const { clearMusicQueue, musicSession, shuffleMusicQueue } = useAudioContext()
 
 
 
@@ -43,6 +43,7 @@ export default function MusicSessionDetailsPage(props) {
                         }}
                         short /> : null
                 }
+                {hasSongs ? <C.SnowTextButton short title="Shuffle" onPress={shuffleMusicQueue} /> : null}
                 <C.SnowTextButton short title="Repeat Mode" />
                 {hasSongs ?
                     <C.SnowTextButton short title="Save as Playlist" onPress={navPush({

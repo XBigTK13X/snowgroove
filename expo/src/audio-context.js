@@ -398,6 +398,29 @@ export function AudioContextProvider({ children }) {
             setCurrentAudioFile(null)
             return queue
         }, true)
+
+    }
+
+    function shuffleArray(array) {
+        for (let ii = array.length - 1; ii > 0; ii--) {
+            const jj = Math.floor(Math.random() * (ii + 1))
+            const temporary = array[ii]
+            array[ii] = array[jj]
+            array[jj] = temporary
+        }
+        return array
+    }
+
+    async function shuffleMusicQueue() {
+        await updateMusicQueue(queue => {
+            currentPlayer.stop()
+            queue.current_song_index = 0
+            queue.songs = shuffleArray(queue.songs)
+            currentAudioFileRef.current = queue.songs[0]
+            setCurrentAudioFile(queue.songs[0])
+            return queue
+        }, true)
+        playAudioFile(currentAudioFileRef.current)
     }
 
     async function stopAudio() {
@@ -487,6 +510,7 @@ export function AudioContextProvider({ children }) {
         playPreviousSong,
         removeAudioFileFromQueue,
         removeCrateFromQueue,
+        shuffleMusicQueue,
         startRemotePolling,
         stopRemotePolling,
         stopAudio
