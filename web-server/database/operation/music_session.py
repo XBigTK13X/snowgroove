@@ -17,6 +17,21 @@ def create_music_session(
         return dbm
 
 
+def load_music_queue(music_session):
+    if not music_session:
+        return None
+    if music_session.music_queue_json:
+        music_session.music_queue = dbi.json.loads(music_session.music_queue_json)
+        del music_session.music_queue_json
+        for song in music_session.music_queue['songs']:
+            if 'snowgroove_info_json' in song:
+                song['snowgroove_info'] = dbi.json.loads(song['snowgroove_info_json'])
+                del song['snowgroove_info_json']
+                del song['ffprobe_raw_json']
+                del song['mediainfo_raw_json']
+    return music_session
+
+
 def update_music_session_music_queue(music_session_id: int, music_queue: dict):
     with dbi.session() as db:
         (
@@ -25,7 +40,7 @@ def update_music_session_music_queue(music_session_id: int, music_queue: dict):
             .update({'music_queue_json': dbi.json.dumps(music_queue)})
         )
         db.commit()
-        return (
+        return load_music_queue(
             db.query(dbi.dm.MusicSession)
             .filter(dbi.dm.MusicSession.id == music_session_id)
             .first()
@@ -83,10 +98,7 @@ def get_or_create_music_session(remote_player_id: int = None, cduid: int = None)
             remote_player_id=remote_player_id,
             cduid=cduid if remote_player_id == None else None,
         )
-    if music_session.music_queue_json:
-        music_session.music_queue = dbi.json.loads(music_session.music_queue_json)
-        del music_session.music_queue_json
-    return music_session
+    return load_music_queue(music_session)
 
 
 def get_music_session_list():

@@ -243,7 +243,7 @@ export function SnowDraggableColumn(props) {
                             data-yy={ii}
                         >
                             <View style={[styles.innerRow, isCurrentDragging && styles.innerRowDragging]}>
-                                {props.renderItem(item)}
+                                {props.renderItem(item, ii)}
                             </View>
                         </Animated.View>
                     )

@@ -19,7 +19,13 @@ export function SnowSongList(props) {
             disableDrag={props.disableDrag}
             items={props.audioFiles}
             rowHeight={100}
-            renderItem={(item) => {
+            renderItem={(item, itemIndex) => {
+                let itemDisplay = ''
+                if (props.activeQueue) {
+                    itemDisplay = `(${itemIndex + 1}/${props.audioFiles.length}) ${item.title} | ${item.album} | ${item.artist}`
+                } else {
+                    itemDisplay = `(${item.disc ?? 1}/${item.track}) ${item.title} | ${item.album} | ${item.artist}`
+                }
                 return (
                     <>
                         <Snow.Grid leftAlignRows>
@@ -31,7 +37,7 @@ export function SnowSongList(props) {
                                     pushModal({
                                         render: (props) => {
                                             return (
-                                                <Snow.Grid itemsPerRow={1}>
+                                                <Snow.Grid itemsPerRow={2}>
                                                     <Snow.TextButton title="Play Next" onPress={popModal} />
                                                     <Snow.TextButton title="Add Song to Queue" onPress={popModal} />
                                                     <Snow.TextButton title="Goto Album" onPress={popModal} />
@@ -51,7 +57,7 @@ export function SnowSongList(props) {
                                     })
                                 }}
                             />
-                            <Snow.Text>D{item.disc ?? 1} T{item.track} - {item.title}</Snow.Text>
+                            <Snow.Text>{itemDisplay}</Snow.Text>
 
                         </Snow.Grid>
                     </>
