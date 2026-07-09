@@ -255,26 +255,12 @@ def get_crate_list(search_query: str):
             .filter(u(dbi.dm.Crate.directory).ilike(uq))
             .all()
         )
-        images = (
-            db.query(dbi.dm.CrateImageFile)
-            .join(dbi.dm.CrateImageFile.image_file)
-            .filter(u(dbi.dm.ImageFile.local_path).ilike(uq))
-            .options(dbi.orm.contains_eager(dbi.dm.CrateImageFile.image_file))
-            .all()
-        )
-        videos = (
-            db.query(dbi.dm.CrateVideoFile)
-            .join(dbi.dm.CrateVideoFile.video_file)
-            .filter(u(dbi.dm.VideoFile.local_path).ilike(uq))
-            .options(dbi.orm.contains_eager(dbi.dm.CrateVideoFile.video_file))
-            .all()
-        )
 
         if directories:
             for xx in directories:
                 xx.display = xx.directory.replace(xx.shelf.local_path + '/', '')
 
-        return {'directories': directories, 'images': images, 'videos': videos}
+        return {'directories': directories}
 
 
 def get_crate_audio_file_list(crate_id: int):

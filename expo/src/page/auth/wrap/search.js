@@ -50,22 +50,39 @@ export default function SearchPage() {
             resultsTabs = (
                 <C.SnowTabs yy={1} key={resultKey} focusKey="search-results" headers={headers}>
                     {searchResults.map((searchResult, resultIndex) => {
-                        if (searchResult.kind === 'keepsake-directories') {
-                            return <C.SnowGrid items={searchResult.items} renderItem={(item) => {
+                        if (searchResult.kind === 'artists') {
+                            return <C.SnowGrid items={searchResult.items} renderItem={(crate) => {
                                 return (
-                                    <C.SnowTextButton title={item.display} onPress={navPush({
-                                        path: routes.crateDetails,
-                                        params: {
-                                            shelfId: item.shelf.id
-                                        }
-                                    })} />
+                                    <C.SnowTextButton
+                                        title={crate.title}
+                                        onPress={navPush({
+                                            path: routes.crateDetails,
+                                            params: {
+                                                crateId: crate.id
+                                            }
+                                        })} />
                                 )
                             }} />
                         }
-                        if (searchResult.kind === 'keepsake-videos') {
-                            return <C.SnowScreencapGrid disableWatched items={searchResult.items} />
+                        if (searchResult.kind === 'albums') {
+                            return <C.SnowGrid items={searchResult.items} renderItem={(crate) => {
+                                return (
+                                    <C.SnowImageButton
+                                        title={crate.title}
+                                        imageUrl={crate.album_cover_image_url}
+                                        onPress={navPush({
+                                            path: routes.crateDetails,
+                                            params: {
+                                                crateId: crate.id
+                                            }
+                                        })} />
+                                )
+                            }} />
                         }
-                        return <C.SnowPosterGrid disableWatched items={searchResult.items} />
+                        if (searchResult.kind.includes('audio_files')) {
+                            return <C.SnowSongList disableDrag audioFiles={searchResult.items} />
+                        }
+                        return <C.SnowText>No handler for {searchResult.kind}</C.SnowText>
                     })}
                 </C.SnowTabs>
             )
