@@ -37,7 +37,6 @@ def update_playlist(id: int, name: str, audio_file_fingerprints: list[str]):
 
 
 def get_playlist_by_id(id: int):
-    dbi.log.info(id)
     with dbi.session() as db:
         playlist = db.query(dbi.dm.Playlist).filter(dbi.dm.Playlist.id == id).first()
         if not playlist or not playlist.audio_file_fingerprints_json:

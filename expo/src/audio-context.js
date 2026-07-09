@@ -11,6 +11,7 @@ export function AudioContextProvider({ children }) {
     const [sound, setSound] = React.useState(null)
     const [isPlaying, setIsPlaying] = React.useState(false)
     const [currentAudioFile, setCurrentAudioFile] = React.useState(null)
+    const currentAudioFileRef = React.useRef(null)
     const [positionSeconds, setPositionSeconds] = React.useState(0)
 
     const sessionRef = React.useRef(null)
@@ -119,6 +120,7 @@ export function AudioContextProvider({ children }) {
         if (prevTargetPlayerRef.current?.id !== targetPlayer?.id) {
             setIsPlaying(false)
             setCurrentAudioFile(null)
+            currentAudioFileRef.current = null
             setPositionSeconds(0)
             setMusicSession(null)
             stopRemotePolling()
@@ -236,13 +238,14 @@ export function AudioContextProvider({ children }) {
 
                 if (shouldPlayNext && nextSong) {
                     setCurrentAudioFile(nextSong)
+                    currentAudioFileRef.current = nextSong
                     await currentPlayer.play(nextSong)
                 }
             }
         }
     }
 
-    async function addAudioFileToQueue(audioFile) {
+    async function addAudioFileToQueue(audioFile, playNext) {
         let shouldPlayImmediately = !isPlaying
         await updateMusicQueue((queue) => {
             if (!queue.hasOwnProperty('dedupe')) {
@@ -252,10 +255,21 @@ export function AudioContextProvider({ children }) {
                 queue.dedupe[audioFile.fingerprint] = true
                 queue.songs.push(audioFile)
             }
+            if (playNext) {
+                if (queue.songs.length > 1) {
+                    let foundIndex = queue.songs.findIndex(item => item.id === audioFile.id)
+                    queue.songs.splice(foundIndex, 1)
+                    queue.songs.splice(queue.current_song_index + 1, 0, audioFile)
+                    if (queue.current_song_index > foundIndex) {
+                        queue.current_song_index -= 1
+                    }
+                }
+            }
             return queue
         }, shouldPlayImmediately)
 
         if (shouldPlayImmediately) {
+            currentAudioFileRef.current = audioFile
             setCurrentAudioFile(audioFile)
             setPositionSeconds(0)
             await currentPlayer.play(audioFile)
@@ -279,6 +293,7 @@ export function AudioContextProvider({ children }) {
             }, shouldPlayImmediately)
 
             if (shouldPlayImmediately) {
+                currentAudioFileRef.current = audioFiles[0]
                 setCurrentAudioFile(audioFiles[0])
                 setPositionSeconds(0)
                 await currentPlayer.play(audioFiles[0])
@@ -291,13 +306,21 @@ export function AudioContextProvider({ children }) {
         await addAudioFileListToQueue(response?.audio_files)
     }
 
+    async function removeAudioFileFromQueue(audioFile) {
+
+    }
+
+    async function removeCrateFromQueue(crateId) {
+
+    }
+
     async function reorderMusicQueue(updatedList) {
         await updateMusicQueue(queue => {
             queue.songs = updatedList
-            if (currentAudioFile) {
-                let ii = 0
+            if (currentAudioFileRef.current) {
                 for (let ii = 0; ii < queue.songs.length; ii++) {
-                    if (queue.songs[ii].id === currentAudioFile.id) {
+                    if (queue.songs[ii].id === currentAudioFileRef.current?.id) {
+                        console.log(ii)
                         queue.current_song_index = ii
                         break
                     }
@@ -313,6 +336,7 @@ export function AudioContextProvider({ children }) {
             queue.dedupe = {}
             queue.songs = []
             queue.current_song_index = 0
+            currentAudioFileRef.current = null
             setCurrentAudioFile(null)
             return queue
         }, true)
@@ -330,7 +354,7 @@ export function AudioContextProvider({ children }) {
             }
             return queue
         }, true)
-
+        currentAudioFileRef.current = audioFile
         setCurrentAudioFile(audioFile)
         setPositionSeconds(0)
         await currentPlayer.play(audioFile)
@@ -345,7 +369,7 @@ export function AudioContextProvider({ children }) {
     }
 
     async function seekToSeconds(seconds) {
-        let targetSeconds = Math.floor(Math.max(0, Math.min(seconds, currentAudioFile?.duration || 0)))
+        let targetSeconds = Math.floor(Math.max(0, Math.min(seconds, currentAudioFileRef.current?.duration || 0)))
         setPositionSeconds(targetSeconds)
         await currentPlayer.seek(targetSeconds)
     }
@@ -367,6 +391,7 @@ export function AudioContextProvider({ children }) {
         }, true)
 
         if (nextSong) {
+            currentAudioFileRef.current = nextSong
             setCurrentAudioFile(nextSong)
             setPositionSeconds(0)
             await currentPlayer.play(nextSong)
@@ -402,6 +427,8 @@ export function AudioContextProvider({ children }) {
         musicSession,
         playNextSong,
         playPreviousSong,
+        removeAudioFileFromQueue,
+        removeCrateFromQueue,
         startRemotePolling,
         stopRemotePolling
     }

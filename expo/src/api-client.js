@@ -306,7 +306,10 @@ export class ApiClient {
     }
 
     getCrate = (shelfId, crateId) => {
-        let url = `/crate?shelf_id=${shelfId}`
+        let url = `/crate?p=1`
+        if (shelfId) {
+            url += `&shelf_id=${shelfId}`
+        }
         if (crateId) {
             url += `&crate_id=${crateId}`
         }
