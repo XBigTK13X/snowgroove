@@ -2,7 +2,6 @@
 
 sudo dnf install --allowerasing \
     jc \
-    mediainfo \
     ffmpeg \
     java-21-openjdk-devel \
     libxml2-devel \

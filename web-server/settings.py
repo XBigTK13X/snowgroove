@@ -23,10 +23,6 @@ class Config:
             '.snowgroove/log/server.log',
         ]
         self.log_level = 'INFO'
-        self.mediainfo_parse_speed = (
-            0  # Most modern videos work with 0, which is MUCH faster
-        )
-        # 1 is used to support very old videos, like DLed flvs
         self.postgres_database = 'snowgroove'
         self.postgres_host = 'localhost'
         self.postgres_password = 'snowgroove'

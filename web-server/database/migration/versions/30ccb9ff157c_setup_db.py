@@ -135,7 +135,6 @@ def audio_schema():
         sa.Column('kind', sa.Text, nullable=False),
         sa.Column('local_path', sa.Text, nullable=False),
         sa.Column('lyrics', sa.Text, nullable=True),
-        sa.Column('mediainfo_raw_json', sa.Text),
         sa.Column('network_path', sa.Text, nullable=False),
         sa.Column('path', sa.Text, nullable=True),
         sa.Column('position', sa.Text, nullable=True),

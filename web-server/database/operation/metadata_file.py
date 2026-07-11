@@ -4,7 +4,7 @@ import database.operation.crate as db_crate
 
 def create_metadata_file(crate_id: int, kind: str, local_path: str, file_content: str):
     network_path = ''
-    crate = db_crate.get_crate_by_id(crate_id=crate_id)
+    crate = db_crate.get_crate_by_id(ticket=None, crate_id=crate_id)
     network_path = ''
     if crate.shelf.network_path:
         network_path = local_path.replace(

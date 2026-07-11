@@ -14,8 +14,8 @@ RUN DEBIAN_FRONTEND=noninteractive apt install -y rabbitmq-server
 RUN DEBIAN_FRONTEND=noninteractive apt install -y supervisor
 # web server
 RUN DEBIAN_FRONTEND=noninteractive apt install -y nginx
-# transcoding and media inspection
-RUN DEBIAN_FRONTEND=noninteractive apt install -y ffmpeg mediainfo
+# media inspection
+RUN DEBIAN_FRONTEND=noninteractive apt install -y ffmpeg
 # thumbnails
 RUN DEBIAN_FRONTEND=noninteractive apt install -y imagemagick
 # ease reading cli output as json

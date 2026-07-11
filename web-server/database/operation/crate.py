@@ -177,9 +177,10 @@ def get_crate_list_by_shelf_id(ticket: dbi.dm.Ticket, shelf_id: int):
 
 def get_crate_by_id(ticket: dbi.dm.Ticket, crate_id: int):
     tags = get_tags_for_crate(crate_id=crate_id)
-    if ticket.has_tag_restrictions():
-        if not ticket.is_allowed(tag_ids=[xx.id for xx in tags]):
-            return None
+    if ticket:
+        if ticket.has_tag_restrictions():
+            if not ticket.is_allowed(tag_ids=[xx.id for xx in tags]):
+                return None
     with dbi.session() as db:
         crate = (
             db.query(dbi.dm.Crate)

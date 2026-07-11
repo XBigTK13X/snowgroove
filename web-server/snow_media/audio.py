@@ -6,93 +6,77 @@ import traceback
 import math
 
 
-def fail_track_parse(exception, media_path, ffprobe=None, mediainfo=None):
+def fail_track_parse(exception, media_path, ffprobe=None):
     log.error(f'An error occurred while reading track info for [{media_path}]')
     log.error(f'{exception}\n {traceback.format_exc()}')
     if ffprobe:
         log.error('ffprobe')
         log.error(json.dumps(ffprobe, indent=4))
-    if mediainfo:
-        log.error('mediainfo')
-        log.error(json.dumps(mediainfo, indent=4))
     raise exception
 
 
 class MediaTrack:
-    # mediainfo index is 1 based
     # ffprobe index is 0 based
     # mpv uses ffprobe index scheme
-    def __init__(
-        self, media_path: str, ffprobe: dict, mediainfo: dict, is_anime: bool = False
-    ):
+    def __init__(self, media_path: str, ffprobe: dict, is_anime: bool = False):
         try:
             self.kind = None
             self.audio_tags = {}
-            if mediainfo != None and 'CodecID' in mediainfo:
-                self.codec = mediainfo['CodecID']
-            elif 'codec_name' in ffprobe:
-                self.codec = ffprobe['codec_name']
-            if mediainfo != None and 'Format' in mediainfo:
-                self.format = mediainfo['Format']
-            else:
-                self.format = ffprobe['codec_name']
-            if mediainfo != None:
-                if 'StreamSize' in mediainfo:
-                    self.bit_size = int(mediainfo['StreamSize'])
-                if 'BitRate' in mediainfo:
-                    if '/' in mediainfo['BitRate']:
-                        self.bit_rate = int(mediainfo['BitRate'].split('/')[0])
-                    else:
-                        self.bit_rate = int(mediainfo['BitRate'])
-                if 'BitRate_Mode' in mediainfo:
-                    self.bit_rate_kind = mediainfo['BitRate_Mode']
+            self.codec = ffprobe.get('codec_name')
+            self.format = ffprobe.get('codec_name')
 
-                self.title = (
-                    f'{mediainfo["Title"]}'
-                    if mediainfo and 'Title' in mediainfo
-                    else ''
-                )
+            if 'bit_rate' in ffprobe:
+                self.bit_rate = int(ffprobe['bit_rate'])
+            elif 'tags' in ffprobe and 'BPS' in ffprobe['tags']:
+                self.bit_rate = int(ffprobe['tags']['BPS'])
+            else:
+                self.bit_rate = None
+
+            self.bit_size = None
+            if 'tags' in ffprobe and 'NUMBER_OF_BYTES' in ffprobe['tags']:
+                self.bit_size = int(ffprobe['tags']['NUMBER_OF_BYTES'])
+            elif self.bit_rate and 'duration' in ffprobe:
+                self.bit_size = int((self.bit_rate * float(ffprobe['duration'])) / 8)
+
+            self.title = ''
+            if 'tags' in ffprobe and 'title' in ffprobe['tags']:
+                self.title = ffprobe['tags']['title']
+            elif (
+                'format' in ffprobe
+                and 'tags' in ffprobe['format']
+                and 'title' in ffprobe['format']['tags']
+            ):
+                self.title = ffprobe['format']['tags']['title']
 
             if ffprobe['codec_type'] == 'video':
-                self.read_video(ffprobe, mediainfo)
+                self.read_video(ffprobe)
             elif ffprobe['codec_type'] == 'audio':
-                self.read_audio(ffprobe, mediainfo, is_anime)
+                self.read_audio(ffprobe, is_anime)
         except Exception as e:
-            fail_track_parse(e, media_path, ffprobe, mediainfo)
+            fail_track_parse(e, media_path, ffprobe)
 
-    def read_audio(self, ffprobe, mediainfo, is_anime):
-        if mediainfo == None:
-            return
+    def read_audio(self, ffprobe, is_anime):
         self.kind = 'audio'
-        self.audio_index = 0
-        if '@typeorder' in mediainfo:
-            self.audio_index = int(mediainfo['@typeorder']) - 1
-        if 'Format_Commercial_IfAny' in mediainfo:
-            self.format_full = mediainfo['Format_Commercial_IfAny']
-        if 'Channels' in mediainfo:
-            self.channel_count = int(mediainfo['Channels'])
-        if 'Compression_Mode' in mediainfo:
-            self.is_lossless = mediainfo['Compression_Mode'] == 'Lossless'
-        if 'format' in ffprobe and 'tags' in ffprobe['format']:
-            self.audio_tags = ffprobe['format']['tags']
+        self.audio_index = ffprobe.get('index', 0)
+        self.format_full = ffprobe.get('codec_long_name')
+        self.channel_count = ffprobe.get('channels')
+
+        lossless_codecs = {'flac', 'alac', 'truehd', 'dts-hd', 'pcm_s16le', 'pcm_s24le'}
+        self.is_lossless = self.codec in lossless_codecs
+
+        if 'tags' in ffprobe:
+            self.audio_tags = ffprobe['tags']
 
 
-def path_to_info_json(
-    media_path: str, ffprobe_json: str = None, mediainfo_json: str = None
-):
-    probe = get_snowgroove_info(
-        media_path, ffprobe_existing=ffprobe_json, mediainfo_existing=mediainfo_json
-    )
+def path_to_info_json(media_path: str, ffprobe_json: str = None):
+    probe = get_snowgroove_info(media_path, ffprobe_existing=ffprobe_json)
     return {
-        'mediainfo_raw': json.dumps(probe['mediainfo_raw']),
         'ffprobe_raw': json.dumps(probe['ffprobe_raw']),
         'snowgroove_info': json.dumps(probe['snowgroove_info']),
     }
 
 
-def get_snowgroove_info(
-    media_path: str, ffprobe_existing: str = None, mediainfo_existing: str = None
-):
+def get_snowgroove_info(media_path: str, ffprobe_existing: str = None):
     raw_ffprobe = None
     safe_media_path = util.safe_media_path(media_path)
     if ffprobe_existing:
@@ -114,16 +98,6 @@ def get_snowgroove_info(
         cleaned_ffprobe = ffprobe_output.replace('�', '')
         raw_ffprobe = json.loads(cleaned_ffprobe)
 
-    raw_mediainfo = None
-    if mediainfo_existing:
-        raw_mediainfo = json.loads(mediainfo_existing)
-    else:
-        command = f'mediainfo --ParseSpeed={config.mediainfo_parse_speed} --Output=JSON {safe_media_path}'
-        # log.info(command)
-        command_output = util.run_cli(command, raw_output=True)
-        mediainfo_output = command_output['stdout']
-        raw_mediainfo = json.loads(mediainfo_output)
-
     snowgroove_info = {
         'duration_seconds': float(raw_ffprobe.get('format', {}).get('duration', 0)),
         'audio_track': {},
@@ -140,35 +114,15 @@ def get_snowgroove_info(
         except Exception as e:
             fail_track_parse(e, media_path, ff)
 
-    valid_mis = ['Audio']
-    mi_track = None
-    for mi in raw_mediainfo['media']['track']:
-        try:
-            if not mi['@type'] in valid_mis:
-                continue
-            if '' in mi and mi[''] == None:
-                continue
-            mi_track = mi
-            break
-        except Exception as e:
-            fail_track_parse(e, media_path, None, mi)
-
     try:
-        track = MediaTrack(media_path=media_path, ffprobe=ff_track, mediainfo=mi_track)
+        track = MediaTrack(media_path=media_path, ffprobe=ff_track)
         snowgroove_info['audio_track'] = track.__dict__
     except Exception as e:
         log.error(f'stream key error {safe_media_path}')
         log.error(json.dumps(ff_track, indent=4))
-        log.error(json.dumps(mi_track, indent=4))
-        fail_track_parse(
-            exception=e, media_path=media_path, ffprobe=ff_track, mediainfo=mi_track
-        )
+        fail_track_parse(exception=e, media_path=media_path, ffprobe=ff_track)
 
-    result = {
-        'snowgroove_info': snowgroove_info,
-        'ffprobe_raw': raw_ffprobe,
-        'mediainfo_raw': raw_mediainfo,
-    }
+    result = {'snowgroove_info': snowgroove_info, 'ffprobe_raw': raw_ffprobe}
     return result
 
 

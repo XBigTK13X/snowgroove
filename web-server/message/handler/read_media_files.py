@@ -18,7 +18,6 @@ def prep(files, movie=None, show=None, show_season=None, show_episode=None):
         if ff.model_kind == 'video_file':
             result.snowgroove_info_json = ff.snowgroove_info_json
             result.ffprobe_raw_json = ff.ffprobe_raw_json
-            result.mediainfo_raw_json = ff.mediainfo_raw_json
         if movie:
             result.movie = db.Box()
             result.movie.id = movie.id
@@ -320,16 +319,11 @@ def handle(scope):
                 )
                 continue
             try:
-                if (
-                    scope.skip_existing
-                    and video_file.ffprobe_raw_json
-                    and video_file.mediainfo_raw_json
-                ):
-                    # Regenerate the snowstream info without running the file through mediainfo + ffprobe
+                if scope.skip_existing and video_file.ffprobe_raw_json:
+                    # Regenerate the snowstream info without running the file through ffprobe
                     info = snow_media.video.path_to_info_json(
                         media_path=video_file.local_path,
                         ffprobe_json=video_file.ffprobe_raw_json,
-                        mediainfo_json=video_file.mediainfo_raw_json,
                     )
 
                     db.op.update_video_file_info(
@@ -337,7 +331,7 @@ def handle(scope):
                         snowgroove_info_json=info['snowgroove_info'],
                     )
                 else:
-                    # First read fresh mediainfo + ffprobe from file, then regenerate the snowstream info
+                    # First read fresh ffprobe from file, then regenerate the snowstream info
                     info = snow_media.video.path_to_info_json(
                         media_path=video_file.local_path
                     )
@@ -345,7 +339,6 @@ def handle(scope):
                         video_file_id=video_file.id,
                         snowgroove_info_json=info['snowgroove_info'],
                         ffprobe_json=info['ffprobe_raw'],
-                        mediainfo_json=info['mediainfo_raw'],
                     )
             except Exception as e:
                 db.op.update_job(

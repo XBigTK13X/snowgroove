@@ -8,9 +8,8 @@ def create_audio_file(
     file_info: dict,
     snowgroove_info_json: str,
     ffprobe_raw_json: str,
-    mediainfo_raw_json: str,
 ):
-    crate = db_crate.get_crate_by_id(crate_id=crate_id)
+    crate = db_crate.get_crate_by_id(ticket=None, crate_id=crate_id)
     network_path = ''
     local_path = file_info['file_path']
     if crate.shelf.network_path:
@@ -38,7 +37,6 @@ def create_audio_file(
         dbm.fingerprint = file_info['fingerprint']
         dbm.kind = file_info['kind']
         dbm.local_path = local_path
-        dbm.mediainfo_raw_json = mediainfo_raw_json
         dbm.network_path = network_path
         dbm.position = file_info['position']
         dbm.snowgroove_info_json = snowgroove_info_json
@@ -71,7 +69,6 @@ def get_or_create_audio_file(crate_id: int, file_info: dict):
             file_info=file_info,
             snowgroove_info_json=info['snowgroove_info'],
             ffprobe_raw_json=info['ffprobe_raw'],
-            mediainfo_raw_json=info['mediainfo_raw'],
         )
 
     return audio_file
@@ -81,7 +78,6 @@ def update_audio_file_info(
     audio_file_id: int,
     snowgroove_info_json: str,
     ffprobe_json: str = None,
-    mediainfo_json: str = None,
 ):
     with dbi.session() as db:
         audio_file = (
@@ -92,8 +88,6 @@ def update_audio_file_info(
         audio_file.snowgroove_info_json = snowgroove_info_json
         if ffprobe_json:
             audio_file.ffprobe_raw_json = ffprobe_json
-        if mediainfo_json:
-            audio_file.mediainfo_raw_json = mediainfo_json
         db.commit()
         return audio_file
 

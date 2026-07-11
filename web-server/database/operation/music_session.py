@@ -28,7 +28,6 @@ def load_music_queue(music_session):
                 song['snowgroove_info'] = dbi.json.loads(song['snowgroove_info_json'])
                 del song['snowgroove_info_json']
                 del song['ffprobe_raw_json']
-                del song['mediainfo_raw_json']
     return music_session
 
 

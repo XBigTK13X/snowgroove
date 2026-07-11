@@ -79,11 +79,15 @@ class ShelfScanner:
         for root, dirs, files in os.walk(scan_directory, followlinks=True):
             for crate_dir in dirs:
                 crate_path = os.path.join(root, crate_dir)
+                if '.snowgloo' in crate_path:
+                    continue
                 dir_count += 1
                 self.crate_paths.append(crate_path)
 
             for shelf_file in files:
                 file_path = os.path.join(root, shelf_file)
+                if '.snowgloo' in file_path:
+                    continue
                 file_count += 1
                 self.file_lookup[get_file_kind(file_path)].append(file_path)
 

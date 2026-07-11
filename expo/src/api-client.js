@@ -191,7 +191,6 @@ export class ApiClient {
         if (logIndex !== undefined && logIndex !== null) {
             return this.get(`/log?log_index=${logIndex}`)
         }
-        return this.get(`/log?transcode_log_path=${logPath}`)
     }
 
     saveShelf = (payload) => {

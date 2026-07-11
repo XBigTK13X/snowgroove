@@ -36,8 +36,8 @@ def upgrade() -> None:
         sa.Column('id', sa.Integer, primary_key=True),
         sa.Column('created_at', sa.DateTime, nullable=False),
         sa.Column('updated_at', sa.DateTime, nullable=False),
-        fk(sa, 'remote_player.id'),
-        fk(sa, 'client_device_user.id'),
+        fk(sa, 'remote_player.id', nullable=True),
+        fk(sa, 'client_device_user.id', nullable=True),
         sa.Column('kind', sa.Text, nullable=False),
         sa.Column('music_queue_json', sa.Text, nullable=True),
         sa.CheckConstraint(

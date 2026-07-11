@@ -58,9 +58,9 @@ def handle(scope: JobMediaScope):
             continue
         db.op.update_job(
             job_id=scope.job_id,
-            message=f'Scanning content for shelf [{shelf.name}->{shelf.kind}]',
+            message=f'Scanning content for shelf [{shelf.name}->Music]',
         )
-        handler = shelf_handlers[shelf.kind](
+        handler = shelf_handlers['Music'](
             scope=scope, shelf=shelf, target_directory=target_directory
         )
 

@@ -266,7 +266,6 @@ class AudioFile(BaseModel):
     kind = sa.Column(sa.Text)
     local_path = sa.Column(sa.Text)
     lyrics = sa.Column(sa.Text)
-    mediainfo_raw_json = sa.Column(sa.Text)
     network_path = sa.Column(sa.Text)
     position = sa.Column(sa.Text)
     snowgroove_info_json = sa.Column(sa.Text)

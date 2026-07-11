@@ -105,31 +105,16 @@ def log_routes(router):
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
     ):
         playback_logs = db.op.get_cached_text_list(search_query='playback-log-')
-        transcode_logs = []
-        for root, dirs, files in os.walk(config.transcode_log_dir):
-            for ff in files:
-                transcode_logs.append(os.path.join(root, ff))
-        transcode_logs.sort(reverse=True)
-        return {
-            'server': config.tail_log_paths,
-            'playback': playback_logs,
-            'transcode': transcode_logs,
-        }
+        return {'server': config.tail_log_paths, 'playback': playback_logs}
 
     @router.get('/log', tags=['Job'])
     def get_log(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
         log_index: int = None,
-        transcode_log_path: str = None,
     ):
         log_path = None
         if log_index != None:
             log_path = config.tail_log_paths[log_index]
-        if transcode_log_path:
-            if config.transcode_log_dir in transcode_log_path:
-                log_path = transcode_log_path
-            else:
-                return f'Log path [{transcode_log_path}] not found in [{config.transcode_log_dir}]'
         if not log_path:
             return 'Log path not found'
         with open(log_path, 'r') as read_handle:
