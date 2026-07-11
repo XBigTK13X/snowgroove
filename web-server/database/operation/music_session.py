@@ -104,3 +104,13 @@ def get_or_create_music_session(remote_player_id: int = None, cduid: int = None)
 def get_music_session_list():
     with dbi.session() as db:
         return db.query(dbi.dm.MusicSession).all()
+
+
+def get_remote_music_session_list():
+    with dbi.session() as db:
+        return (
+            db.query(dbi.dm.MusicSession)
+            .filter(dbi.dm.MusicSession.remote_player_id.is_not(None))
+            .options(dbi.orm.joinedload(dbi.dm.MusicSession.remote_player))
+            .all()
+        )

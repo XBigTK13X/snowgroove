@@ -20,6 +20,7 @@ import snow_media
 from remote_player import remote_player
 
 remote_players = remote_player.RemotePlayers()
+remote_players.recover_active_sessions()
 
 
 def register(router):

@@ -100,7 +100,7 @@ def act(remote_player, remote_action, music_session):
         music_session.music_queue['current_song_index']
     ]
 
-    if remote_action == 'play':
+    if remote_action in ['play', 'next', 'previous']:
         play(connection_info=connection_info, audio_file=current_audio_file)
         return
 
@@ -127,8 +127,6 @@ def act(remote_player, remote_action, music_session):
         elif remote_action == 'stop':
             if has_active_session:
                 media_controller.stop()
-        elif remote_action in ('next', 'previous'):
-            play(connection_info=connection_info, audio_file=current_audio_file)
         elif remote_action.startswith('seek--'):
             if has_active_session:
                 seek_target = remote_action.split('seek--')[-1]

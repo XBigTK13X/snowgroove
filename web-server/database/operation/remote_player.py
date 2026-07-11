@@ -31,9 +31,10 @@ def upsert_remote_player(
 
 
 def get_remote_player_by_id(ticket: dbi.dm.Ticket, id: int):
-    if ticket.has_remote_player_restrictions():
-        if not ticket.is_allowed(remote_player_id=id):
-            return None
+    if ticket:
+        if ticket.has_remote_player_restrictions():
+            if not ticket.is_allowed(remote_player_id=id):
+                return None
     with dbi.session() as db:
         return (
             db.query(dbi.dm.RemotePlayer)

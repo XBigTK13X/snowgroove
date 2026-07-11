@@ -43,21 +43,21 @@ def scan_remote_players():
 
 def act(remote_player, remote_action, music_session):
     connection_info = json.loads(remote_player.connection_info_json)
-    current_audio_file = music_session.music_queue['songs'][
-        music_session.music_queue['current_song_index']
-    ]
     sonos_player = soco.SoCo(connection_info['host'])
 
-    if remote_action == 'play':
+    if (
+        remote_action == 'play'
+        or remote_action == 'next'
+        or remote_action == 'previous'
+    ):
+        current_audio_file = music_session.music_queue['songs'][
+            music_session.music_queue['current_song_index']
+        ]
         play(device_ip=connection_info['host'], audio_file=current_audio_file)
     elif remote_action == 'pause':
         sonos_player.pause()
     elif remote_action == 'stop':
         sonos_player.stop()
-    elif remote_action == 'next':
-        sonos_player.next()
-    elif remote_action == 'previous':
-        sonos_player.previous()
     elif remote_action.startswith('seek--'):
         seek_target = remote_action.split('seek--')[-1]
         if seek_target.isdigit():
@@ -149,7 +149,20 @@ def get_status(remote_player):
         is_playing = current_state == 'PLAYING'
 
         return {'position_seconds': position_seconds, 'is_playing': is_playing}
+    except soco.exceptions.SoCoUPnPException as upnp_error:
+        if (
+            upnp_error.error_code == '711'
+            or getattr(upnp_error, 'error_code', None) == 711
+        ):
+            return {'position_seconds': 0, 'is_playing': False}
+
+        log.error(f'UPnP error from Sonos device {remote_player.name}: {upnp_error}')
+        return {'position_seconds': 0, 'is_playing': False}
     except Exception as error_message:
+        error_str = str(error_message)
+        if '711' in error_str or 'Illegal seek target' in error_str:
+            return {'position_seconds': 0, 'is_playing': False}
+
         log.error(
             f'Failed to fetch status from Sonos device {remote_player.name}: {error_message}'
         )
