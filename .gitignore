@@ -1,3 +1,5 @@
+keystore.properties
+build-out/
 .snowgroove/
 seed_data.py
 seed-data.py
