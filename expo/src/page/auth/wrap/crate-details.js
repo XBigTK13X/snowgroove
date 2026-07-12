@@ -35,9 +35,20 @@ export default function CrateDetailsPage(props) {
         return <C.SnowLabel center>Loading crate...</C.SnowLabel>
     }
 
+    let hasFocusStart = 'parents'
+    if (crateDetails?.children?.length) {
+        hasFocusStart = 'children'
+    }
+    if (crateDetails?.audio_files?.length && hasFocusStart === 'parents') {
+        hasFocusStart = 'audio'
+    }
+    if (crateDetails && crateDetails?.kind !== 'crate' && crateDetails?.kind !== 'crate-list') {
+        hasFocusStart = 'top'
+    }
+
     let parentCrates = null
     if (crateList?.length) {
-        parentCrates = <C.SnowGrid items={crateList} renderItem={(parentCrate) => {
+        parentCrates = <C.SnowGrid focusStart={hasFocusStart === 'parents'} items={crateList} renderItem={(parentCrate) => {
             return (
                 <C.SnowTextButton title={parentCrate.title} onPress={navPush({
                     params: {
@@ -55,11 +66,16 @@ export default function CrateDetailsPage(props) {
     if (crateDetails?.children?.length) {
         let crates = crateDetails?.children?.filter(xx => { return !xx.album_cover_image_url })
         let albums = crateDetails?.children?.filter(xx => { return xx.album_cover_image_url })
+        if (hasFocusStart === 'children') {
+            if (!crates?.length) {
+                hasFocusStart = 'albums'
+            }
+        }
         if (crates?.length) {
             childCrates = (
-                <C.SnowView>
+                <C.SnowView >
                     <C.SnowLabel center>Crates</C.SnowLabel>
-                    <C.SnowGrid items={crates} renderItem={(childCrate) => {
+                    <C.SnowGrid focusStart={hasFocusStart === 'children'} items={crates} renderItem={(childCrate) => {
                         return (
                             <C.SnowTextButton
                                 title={childCrate.title}
@@ -78,7 +94,7 @@ export default function CrateDetailsPage(props) {
             childAlbums = (
                 <C.SnowView>
                     <C.SnowLabel center>Albums</C.SnowLabel>
-                    <C.SnowGrid items={albums} renderItem={(childAlbum) => {
+                    <C.SnowGrid focusStart={hasFocusStart === 'albums'} items={albums} renderItem={(childAlbum) => {
                         return (
                             <C.SnowImageButton
                                 title={childAlbum.title}
@@ -99,7 +115,7 @@ export default function CrateDetailsPage(props) {
     let audioFiles = null
     if (crateDetails?.audio_files?.length) {
         audioFiles = (
-            <C.SnowSongList disableDrag audioFiles={crateDetails?.audio_files} />
+            <C.SnowSongList focusStart={hasFocusStart === 'audio'} disableDrag audioFiles={crateDetails?.audio_files} />
         )
     }
 
@@ -126,14 +142,12 @@ export default function CrateDetailsPage(props) {
         )
     }
     return (
-        <C.FillView>
-            <C.SnowView>
-                {topButtons?.length ? <C.SnowGrid items={topButtons} /> : null}
-                {parentCrates}
-                {childCrates}
-                {childAlbums}
-                {audioFiles}
-            </C.SnowView>
-        </C.FillView>
+        <C.SnowView>
+            {topButtons?.length ? <C.SnowGrid focusStart={hasFocusStart === 'top'} items={topButtons} /> : null}
+            {parentCrates}
+            {childCrates}
+            {childAlbums}
+            {audioFiles}
+        </C.SnowView>
     )
 }

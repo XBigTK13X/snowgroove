@@ -313,14 +313,14 @@ export function AppContextProvider(props) {
                 },
                 render: () => {
                     return (
-                        <Snow.FillView >
+                        <Snow.View >
                             <Snow.Label center>Unable to communicate with Snowgroove.</Snow.Label>
                             <Snow.Label center>Check if your Wi-Fi is disconnected, ethernet unplugged, or if the Snowgroove server is down.</Snow.Label>
                             <Snow.Grid focusStart focusKey="error-buttons" itemsPerRow={2}>
                                 <Snow.TextButton title="Try to Reload" onPress={() => { setApiError(null) }} />
                                 <Snow.TextButton title="Change Server" onPress={() => { logout(true) }} />
                             </Snow.Grid>
-                        </Snow.FillView>
+                        </Snow.View>
                     )
                 }
             })
