@@ -20,21 +20,22 @@ export default function MusicSessionDetailsPage(props) {
         clearTarget = <C.SnowTextButton short title="Stop Targeting" onPress={() => { changeTargetPlayer(null, null) }} />
     }
 
+    let hasSongs = musicSession?.music_queue?.songs?.length
     let audioFiles = null
-    if (musicSession?.music_queue?.songs?.length) {
+    if (hasSongs) {
         audioFiles = (
-            <C.SnowSongList activeQueue audioFiles={musicSession.music_queue.songs} />
+            <C.SnowSongList focusStart activeQueue audioFiles={musicSession.music_queue.songs} />
         )
     } else {
         audioFiles = <C.SnowView><C.SnowLabel center>No songs found in the queue.</C.SnowLabel><C.SnowTarget /></C.SnowView>
     }
 
-    let hasSongs = musicSession?.music_queue?.songs?.length
+
 
     return (
-        <C.FillView>
+        <C.SnowView>
             <C.SnowLabel center>{playerTarget}</C.SnowLabel>
-            <C.SnowGrid>
+            <C.SnowGrid focusStart={!hasSongs}>
                 {hasSongs ?
                     <C.SnowTextButton
                         title="Clear Queue"
@@ -52,6 +53,6 @@ export default function MusicSessionDetailsPage(props) {
                 {clearTarget}
             </C.SnowGrid>
             {audioFiles}
-        </C.FillView>
+        </C.SnowView>
     )
 }

@@ -58,6 +58,7 @@ function PageWrapper(props) {
 export default function PageLoader() {
     return (
         <SnowApp
+            ENABLE_FOCUS={true}
             DEBUG_SNOW={config.debugSnowui}
             DEBUG_NAVIGATION={false}
             DEBUG_FOCUS={false}

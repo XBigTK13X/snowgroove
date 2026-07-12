@@ -90,6 +90,7 @@ export function SnowSongList(props) {
                                                 focusKey="song-grid"
                                                 itemsPerRow={2}>
                                                 <Snow.TextButton title="Cancel" onPress={popModal} />
+                                                <Snow.TextButton title="Play Now" onPress={() => { popModal(); playAudioFile(item) }} />
                                                 <Snow.TextButton title="Play Next" onPress={playNext(item)} />
                                                 <Snow.TextButton title="Add Song to Queue" onPress={() => { popModal(); addAudioFileToQueue(item) }} />
                                                 <Snow.TextButton title="Goto Album" onPress={gotoCrate(item.album_crate_id)} />

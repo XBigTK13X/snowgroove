@@ -5,9 +5,9 @@ function DeviceGroup(props) {
     const { routes } = useAppContext()
     const { navPush } = C.useSnowContext(props)
     return (
-        <>
+        <C.SnowView>
             <C.SnowLabel center>{props.title}</C.SnowLabel>
-            <C.SnowGrid items={props.items} renderItem={(remotePlayer) => {
+            <C.SnowGrid {...props} items={props.items} renderItem={(remotePlayer) => {
                 return (
                     <C.SnowTextButton title={remotePlayer.name} onPress={navPush({
                         path: routes.deviceDetails,
@@ -17,7 +17,7 @@ function DeviceGroup(props) {
                     })} />
                 )
             }} />
-        </>
+        </C.SnowView>
     )
 }
 
@@ -41,12 +41,18 @@ export default function DeviceListPage(props) {
     }
 
     let speakers = remotePlayers.filter(xx => !xx.name.includes('yTV') && !xx.name.includes('zGroup'))
-    let groups = remotePlayers.filter(xx => xx.name.includes('zGroup')).map(xx => { xx.name = xx.name.replace('zGroup - ', ''); return xx })
+    let groups = remotePlayers
+        .filter(xx => xx.name.includes('zGroup'))
+        .map(xx => ({
+            ...xx,
+            name: xx.name.replace('zGroup - ', '')
+        }))
     return (
-        <>
-            {speakers?.length ? <DeviceGroup title="Speakers" items={speakers} /> : null}
-            {groups?.length ? <DeviceGroup title="Groups" items={groups} /> : null}
-        </>
+        <C.SnowView {...props}>
+            {speakers?.length ? <DeviceGroup focusStart focusKey="speakers" title="Speakers" items={speakers} /> : null}
+            {speakers?.length && groups?.length ? <C.SnowBreak /> : null}
+            {groups?.length ? <DeviceGroup focusStart={!speakers?.length} focusKey="groups" title="Groups" items={groups} /> : null}
+        </C.SnowView>
 
     )
 }

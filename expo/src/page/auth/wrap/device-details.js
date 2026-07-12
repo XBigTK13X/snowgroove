@@ -22,19 +22,17 @@ export default function DeviceDetailsPage(props) {
 
     } else {
         musicQueue = (
-            <>
-                <C.SnowText center>The queue on this device is currently empty.</C.SnowText>
-            </>
+            <C.SnowText center>The queue on this device is currently empty.</C.SnowText>
         )
     }
 
 
     return (
-        <>
+        <C.SnowView {...props}>
             <C.SnowText center>{remotePlayer.name}</C.SnowText>
             <C.SnowText center>{remotePlayer.device_make}</C.SnowText>
             <C.SnowGrid>
-                <C.SnowTextButton title="Target This Device" onPress={() => {
+                <C.SnowTextButton focusStart title="Target This Device" onPress={() => {
                     changeTargetPlayer(remotePlayer.id, remotePlayer.name).then(() => {
                         navPush({
                             path: routes.musicSessionDetails,
@@ -44,6 +42,6 @@ export default function DeviceDetailsPage(props) {
                 }} />
             </C.SnowGrid>
             {musicQueue}
-        </>
+        </C.SnowView>
     )
 }
