@@ -13,6 +13,7 @@ export function SnowCreateJobButton(props) {
     }
     return (
         <Snow.TextButton
+            {...props}
             tall={props.tall}
             title={props.title}
             onPress={navPush({

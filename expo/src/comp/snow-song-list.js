@@ -75,41 +75,42 @@ export function SnowSongList(props) {
 
 
                 return (
-                    <>
-                        <Snow.Grid leftAlignRows>
-                            <Snow.ImageButton
-                                imageStyle={{ width: 50, height: 50 }}
-                                wrapperStyle={{ width: 60, height: 70 }}
-                                imageUrl={item.thumbnail_web_path}
-                                onPress={() => {
-                                    pushModal({
-                                        render: (props) => {
-                                            return (
-                                                <Snow.Grid itemsPerRow={2}>
-                                                    <Snow.TextButton title="Cancel" onPress={popModal} />
-                                                    <Snow.TextButton title="Play Next" onPress={playNext(item)} />
-                                                    <Snow.TextButton title="Add Song to Queue" onPress={() => { popModal(); addAudioFileToQueue(item) }} />
-                                                    <Snow.TextButton title="Goto Album" onPress={gotoCrate(item.album_crate_id)} />
-                                                    <Snow.TextButton title="Goto Artist" onPress={gotoCrate(item.artist_crate_id)} />
-                                                    <Snow.TextButton title="Remove Song from Queue" onPress={removeSong(item)} />
-                                                    <Snow.TextButton title="Remove Album from Queue" onPress={removeCrate(item.album_crate_id, 'album')} />
-                                                    <Snow.TextButton title="Remove Artist from Queue" onPress={removeCrate(item.artist_crate_id, 'artist')} />
-                                                </Snow.Grid>
-                                            )
-                                        },
-                                        props: {
-                                            focusStart: true,
-                                            center: true,
-                                            obscure: true,
-                                            onRequestClose: popModal
-                                        }
-                                    })
-                                }}
-                            />
-                            <Snow.Text noSelect>{itemDisplay}</Snow.Text>
+                    <Snow.Grid yy={itemIndex} leftAlignRows>
+                        <Snow.ImageButton
+                            imageStyle={{ width: 50, height: 50 }}
+                            wrapperStyle={{ width: 60, height: 70 }}
+                            imageUrl={item.thumbnail_web_path}
+                            onPress={() => {
+                                pushModal({
+                                    render: (modalProps) => {
+                                        return (
+                                            <Snow.Grid
+                                                focusStart
+                                                parentPath={modalProps.parentPath}
+                                                focusKey="song-grid"
+                                                itemsPerRow={2}>
+                                                <Snow.TextButton title="Cancel" onPress={popModal} />
+                                                <Snow.TextButton title="Play Next" onPress={playNext(item)} />
+                                                <Snow.TextButton title="Add Song to Queue" onPress={() => { popModal(); addAudioFileToQueue(item) }} />
+                                                <Snow.TextButton title="Goto Album" onPress={gotoCrate(item.album_crate_id)} />
+                                                <Snow.TextButton title="Goto Artist" onPress={gotoCrate(item.artist_crate_id)} />
+                                                <Snow.TextButton title="Remove Song from Queue" onPress={removeSong(item)} />
+                                                <Snow.TextButton title="Remove Album from Queue" onPress={removeCrate(item.album_crate_id, 'album')} />
+                                                <Snow.TextButton title="Remove Artist from Queue" onPress={removeCrate(item.artist_crate_id, 'artist')} />
+                                            </Snow.Grid>
+                                        )
+                                    },
+                                    props: {
+                                        center: true,
+                                        obscure: true,
+                                        onRequestClose: popModal
+                                    }
+                                })
+                            }}
+                        />
+                        <Snow.Text noSelect>{itemDisplay}</Snow.Text>
 
-                        </Snow.Grid>
-                    </>
+                    </Snow.Grid>
                 )
             }}
             onPress={(item) => {

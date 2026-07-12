@@ -1,5 +1,6 @@
 #! /bin/bash
 
 fuser -k 8000/tcp
+fuser -k 10063/tcp
 fuser -k 3000/tcp
 kill -TERM -$(cat web-server/.snowgroove/running.pid)

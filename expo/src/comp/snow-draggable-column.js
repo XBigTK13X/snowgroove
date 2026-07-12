@@ -50,7 +50,8 @@ const styles = {
 }
 
 export function SnowDraggableColumn(props) {
-    const { SnowStyle } = Snow.useStyleContext(props)
+    const { SnowStyle, modalPayloads } = Snow.useSnowContext(props)
+    const isModalOpen = modalPayloads && modalPayloads.length > 0
     const rowHeight = props.rowHeight ?? 120
     const longPressDelay = 500
 
@@ -82,12 +83,15 @@ export function SnowDraggableColumn(props) {
 
     const panResponder = React.useRef(
         PanResponder.create({
-            onStartShouldSetPanResponder: () => true,
+            onStartShouldSetPanResponder: () => {
+                return !isModalOpen
+            },
             onMoveShouldSetPanResponder: (event, gestureState) => {
-                if (props.disableDrag) return false
+                if (props.disableDrag || isModalOpen) return false
                 return isDragging.current || Math.abs(gestureState.dy) > 2
             },
             onPanResponderGrant: (event, gestureState) => {
+                if (props.disableDrag || isModalOpen) return
                 const locationY = event.nativeEvent.locationY
                 let calculatedIndex = Math.floor(locationY / rowHeight)
                 if (calculatedIndex < 0 || calculatedIndex >= stateRef.current.itemsOrder.length) {
@@ -97,8 +101,6 @@ export function SnowDraggableColumn(props) {
                 panY.current = 0
                 dragY.setValue(0)
 
-                if (props.disableDrag) return
-
                 longPressTimeout.current = setTimeout(() => {
                     isDragging.current = true
                     setDraggingIndex(calculatedIndex)
@@ -106,7 +108,7 @@ export function SnowDraggableColumn(props) {
                 }, longPressDelay)
             },
             onPanResponderMove: (event, gestureState) => {
-                if (props.disableDrag) return
+                if (props.disableDrag || isModalOpen) return
 
                 if (!isDragging.current) {
                     if (Math.abs(gestureState.dy) > 10) {
@@ -127,6 +129,7 @@ export function SnowDraggableColumn(props) {
                 }
             },
             onPanResponderRelease: (event, gestureState) => {
+                if (isModalOpen) return
                 clearTimeout(longPressTimeout.current)
 
                 const currentDraggingIndex = stateRef.current.draggingIndex
@@ -166,6 +169,7 @@ export function SnowDraggableColumn(props) {
                 dragY.setValue(0)
             },
             onPanResponderTerminate: () => {
+                if (isModalOpen) return
                 clearTimeout(longPressTimeout.current)
                 isDragging.current = false
                 setDraggingIndex(null)
@@ -176,13 +180,13 @@ export function SnowDraggableColumn(props) {
     ).current
 
     return (
-        <View style={styles.container}>
+        <Snow.View {...props} style={styles.container}>
             {props.title ? (
                 <Text style={styles.label}>
                     {props.title} ({itemsOrder.length})
                 </Text>
             ) : null}
-            <View
+            <Snow.View
                 style={{ height: itemsOrder.length * rowHeight, width: '100%', position: 'relative' }}
                 {...panResponder.panHandlers}
             >
@@ -242,23 +246,23 @@ export function SnowDraggableColumn(props) {
                             data-xx={props.xx}
                             data-yy={ii}
                         >
-                            <View style={[styles.innerRow, isCurrentDragging && styles.innerRowDragging]}>
+                            <Snow.View yy={ii} style={[styles.innerRow, isCurrentDragging && styles.innerRowDragging]}>
                                 {props.renderItem(item, ii)}
-                            </View>
+                            </Snow.View>
                         </Animated.View>
                     )
                 })}
 
                 {draggingIndex !== null && targetIndex !== null && draggingIndex !== targetIndex ? (
-                    <View
+                    <Snow.View
                         style={[
                             styles.dropIndicator,
                             { top: targetIndex * rowHeight + (draggingIndex < targetIndex ? rowHeight : 0) }
                         ]}
                     />
                 ) : null}
-            </View>
-        </View>
+            </Snow.View>
+        </Snow.View>
     )
 }
 

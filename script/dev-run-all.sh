@@ -7,6 +7,7 @@ uv sync > /dev/null 2>&1 || true
 cd ..
 kill -TERM -$(cat web-server/.snowgroove/running.pid) > /dev/null 2>&1 || true
 fuser -k 8000/tcp || true
+fuser -k 10063/tcp || true
 fuser -k 3000/tcp || true
 setsid bash -c 'script/server-develop.sh > web-server/.snowgroove/log/server.log 2>&1 & script/worker-develop.sh > web-server/.snowgroove/log/worker.log 2>&1 &' &
 pgid=$!
