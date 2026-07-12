@@ -56,7 +56,7 @@ function SnowHeaderNavPage(props) {
     const { displayName, routes } = useAppContext();
 
     return (
-        <>
+        <Snow.View>
             <HeaderNav
                 yy={0}
                 displayName={displayName}
@@ -64,7 +64,7 @@ function SnowHeaderNavPage(props) {
             <Snow.View yy={1}>
                 {props.children}
             </Snow.View>
-        </>
+        </Snow.View>
     )
 }
 

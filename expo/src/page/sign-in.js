@@ -142,10 +142,10 @@ export default function SignInPage() {
 
 
     return (
-        <>
+        <C.SnowView {...props}>
             {userList}
             {selectServer}
             {errors ? <C.SnowLabel>{errors}</C.SnowLabel> : null}
-        </>
+        </C.SnowView>
     )
 }

@@ -73,14 +73,13 @@ export default function LandingPage(props) {
             )
         })).concat(destinations)
     }
-
-    if (destinations) {
+    if (shelves !== null) {
         let nowPlaying = "Nothing is currently playing."
         let playerControls = (
-            <C.SnowView>
+            <C.View>
                 <C.SnowText center>{nowPlaying}</C.SnowText>
                 <C.SnowBreak />
-            </C.SnowView>
+            </C.View>
         )
         if (currentAudioFile) {
             let playerTarget = "Local Queue"
@@ -90,11 +89,11 @@ export default function LandingPage(props) {
             nowPlaying = `${currentAudioFile.title} - ${currentAudioFile.album} - ${currentAudioFile.artist}`
             let progressDisplay = `[${playerTarget}] ${C.util.secondsToTimestamp(positionSeconds)} / ${C.util.secondsToTimestamp(currentAudioFile.duration)}`
             playerControls = (
-                <C.SnowView>
+                <C.View>
                     <C.View style={{ height: 40, justifyContent: 'center', overflow: 'hidden', width: '100%' }}>
                         <C.SnowLabel marquee center>{nowPlaying}</C.SnowLabel>
                     </C.View>
-                    <C.SnowGrid>
+                    <C.SnowGrid yy={2}>
                         <C.Image
                             style={{ width: 300, height: 300 }}
                             source={{ uri: currentAudioFile.thumbnail_web_path }}
@@ -107,11 +106,11 @@ export default function LandingPage(props) {
                         percent={progressPercent}
                     />
                     <C.SnowText center>{progressDisplay}</C.SnowText>
-                    <C.SnowGrid>
+                    <C.SnowGrid yy={3}>
                         <C.SnowTextButton short title="Previous" onPress={() => {
                             playPreviousSong()
                         }} />
-                        <C.SnowTextButton short title={isPlaying ? "Pause" : "Play"} onPress={() => {
+                        <C.SnowTextButton focusStart short title={isPlaying ? "Pause" : "Play"} onPress={() => {
                             togglePlayback()
                         }} />
                         <C.SnowTextButton short title="Next" onPress={() => {
@@ -119,19 +118,21 @@ export default function LandingPage(props) {
                         }} />
                     </C.SnowGrid>
                     <C.SnowBreak />
-                </C.SnowView>
+                </C.View>
             )
         }
         return (
-            <C.SnowView>
+            <C.View>
                 {playerControls}
                 <C.SnowGrid
-                    focusStart
+                    yy={4}
+                    focusStart={!currentAudioFile}
                     focusKey="destinations"
-                    items={destinations}
-                    itemsPerRow={2} />
+                    itemsPerRow={2}>
+                    {destinations}
+                </C.SnowGrid>
                 <C.SnowText style={styles.footer} center>{`[built ${config.clientBuildDate}] [snowgroove v${config.clientVersion}] [snowui v${snowuiPackageInfo.version}]`}</C.SnowText>
-            </C.SnowView>
+            </C.View>
         )
     }
 

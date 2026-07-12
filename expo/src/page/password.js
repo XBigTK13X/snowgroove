@@ -1,7 +1,7 @@
 import { C, useAppContext } from 'snowgroove'
 
 // This is the default expo-router route '/'
-export default function SignInPage() {
+export default function SignInPage(props) {
     const {
         navReset,
         navPush,
@@ -51,23 +51,21 @@ export default function SignInPage() {
     }
 
     return (
-        <>
-            <C.SnowGrid itemsPerRow={1}>
-                <C.SnowLabel center>Enter the password for {username}</C.SnowLabel>
+        <C.SnowGrid {...props} itemsPerRow={1}>
+            <C.SnowLabel center>Enter the password for {username}</C.SnowLabel>
 
-                <C.SnowInput
-                    focusStart
-                    focusKey="password"
-                    onSubmit={login}
-                    onValueChange={setPassword}
-                    value={password}
-                />
-                <C.SnowGrid focusKey="login" itemsPerRow={2} >
-                    <C.SnowTextButton title="Login" onPress={login} />
-                    <C.SnowTextButton title="Cancel" onPress={cancelPassword} />
-                </C.SnowGrid>
-                {errors ? <C.SnowLabel>{errors}</C.SnowLabel> : null}
+            <C.SnowInput
+                focusStart
+                focusKey="password"
+                onSubmit={login}
+                onValueChange={setPassword}
+                value={password}
+            />
+            <C.SnowGrid focusKey="login" itemsPerRow={2} >
+                <C.SnowTextButton title="Login" onPress={login} />
+                <C.SnowTextButton title="Cancel" onPress={cancelPassword} />
             </C.SnowGrid>
-        </>
+            {errors ? <C.SnowLabel>{errors}</C.SnowLabel> : null}
+        </C.SnowGrid>
     )
 }

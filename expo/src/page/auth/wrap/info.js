@@ -6,7 +6,7 @@ export default function InfoPage() {
         authedInfo = `Logged in as [${displayName}]`
     }
     return (
-        <>
+        <C.SnowView {...props}>
             <C.Text>{'\n'}</C.Text>
             <C.SnowText>
                 snowgroove client v{config.clientVersion}.
@@ -18,6 +18,6 @@ export default function InfoPage() {
                 {authedInfo}
             </C.SnowText>
             <C.SnowTarget focusStart focusKey="info-bottom" />
-        </>
+        </C.SnowView>
     )
 }
