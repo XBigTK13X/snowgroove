@@ -208,7 +208,8 @@ export function AudioContextProvider({ children }) {
 
     async function updateMusicQueue(updater, immediateSync = false) {
         changeMusicSession((currentSession) => {
-            let updatedSession = structuredClone(currentSession)
+            // structuredClone doesn't work on TV
+            let updatedSession = JSON.parse(JSON.stringify(currentSession))
             updatedSession.music_queue = updater(updatedSession.music_queue)
             return updatedSession
         })

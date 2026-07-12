@@ -90,7 +90,7 @@ export default function LandingPage(props) {
             nowPlaying = `${currentAudioFile.title} - ${currentAudioFile.album} - ${currentAudioFile.artist}`
             let progressDisplay = `[${playerTarget}] ${C.util.secondsToTimestamp(positionSeconds)} / ${C.util.secondsToTimestamp(currentAudioFile.duration)}`
             playerControls = (
-                <>
+                <C.SnowView yy={0}>
                     <C.View style={{ height: 40, justifyContent: 'center', overflow: 'hidden', width: '100%' }}>
                         <C.SnowLabel marquee center>{nowPlaying}</C.SnowLabel>
                     </C.View>
@@ -119,13 +119,14 @@ export default function LandingPage(props) {
                         }} />
                     </C.SnowGrid>
                     <C.SnowBreak />
-                </>
+                </C.SnowView>
             )
         }
         return (
             <>
                 {playerControls}
                 <C.SnowGrid
+                    yy={1}
                     focusStart
                     focusKey="destinations"
                     items={destinations}
