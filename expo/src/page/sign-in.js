@@ -1,7 +1,7 @@
 import { C, useAppContext } from 'snowgroove'
 
 // This is the default expo-router route '/'
-export default function SignInPage() {
+export default function SignInPage(props) {
     const {
         navReset,
         navPush

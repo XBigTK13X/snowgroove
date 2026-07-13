@@ -1,6 +1,6 @@
 {
     "name": "snowgroove",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "dependencies": {
         "@sentry/react-native": "7.2.0",
         "axios": "1.12.2",
