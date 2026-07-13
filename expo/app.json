@@ -32,7 +32,8 @@
         "expo-av",
         {
           "microphonePermission": false,
-          "playsInSilentModeIOS": true
+          "playsInSilentModeIOS": true,
+          "staysActiveInBackground": true
         }
       ],
       [
@@ -62,7 +63,9 @@
       "backgroundColor": "#000000",
       "versionCode": 1,
       "permissions": [
-        "BACKGROUND_AUDIO"
+        "BACKGROUND_AUDIO",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ]
     },
     "ios": {
