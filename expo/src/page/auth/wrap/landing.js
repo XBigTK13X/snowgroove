@@ -90,9 +90,7 @@ export default function LandingPage(props) {
             let progressDisplay = `[${playerTarget}] ${C.util.secondsToTimestamp(positionSeconds)} / ${C.util.secondsToTimestamp(currentAudioFile.duration)}`
             playerControls = (
                 <C.View>
-                    <C.View style={{ height: 40, justifyContent: 'center', overflow: 'hidden', width: '100%' }}>
-                        <C.SnowLabel marquee center>{nowPlaying}</C.SnowLabel>
-                    </C.View>
+                    <C.SnowLabel marquee center>{nowPlaying}</C.SnowLabel>
                     <C.SnowGrid yy={2}>
                         <C.Image
                             style={{ width: 300, height: 300 }}
