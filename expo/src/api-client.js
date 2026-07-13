@@ -327,10 +327,13 @@ export class ApiClient {
         return this.get(`/remote-player?remote_player_id=${remotePlayerId}`)
     }
 
-    getMusicSession = (remotePlayerId) => {
-        let url = `/music-session`
+    getMusicSession = (remotePlayerId, remotePlayerName) => {
+        let url = `/music-session?p=1`
         if (remotePlayerId) {
-            url += `?remote_player_id=${remotePlayerId}`
+            url += `&remote_player_id=${remotePlayerId}`
+        }
+        if (remotePlayerName) {
+            url += `&remote_player_name=${remotePlayerName}`
         }
         return this.get(url)
     }

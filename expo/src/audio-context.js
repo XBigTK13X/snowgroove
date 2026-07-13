@@ -6,7 +6,7 @@ import { useAppContext } from './app-context'
 const AudioContext = React.createContext(null)
 
 export function AudioContextProvider({ children }) {
-    const { targetPlayer, apiClient, session } = useAppContext()
+    const { targetPlayer, apiClient, session, changeTargetPlayer } = useAppContext()
     const [musicSession, setMusicSession] = React.useState(null)
     const [sound, setSound] = React.useState(null)
     const [isPlaying, setIsPlaying] = React.useState(false)
@@ -77,36 +77,36 @@ export function AudioContextProvider({ children }) {
                 await soundRef.current.unloadAsync()
                 setSound(null)
             }
-            if (apiClient) {
+            if (apiClient && musicSession) {
                 await apiClient.musicSessionPlay(musicSession.id)
             }
             setPlaying(true)
         },
         async pause() {
-            if (apiClient) {
+            if (apiClient && musicSession) {
                 await apiClient.musicSessionPause(musicSession.id)
             }
             setPlaying(false)
         },
         async resume() {
-            if (apiClient) {
+            if (apiClient && musicSession) {
                 await apiClient.musicSessionPlay(musicSession.id)
             }
             setPlaying(true)
         },
         async stop() {
-            if (apiClient) {
+            if (apiClient && musicSession) {
                 await apiClient.musicSessionStop(musicSession.id)
             }
             setPlaying(false)
         },
         async seek(seconds) {
-            if (apiClient) {
+            if (apiClient && musicSession) {
                 await apiClient.musicSessionSeek(musicSession.id, seconds)
             }
         },
-        async volume(percent) {
-            if (apiClient) {
+        async setVolume(percent) {
+            if (apiClient && musicSession) {
                 await apiClient.musicSessionVolume(musicSession.id, percent)
             }
         }
@@ -147,8 +147,20 @@ export function AudioContextProvider({ children }) {
         if (!apiClient) {
             return
         }
-        apiClient.getMusicSession(targetPlayer?.id).then(response => {
+        console.log({ targetPlayer })
+        apiClient.getMusicSession(targetPlayer?.id, targetPlayer?.name).then(response => {
+            console.log({ response })
+            if (!response.remote_player_id && targetPlayer?.id) {
+                changeTargetPlayer(null, null)
+            }
+            else if (targetPlayer?.id !== response.remote_player_id) {
+                changeTargetPlayer(response.remote_player_id, response.remote_player.name)
+            }
             changeMusicSession(response)
+            if (response.remote_player_id) {
+                setTimeout(() => { startRemotePolling() })
+
+            }
         })
     }, [apiClient, targetPlayer])
 
@@ -161,6 +173,11 @@ export function AudioContextProvider({ children }) {
             apiClient.getRemotePlayer(targetPlayer.id)
                 .then((response) => {
                     if (response && response.status) {
+                        if (response.music_queue?.songs?.length) {
+                            let currentAudio = response.music_queue?.songs[response.music_queue.current_song_index]
+                            setCurrentAudioFile(currentAudio)
+                            currentAudioFileRef.current = currentAudio
+                        }
                         if (response.status.position_seconds !== undefined) {
                             setPositionSeconds(response.status.position_seconds)
                         }
@@ -208,8 +225,12 @@ export function AudioContextProvider({ children }) {
 
     async function updateMusicQueue(updater, immediateSync = false) {
         changeMusicSession((currentSession) => {
+            if (!currentSession) {
+                return currentSession
+            }
             // structuredClone doesn't work on TV
             let updatedSession = JSON.parse(JSON.stringify(currentSession))
+            console.log({ currentSession })
             updatedSession.music_queue = updater(updatedSession.music_queue)
             return updatedSession
         })
@@ -488,6 +509,10 @@ export function AudioContextProvider({ children }) {
         return await moveCurrentIndex(-1)
     }
 
+    async function changeVolume(percent) {
+        return await currentPlayer.setVolume(percent)
+    }
+
     let progressPercent = currentAudioFile && currentAudioFile.duration > 0
         ? positionSeconds / currentAudioFile.duration
         : 0
@@ -496,6 +521,7 @@ export function AudioContextProvider({ children }) {
         addAudioFileToQueue,
         addAudioFileListToQueue,
         addCrateToQueue,
+        changeVolume,
         clearMusicQueue,
         currentAudioFile,
         isPlaying,

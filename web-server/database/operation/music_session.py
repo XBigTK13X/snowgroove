@@ -1,4 +1,5 @@
 from database.operation.db_internal import dbi
+import database.operation.remote_player as db_remote_player
 
 
 def create_music_session(
@@ -76,11 +77,22 @@ def get_music_session_by_cduid(cduid: int):
         )
 
 
-def get_or_create_music_session(remote_player_id: int = None, cduid: int = None):
+def get_or_create_music_session(
+    remote_player_id: int = None, remote_player_name: str = None, cduid: int = None
+):
     if remote_player_id:
         music_session = get_music_session_by_remote_player_id(
             remote_player_id=remote_player_id
         )
+        if not music_session:
+            remote_player = db_remote_player.get_remote_player_by_name(
+                name=remote_player_name
+            )
+            if remote_player:
+                music_session = get_music_session_by_remote_player_id(
+                    remote_player_id=remote_player.id
+                )
+                remote_player_id = remote_player.id
     else:
         music_session = get_music_session_by_cduid(cduid=cduid)
     if not music_session:

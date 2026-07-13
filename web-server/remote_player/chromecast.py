@@ -14,7 +14,7 @@ _cache_lock = threading.Lock()
 def scan_remote_players():
     log.info('Starting remote player scan...')
     devices, browser = pychromecast.get_chromecasts()
-    pychromecast.discovery.stop_discovery(browser)
+    browser.stop_discovery()
 
     remote_players = []
     for device in devices:
@@ -78,17 +78,21 @@ def _get_cached_cast(connection_info, force_refresh=False):
 
 def _connect(connection_info):
     device_ip = str(connection_info['host'])
+    device_port = int(connection_info.get('port', 8009))
 
     cast_info = CastInfo(
-        services={HostServiceInfo(host=device_ip, port=int(connection_info['port']))},
-        uuid=uuid.UUID(connection_info['uuid']),
+        services={HostServiceInfo(host=device_ip, port=device_port)},
+        uuid=uuid.UUID(connection_info['uuid'])
+        if connection_info.get('uuid')
+        else None,
         model_name=connection_info.get('model_name'),
         friendly_name=connection_info.get('friendly_name'),
         host=device_ip,
-        port=int(connection_info['port']),
-        cast_type=connection_info['cast_type'],
+        port=device_port,
+        cast_type=connection_info.get('cast_type', 'cast'),
         manufacturer=None,
     )
+
     cast_device = pychromecast.Chromecast(cast_info=cast_info)
     cast_device.wait()
     return cast_device
@@ -169,23 +173,23 @@ def play(connection_info, audio_file):
         if not cast_device:
             return
 
+        cast_device.start_app(pychromecast.config.APP_MEDIA_RECEIVER)
         media_controller = cast_device.media_controller
 
-        if cast_device.app_id:
-            try:
-                media_controller.block_until_active(timeout=2.0)
-                media_controller.update_status()
+        try:
+            media_controller.block_until_active(timeout=5.0)
+            media_controller.update_status()
 
-                if media_controller.is_active:
-                    status = media_controller.status
-                    if (
-                        status.content_id == encoded_audio_url
-                        and status.player_state == 'PAUSED'
-                    ):
-                        media_controller.play()
-                        return
-            except pychromecast.error.PyChromecastError:
-                pass
+            if media_controller.is_active:
+                status = media_controller.status
+                if (
+                    status.content_id == encoded_audio_url
+                    and status.player_state == 'PAUSED'
+                ):
+                    media_controller.play()
+                    return
+        except pychromecast.error.PyChromecastError:
+            pass
 
         media_metadata = {
             'metadataType': 3,

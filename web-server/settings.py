@@ -4,8 +4,8 @@ import sys
 
 class Config:
     def __init__(self):
-        self.server_version = "1.0.7"
-        self.server_build_date = "July 13, 2026"
+        self.server_version = '1.0.7'
+        self.server_build_date = 'July 13, 2026'
         self.server_build_dev_number = 1
         self.app_data_dir = '.snowgroove/'
         self.display_config = None
@@ -26,14 +26,14 @@ class Config:
         self.postgres_database = 'snowgroove'
         self.postgres_host = 'localhost'
         self.postgres_password = 'snowgroove'
-        self.postgres_port = 9060
+        self.postgres_port = 10060
         self.postgres_username = 'snowgroove'
 
         self.rabbit_delay_seconds = 5
         self.rabbit_host = 'localhost'
         self.rabbit_max_failures = 4
         self.rabbit_password = 'snowgroove'
-        self.rabbit_port = '9062'
+        self.rabbit_port = '10062'
         self.rabbit_queue = 'snowgroove'
         self.rabbit_user = 'snowgroove'
 
@@ -62,7 +62,7 @@ class Config:
     def validate(self, log):
         if not self.web_media_url or 'SNOWGROOVE_WEB_MEDIA_URL' in self.web_media_url:
             log.error('SNOWGROOVE_WEB_MEDIA_URL environment variable must be set.')
-            log.error('example: http://<host-ip>:9064/mnt')
+            log.error('example: http://<host-ip>:10064/mnt')
             log.error('Exiting')
             sys.exit(1)
         if self.display_config:

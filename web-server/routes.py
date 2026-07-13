@@ -298,6 +298,8 @@ def music_session_routes(router):
         player = db.op.get_remote_player_by_id(
             ticket=auth_user.ticket, id=remote_player_id
         )
+        if not player:
+            return None
         if player.music_session:
             player.music_queue = json.loads(player.music_session.music_queue_json)
         player.status = remote_players.get_status(remote_player=player)
@@ -307,9 +309,12 @@ def music_session_routes(router):
     def get_music_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
         remote_player_id: int = None,
+        remote_player_name: str = None,
     ):
         return db.op.get_or_create_music_session(
-            remote_player_id=remote_player_id, cduid=auth_user.cduid
+            remote_player_id=remote_player_id,
+            remote_player_name=remote_player_name,
+            cduid=auth_user.cduid,
         )
 
     @router.post('/music-session', tags=['Music Session'])

@@ -4,6 +4,17 @@ import util
 import datetime
 
 
+def has_attached_picture(safe_input_path: str) -> bool:
+    probe_command = f'ffprobe -v error -select_streams v -show_entries stream_disposition=attached_pic -of default=noprint_wrappers=1:nokey=1 {safe_input_path}'
+    response = util.run_cli(probe_command, raw_output=True)
+    if isinstance(response, dict) and 'stdout' in response:
+        output_lines = response['stdout'].split('\n')
+        for jj in output_lines:
+            if jj.strip() == '1':
+                return True
+    return False
+
+
 def create_thumbnail(local_path: str, force_overwrite: bool = False):
     hash_name = util.string_to_md5(local_path)
     output_dir = os.path.join(config.thumbnail_dir, hash_name[0], hash_name[1])
@@ -14,9 +25,6 @@ def create_thumbnail(local_path: str, force_overwrite: bool = False):
     if not force_overwrite and os.path.exists(safe_output_path):
         return output_path
 
-    # ImageMagick chokes on large GIF
-    # GIF is treated like an image by snowstream
-    # But the thumbnail generator needs to treat it like a video
     if local_path.lower().endswith('.gif'):
         return extract_screencap(
             local_path, duration_seconds=0, output_path=output_path
@@ -25,6 +33,9 @@ def create_thumbnail(local_path: str, force_overwrite: bool = False):
     safe_input_path = util.safe_media_path(local_path)
 
     if local_path.lower().endswith('.mp3'):
+        if not has_attached_picture(safe_input_path):
+            return None
+
         temp_art_path = os.path.join(output_dir, hash_name + '_raw.jpg')
         safe_temp_path = util.safe_media_path(temp_art_path)
         extract_command = (
@@ -48,7 +59,6 @@ def extract_screencap(video_path: str, duration_seconds: int, output_path: str):
     safe_output_path = util.safe_media_path(output_path)
     seconds = config.ffmpeg_screencap_percent_location * duration_seconds
     timestamp = f'{datetime.timedelta(seconds=seconds)}'
-    # Force yuv420p for the odd video file with malformed color space metadata
     command = f"ffmpeg -ss {timestamp} -i {safe_input_path} -vf 'format=yuv420p' -frames:v 1 -q:v 2 {safe_output_path}"
     util.run_cli(command, raw_output=True)
     return output_path
