@@ -147,9 +147,7 @@ export function AudioContextProvider({ children }) {
         if (!apiClient) {
             return
         }
-        console.log({ targetPlayer })
         apiClient.getMusicSession(targetPlayer?.id, targetPlayer?.name).then(response => {
-            console.log({ response })
             if (!response.remote_player_id && targetPlayer?.id) {
                 changeTargetPlayer(null, null)
             }
@@ -230,7 +228,6 @@ export function AudioContextProvider({ children }) {
             }
             // structuredClone doesn't work on TV
             let updatedSession = JSON.parse(JSON.stringify(currentSession))
-            console.log({ currentSession })
             updatedSession.music_queue = updater(updatedSession.music_queue)
             return updatedSession
         })
