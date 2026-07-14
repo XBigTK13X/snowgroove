@@ -6,16 +6,17 @@ export default function LandingPage(props) {
     const { apiClient, routes, config, targetPlayer } = useAppContext()
     const { SnowStyle, navPush } = C.useSnowContext(props)
     const {
+        changeVolume,
         currentAudioFile,
+        isPlaying,
+        playNextSong,
+        playPreviousSong,
+        positionSeconds,
         progressPercent,
         seekToSeconds,
-        positionSeconds,
-        isPlaying,
-        togglePlayback,
-        playPreviousSong,
-        playNextSong,
         startRemotePolling,
-        stopRemotePolling
+        stopRemotePolling,
+        togglePlayback,
     } = useAudioContext()
     const [shelves, setShelves] = C.React.useState(null)
 

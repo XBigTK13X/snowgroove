@@ -93,8 +93,23 @@ def _connect(connection_info):
         manufacturer=None,
     )
 
+    log.info(f'Initiating connection to Chromecast at {device_ip}:{device_port}...')
     cast_device = pychromecast.Chromecast(cast_info=cast_info)
     cast_device.wait()
+
+    try:
+        if cast_device.socket_client and cast_device.socket_client._socket:
+            local_address = cast_device.socket_client._socket.getsockname()
+            log.info(
+                f'Chromecast connection established. Local socket bound to: {local_address[0]} on port {local_address[1]}'
+            )
+        else:
+            log.warning(
+                'Chromecast client connected, but the underlying socket wrapper descriptor is missing.'
+            )
+    except Exception as socket_error:
+        log.warning(f'Failed to read local socket interface bindings: {socket_error}')
+
     return cast_device
 
 
@@ -119,8 +134,8 @@ def act(remote_player, remote_action, music_session):
             try:
                 media_controller.block_until_active(timeout=2.0)
                 media_controller.update_status()
-            except pychromecast.error.PyChromecastError:
-                pass
+            except pychromecast.error.PyChromecastError as block_err:
+                log.warning(f'Action controller initialization timed out: {block_err}')
 
         current_state = media_controller.status.player_state
         has_active_session = current_state not in (None, 'UNKNOWN', 'IDLE')
@@ -173,6 +188,9 @@ def play(connection_info, audio_file):
         if not cast_device:
             return
 
+        log.info(
+            f'Requesting Default Media Receiver app initialization (App ID: {pychromecast.config.APP_MEDIA_RECEIVER})'
+        )
         cast_device.start_app(pychromecast.config.APP_MEDIA_RECEIVER)
         media_controller = cast_device.media_controller
 
@@ -186,10 +204,15 @@ def play(connection_info, audio_file):
                     status.content_id == encoded_audio_url
                     and status.player_state == 'PAUSED'
                 ):
+                    log.info(
+                        'Detected matching paused stream session. Resuming playback.'
+                    )
                     media_controller.play()
                     return
-        except pychromecast.error.PyChromecastError:
-            pass
+        except pychromecast.error.PyChromecastError as block_err:
+            log.warning(
+                f'Pre-play media controller active block timed out/failed: {block_err}'
+            )
 
         media_metadata = {
             'metadataType': 3,
@@ -201,6 +224,9 @@ def play(connection_info, audio_file):
             else [],
         }
 
+        log.info(
+            f'Dispatching play_media command to Chromecast. Target Resource URL: {encoded_audio_url}'
+        )
         media_controller.play_media(
             url=encoded_audio_url,
             content_type='audio/mpeg',
@@ -211,10 +237,18 @@ def play(connection_info, audio_file):
         )
 
         try:
+            log.info(
+                'Awaiting post-play confirmation and media channel sync from device...'
+            )
             media_controller.block_until_active(timeout=5.0)
             media_controller.update_status()
-        except pychromecast.error.PyChromecastError:
-            pass
+            log.info(
+                f'Post-play synchronization finished. Current reported device state: {media_controller.status.player_state}'
+            )
+        except pychromecast.error.PyChromecastError as block_err:
+            log.error(
+                f'Post-play media controller active block failed to resolve: {block_err}'
+            )
     except Exception as error_message:
         log.error(f'Play routine failed: {error_message}')
 
