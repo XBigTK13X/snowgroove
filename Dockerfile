@@ -29,6 +29,8 @@ COPY docker/rabbitmq.conf /etc/rabbitmq/rabbitmq.conf
 RUN systemctl disable nginx
 COPY docker/nginx.conf /etc/nginx/nginx.conf
 
+COPY docker/openssl.conf /etc/ssl/openssl.conf
+
 RUN bash -c "echo \"include = '/etc/postgresql/17/main/my_postgresql.conf'\" >> /etc/postgresql/17/main/postgresql.conf"
 COPY docker/pg_hba.conf /etc/postgresql/17/main/pg_hba.conf
 COPY docker/postgresql.conf /etc/postgresql/17/main/mod-postgresql.conf
