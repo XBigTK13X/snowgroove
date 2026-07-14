@@ -362,8 +362,8 @@ export class ApiClient {
         return this.post('/music-session/volume', { music_session_id: musicSessionId, volume_percent: volumePercent })
     }
 
-    getSessionList = () => {
-        return this.get('/session/list')
+    getMusicSessionList = () => {
+        return this.get('/music-session/list')
     }
 
     deleteAllCachedText = () => {

@@ -147,19 +147,25 @@ export function AudioContextProvider({ children }) {
         if (!apiClient) {
             return
         }
-        apiClient.getMusicSession(targetPlayer?.id, targetPlayer?.name).then(response => {
-            if (!response.remote_player_id && targetPlayer?.id) {
-                changeTargetPlayer(null, null)
-            }
-            else if (targetPlayer?.id !== response.remote_player_id) {
-                changeTargetPlayer(response.remote_player_id, response.remote_player.name)
-            }
-            changeMusicSession(response)
-            if (response.remote_player_id) {
-                setTimeout(() => { startRemotePolling() })
 
-            }
-        })
+        if (targetPlayer?.id) {
+            apiClient.getMusicSession(targetPlayer.id, targetPlayer.name).then(response => {
+                if (!response.remote_player_id) {
+                    changeTargetPlayer(null, null)
+                }
+                else if (targetPlayer.id !== response.remote_player_id) {
+                    changeTargetPlayer(response.remote_player_id, response.remote_player.name)
+                }
+                changeMusicSession(response)
+                if (response.remote_player_id) {
+                    setTimeout(() => { startRemotePolling() })
+                }
+            })
+        } else {
+            apiClient.getMusicSession().then(response => {
+                changeMusicSession(response)
+            })
+        }
     }, [apiClient, targetPlayer])
 
     function startRemotePolling() {
@@ -226,7 +232,6 @@ export function AudioContextProvider({ children }) {
             if (!currentSession) {
                 return currentSession
             }
-            // structuredClone doesn't work on TV
             let updatedSession = JSON.parse(JSON.stringify(currentSession))
             updatedSession.music_queue = updater(updatedSession.music_queue)
             return updatedSession

@@ -5,50 +5,57 @@ export default function SessionListPage() {
     const [sessions, setSessions] = C.React.useState(null)
     C.React.useEffect(() => {
         if (!sessions) {
-            apiClient.getSessionList().then((response) => {
+            apiClient.getMusicSessionList().then((response) => {
                 setSessions(response)
             })
         }
-    })
+    }, [])
 
-    if (sessions) {
-        let transcodes = <C.SnowText>No active transcodes</C.SnowText>
-        if (sessions.transcodes && sessions.transcodes.length) {
-            transcodes = (
-                <>
-                    <C.SnowLabel>Activate Transcodes</C.SnowLabel>
-                    <C.SnowGrid itemsPerRow={1}>
-                        {sessions.transcodes.map((session, sessionIndex) => {
-                            return (
-                                <C.SnowText key={sessionIndex}>{C.Snow.stringifySafe(session)}</C.SnowText>
-                            )
-                        })}
-                    </C.SnowGrid>
-                </>
-            )
-        }
-        let updaters = <C.SnowText>No active updaters.</C.SnowText>
-        if (sessions.updaters && sessions.updaters.length) {
-            updaters = (
-                <>
-                    <C.SnowLabel>Activate Updaters</C.SnowLabel>
-                    <C.SnowGrid>
-                        {sessions.updaters.map((session, sessionIndex) => {
-                            return (
-                                <C.SnowText key={sessionIndex}>{C.Snow.stringifySafe(session)}</C.SnowText>
-                            )
-                        })}
-                    </C.SnowGrid>
-                </>
-            )
-        }
-        return (
+    if (sessions === null) {
+        return <C.SnowLabel center>Loading sessions...</C.SnowLabel>
+    }
+
+    if (!sessions.length) {
+        return <C.SnowLabel center>No sessions found</C.SnowLabel>
+    }
+
+    let userSessions = sessions.filter(xx => xx.client_device_user)
+    let remoteSessions = sessions.filter(xx => xx.remote_player)
+
+    let userList = <C.SnowText>No user sessions</C.SnowText>
+    if (userSessions?.length) {
+        userList = (
             <>
-                {transcodes}
-                {updaters}
+                <C.SnowLabel>User Sessions</C.SnowLabel>
+                <C.SnowGrid itemsPerRow={1}>
+                    {userSessions.map((session, sessionIndex) => {
+                        return (
+                            <C.SnowText key={sessionIndex}>{C.Snow.stringifySafe(session)}</C.SnowText>
+                        )
+                    })}
+                </C.SnowGrid>
             </>
         )
     }
-
-    return null
+    let remoteList = <C.SnowText>No remote sessions</C.SnowText>
+    if (remoteSessions?.length) {
+        remoteList = (
+            <>
+                <C.SnowLabel>Remote Sessions</C.SnowLabel>
+                <C.SnowGrid>
+                    {remoteSessions.map((session, sessionIndex) => {
+                        return (
+                            <C.SnowText key={sessionIndex}>{C.Snow.stringifySafe(session)}</C.SnowText>
+                        )
+                    })}
+                </C.SnowGrid>
+            </>
+        )
+    }
+    return (
+        <>
+            {userList}
+            {remoteList}
+        </>
+    )
 }

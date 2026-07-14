@@ -114,7 +114,16 @@ def get_or_create_music_session(
 
 def get_music_session_list():
     with dbi.session() as db:
-        return db.query(dbi.dm.MusicSession).all()
+        sessions = (
+            db.query(dbi.dm.MusicSession)
+            .options(dbi.orm.joinedload(dbi.dm.MusicSession.remote_player))
+            .options(dbi.orm.joinedload(dbi.dm.MusicSession.client_device_user))
+            .all()
+        )
+        for session in sessions:
+            if session.music_queue_json:
+                load_music_queue(session)
+        return sessions
 
 
 def get_remote_music_session_list():

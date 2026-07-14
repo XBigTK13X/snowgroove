@@ -317,6 +317,14 @@ def music_session_routes(router):
             cduid=auth_user.cduid,
         )
 
+    @router.get('/music-session/list', tags=['Music Session'])
+    def get_music_session(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+    ):
+        if not auth_user.is_admin():
+            return None
+        return db.op.get_music_session_list()
+
     @router.post('/music-session', tags=['Music Session'])
     def upsert_music_queue(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
