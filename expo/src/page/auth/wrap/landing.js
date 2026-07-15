@@ -105,7 +105,7 @@ export default function LandingPage(props) {
                         percent={progressPercent}
                     />
                     <C.SnowText center>{progressDisplay}</C.SnowText>
-                    <C.SnowGrid yy={3}>
+                    <C.SnowGrid yy={3} itemsPerRow={2}>
                         <C.SnowTextButton title="Previous" onPress={() => {
                             playPreviousSong()
                         }} />
