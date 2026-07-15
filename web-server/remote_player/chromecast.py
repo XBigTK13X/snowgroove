@@ -1,14 +1,55 @@
 import json
 import urllib.parse
+import uuid
+import threading
 from log import log
+from settings import config
 import pychromecast
 from pychromecast.models import CastInfo
 from pychromecast.discovery import HostServiceInfo
-import threading
-import uuid
 
 _cast_cache = {}
 _cache_lock = threading.Lock()
+
+
+def _log_debug(message):
+    if getattr(config, 'debug_remote_players', False):
+        log.info(f'[Chromecast-DEBUG] {message}')
+
+
+class TrackCompletionListener:
+    def __init__(self, cast_device, on_finished_callback):
+        self.cast_device = cast_device
+        self.on_finished_callback = on_finished_callback
+        self._was_playing = False
+        _log_debug(
+            f'TrackCompletionListener initialized for cast target UUID: {cast_device.uuid}'
+        )
+
+    def new_media_status(self, status):
+        _log_debug(
+            f'Push event received -> state: {status.player_state}, idle_reason: {status.idle_reason}, was_playing_state: {self._was_playing}'
+        )
+        if status.player_state == 'PLAYING':
+            self._was_playing = True
+
+        if (
+            self._was_playing
+            and status.player_state in ('IDLE', 'UNKNOWN')
+            and status.idle_reason == 'FINISHED'
+        ):
+            _log_debug(
+                'Natural track completion criteria satisfied. Detaching push listener and firing runtime orchestrator callback.'
+            )
+            self._was_playing = False
+            try:
+                self.cast_device.media_controller.remove_listener(self)
+            except Exception as detach_err:
+                _log_debug(f'Non-fatal exception detaching listener: {detach_err}')
+            self.on_finished_callback()
+
+    def new_cast_status(self, status):
+        _log_debug(f'Global Cast connection status updated: {status}')
 
 
 def scan_remote_players():
@@ -101,13 +142,6 @@ def _connect(connection_info):
 
 def act(remote_player, remote_action, music_session):
     connection_info = json.loads(remote_player.connection_info_json)
-    current_audio_file = music_session.music_queue['songs'][
-        music_session.music_queue['current_song_index']
-    ]
-
-    if remote_action in ['play', 'next', 'previous']:
-        play(connection_info=connection_info, audio_file=current_audio_file)
-        return
 
     try:
         cast_device = _get_cached_cast(connection_info)
@@ -150,7 +184,8 @@ def act(remote_player, remote_action, music_session):
         )
 
 
-def play(connection_info, audio_file):
+def play(connection_info, audio_file, on_track_finished=None):
+    _log_debug(f'Play invocation initiated. Target IP: {connection_info.get("host")}')
     audio_url = audio_file['web_path']
 
     def encode_url(url):
@@ -166,20 +201,30 @@ def play(connection_info, audio_file):
     )
 
     title = audio_file.get('title', 'Unknown Title')
-    artist = audio_file.get('artist', 'Unknown Artist')
-    album = audio_file.get('album', 'Unknown Album')
+    _log_debug(f'Payload resolved -> title: "{title}", url: "{encoded_audio_url}"')
 
     try:
+        _log_debug('Requesting cast client from shared cache layer...')
         cast_device = _get_cached_cast(connection_info, force_refresh=False)
         if not cast_device:
+            log.error(
+                'Chromecast play failed: target reference returned None from cache manager.'
+            )
             return
 
+        _log_debug(
+            f'Acquired cast connection. Initializing Default Media Receiver application (App ID: {pychromecast.config.APP_MEDIA_RECEIVER})'
+        )
         cast_device.start_app(pychromecast.config.APP_MEDIA_RECEIVER)
         media_controller = cast_device.media_controller
 
         try:
+            _log_debug('Blocking thread until media controller channel is active...')
             media_controller.block_until_active(timeout=5.0)
             media_controller.update_status()
+            _log_debug(
+                f'Media channel verified active. Existing app player state: {media_controller.status.player_state}'
+            )
 
             if media_controller.is_active:
                 status = media_controller.status
@@ -187,6 +232,9 @@ def play(connection_info, audio_file):
                     status.content_id == encoded_audio_url
                     and status.player_state == 'PAUSED'
                 ):
+                    _log_debug(
+                        'Same URL track match detected in PAUSED state. Executing unpause play() resume operation.'
+                    )
                     media_controller.play()
                     return
         except pychromecast.error.PyChromecastError as block_err:
@@ -194,11 +242,25 @@ def play(connection_info, audio_file):
                 f'Pre-play media controller active block timed out/failed: {block_err}'
             )
 
+        if on_track_finished:
+            _log_debug(
+                'Registering push event listener class onto hardware media controller channel.'
+            )
+            listener = TrackCompletionListener(cast_device, on_track_finished)
+            media_controller.register_listener(listener)
+        else:
+            _log_debug(
+                'Warning: No track completion callback hook attached to this playback dispatch invocation.'
+            )
+
+        _log_debug(
+            f'Sending socket payload command play_media() for asset: {encoded_audio_url}'
+        )
         media_metadata = {
             'metadataType': 3,
             'title': title,
-            'artist': artist,
-            'albumName': album,
+            'artist': audio_file.get('artist', 'Unknown Artist'),
+            'albumName': audio_file.get('album', 'Unknown Album'),
             'images': [{'url': cover_art_url, 'width': 600, 'height': 600}]
             if cover_art_url
             else [],
@@ -214,14 +276,20 @@ def play(connection_info, audio_file):
         )
 
         try:
+            _log_debug(
+                'Post-play validation: waiting for channel registration check...'
+            )
             media_controller.block_until_active(timeout=5.0)
             media_controller.update_status()
+            _log_debug(
+                f'Post-play execution confirmed. Actual device state reporting: {media_controller.status.player_state}'
+            )
         except pychromecast.error.PyChromecastError as block_err:
             log.error(
                 f'Post-play media controller active block failed to resolve: {block_err}'
             )
     except Exception as error_message:
-        log.error(f'Play routine failed: {error_message}')
+        log.error(f'Play routine failed with exception: {error_message}')
 
 
 def get_status(remote_player):

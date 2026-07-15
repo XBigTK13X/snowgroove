@@ -1,17 +1,18 @@
 import json
-from log import log
 import queue
 import threading
 import time
 from db import db
+from log import log
+from settings import config
 import remote_player.chromecast as chromecast
 import remote_player.sonos as sonos
 
 
 def scan_remote_players(job_id: int):
-    db.op.update_job(job_id=job_id, message=f'Searching for Chromecast devices')
+    db.op.update_job(job_id=job_id, message='Searching for Chromecast devices')
     chromecast_players = chromecast.scan_remote_players()
-    db.op.update_job(job_id=job_id, message=f'Searching for Sonos devices')
+    db.op.update_job(job_id=job_id, message='Searching for Sonos devices')
     sonos_players = sonos.scan_remote_players()
     remote_players = chromecast_players + sonos_players
     for remote_player in remote_players:
@@ -33,8 +34,16 @@ class RemotePlayers:
         self.active_connections = {}
         self.registry_lock = threading.Lock()
 
+    def _log_debug(self, message):
+        if getattr(config, 'debug_remote_players', False):
+            log.info(f'[RemotePlayers-DEBUG] {message}')
+
     def recover_active_sessions(self):
+        self._log_debug('Starting recovery of active remote music sessions...')
         active_sessions = db.op.get_remote_music_session_list()
+        self._log_debug(
+            f'Found {len(active_sessions)} active sessions in DB to recover.'
+        )
         for music_session in active_sessions:
             remote_player = db.op.get_remote_player_by_id(
                 ticket=None, id=music_session.remote_player_id
@@ -56,26 +65,38 @@ class RemotePlayers:
                         log.info(
                             f'Recovered remote player connection for {remote_player.name} on startup'
                         )
+                    else:
+                        self._log_debug(
+                            f'Worker for player {remote_player.id} already exists. Skipping recovery.'
+                        )
 
     def _device_worker(self, remote_player, initial_action, message_queue):
+        self._log_debug(
+            f'Worker thread spawned for [{remote_player.name}] (ID: {remote_player.id}). Kind: {remote_player.kind}'
+        )
         pending_seek = None
         seek_execution_time = 0.0
         debounce_wait = 0.35
-        last_action = initial_action
-        is_recovered_startup = initial_action is None
-        was_playing = False
 
-        last_status_check = 0.0
-        status_interval = 2.0
+        def handle_track_finished():
+            log.info(
+                f'Track finished callback received for {remote_player.name}. Injecting "next" action.'
+            )
+            message_queue.put('next')
 
         if initial_action:
+            self._log_debug(
+                f'Worker executing initial inbound action: {initial_action}'
+            )
             if initial_action.startswith('seek--'):
                 pending_seek = initial_action
                 seek_execution_time = time.time() + debounce_wait
             else:
                 try:
                     self._execute_action(
-                        remote_player=remote_player, remote_action=initial_action
+                        remote_player=remote_player,
+                        remote_action=initial_action,
+                        on_finished=handle_track_finished,
                     )
                 except Exception as execute_error:
                     log.error(f'Initial action execution failed: {execute_error}')
@@ -87,15 +108,21 @@ class RemotePlayers:
 
                 if pending_seek is not None:
                     timeout = max(0.0, seek_execution_time - now)
-                else:
-                    timeout = max(0.0, (last_status_check + status_interval) - now)
+                    self._log_debug(
+                        f'Worker loop waiting with seek debounce timeout: {timeout}s'
+                    )
 
                 try:
                     if timeout == 0.0:
                         raise queue.Empty
 
+                    self._log_debug(
+                        f'Worker loop blocking on message queue. Connections active: {list(self.active_connections.keys())}'
+                    )
                     remote_action = message_queue.get(timeout=timeout)
-                    is_recovered_startup = False
+                    self._log_debug(
+                        f'Worker unblocked! Process action: "{remote_action}"'
+                    )
 
                     if remote_action.startswith('seek--'):
                         pending_seek = remote_action
@@ -103,11 +130,14 @@ class RemotePlayers:
                     else:
                         if pending_seek is not None:
                             try:
+                                self._log_debug(
+                                    f'Executing pending debounced seek before main action: {pending_seek}'
+                                )
                                 self._execute_action(
                                     remote_player=remote_player,
                                     remote_action=pending_seek,
+                                    on_finished=handle_track_finished,
                                 )
-                                last_action = pending_seek
                             except Exception as seek_error:
                                 log.error(
                                     f'Debounced seek execution failed: {seek_error}'
@@ -116,9 +146,10 @@ class RemotePlayers:
 
                         try:
                             self._execute_action(
-                                remote_player=remote_player, remote_action=remote_action
+                                remote_player=remote_player,
+                                remote_action=remote_action,
+                                on_finished=handle_track_finished,
                             )
-                            last_action = remote_action
                         except Exception as action_error:
                             log.error(f'Action execution failed: {action_error}')
 
@@ -126,88 +157,50 @@ class RemotePlayers:
 
                 except queue.Empty:
                     if pending_seek is not None and time.time() >= seek_execution_time:
+                        self._log_debug(
+                            f'Seek debounce window reached. Executing: {pending_seek}'
+                        )
                         try:
                             self._execute_action(
-                                remote_player=remote_player, remote_action=pending_seek
+                                remote_player=remote_player,
+                                remote_action=pending_seek,
+                                on_finished=handle_track_finished,
                             )
-                            last_action = pending_seek
                         except Exception as seek_error:
                             log.error(f'Debounced seek execution failed: {seek_error}')
                         pending_seek = None
 
-                now = time.time()
-                if now >= last_status_check + status_interval:
-                    last_status_check = now
-
-                    music_session = db.op.get_music_session_by_remote_player_id(
-                        remote_player_id=remote_player.id
-                    )
-                    if not music_session:
-                        break
-
-                    try:
-                        player_status = self.get_status(remote_player)
-                        is_playing = player_status.get('is_playing', False)
-                        if is_recovered_startup:
-                            is_recovered_startup = False
-                            if not is_playing:
-                                last_action = 'pause'
-                                was_playing = False
-                                if message_queue.empty() and pending_seek is None:
-                                    break
-                                continue
-
-                        if was_playing and not is_playing and last_action != 'pause':
-                            music_queue = json.loads(music_session.music_queue_json)
-                            if music_queue:
-                                try:
-                                    self._execute_action(
-                                        remote_player=remote_player,
-                                        remote_action='next',
-                                    )
-                                    last_action = 'next'
-                                except Exception as next_action_error:
-                                    log.error(
-                                        f'[Worker-{remote_player.id}] Failed executing next action: {next_action_error}'
-                                    )
-
-                            was_playing = False
-                        else:
-                            if is_playing:
-                                was_playing = True
-                            elif last_action == 'pause':
-                                was_playing = False
-
-                        if (
-                            not is_playing
-                            and message_queue.empty()
-                            and pending_seek is None
-                        ):
-                            break
-
-                    except Exception as loop_iteration_error:
-                        log.warning(
-                            f'Transient hardware status error: {loop_iteration_error}'
-                        )
-                        continue
-
         except Exception as terminal_error:
             log.critical(
-                f'Fatal error encountered in device worker loop: {terminal_error}'
+                f'Fatal error encountered in device worker loop for player {remote_player.id}: {terminal_error}'
             )
         finally:
             with self.registry_lock:
                 connection_pair = self.active_connections.get(remote_player.id)
                 if connection_pair and connection_pair[0] == threading.current_thread():
+                    self._log_debug(
+                        f'Worker loop terminating. Removing player {remote_player.id} from active connections.'
+                    )
                     self.active_connections.pop(remote_player.id, None)
 
-    def _execute_action(self, remote_player, remote_action):
+    def _execute_action(self, remote_player, remote_action, on_finished=None):
+        self._log_debug(
+            f'Preparing to execute action "{remote_action}" for player "{remote_player.name}"'
+        )
         music_session = db.op.get_music_session_by_remote_player_id(
             remote_player_id=remote_player.id
         )
         if not music_session:
+            self._log_debug(
+                f'Execution halted: No active music session found in DB matching player ID {remote_player.id}'
+            )
             return
+
         music_session.music_queue = json.loads(music_session.music_queue_json)
+        self._log_debug(
+            f'Loaded music session index: {music_session.music_queue.get("current_song_index")} / Total songs: {len(music_session.music_queue.get("songs", []))}'
+        )
+
         if remote_action == 'next':
             music_session.music_queue['current_song_index'] += 1
             if (
@@ -218,6 +211,9 @@ class RemotePlayers:
             db.op.update_music_session_music_queue(
                 music_session_id=music_session.id, music_queue=music_session.music_queue
             )
+            self._log_debug(
+                f'Queue index advanced to {music_session.music_queue["current_song_index"]}'
+            )
         elif remote_action == 'previous':
             music_session.music_queue['current_song_index'] -= 1
             if music_session.music_queue['current_song_index'] < 0:
@@ -227,28 +223,66 @@ class RemotePlayers:
             db.op.update_music_session_music_queue(
                 music_session_id=music_session.id, music_queue=music_session.music_queue
             )
+            self._log_debug(
+                f'Queue index rewound to {music_session.music_queue["current_song_index"]}'
+            )
+
         if remote_player.kind == 'sonos':
-            action_handler = sonos
-            action_handler.act(remote_player, remote_action, music_session)
+            self._log_debug('Routing action to sonos module handler.')
+            if remote_action in ['play', 'next', 'previous']:
+                current_audio_file = music_session.music_queue['songs'][
+                    music_session.music_queue['current_song_index']
+                ]
+                connection_info = json.loads(remote_player.connection_info_json)
+                sonos.play(
+                    device_ip=connection_info['host'],
+                    audio_file=current_audio_file,
+                    on_track_finished=on_finished,
+                    device_uid=connection_info.get('uid'),
+                )
+            else:
+                sonos.act(remote_player, remote_action, music_session)
         elif remote_player.kind == 'chromecast':
-            action_handler = chromecast
-            action_handler.act(remote_player, remote_action, music_session)
+            self._log_debug('Routing action to chromecast module handler.')
+            if remote_action in ['play', 'next', 'previous']:
+                current_audio_file = music_session.music_queue['songs'][
+                    music_session.music_queue['current_song_index']
+                ]
+                connection_info = json.loads(remote_player.connection_info_json)
+                chromecast.play(
+                    connection_info, current_audio_file, on_track_finished=on_finished
+                )
+            else:
+                chromecast.act(remote_player, remote_action, music_session)
         else:
             log.info(f'Unhandled remote_player kind [{remote_player.kind}]')
 
     def dispatch(self, remote_player, remote_action):
+        self._log_debug(
+            f'Dispatching remote action request: Player={remote_player.name}, Action={remote_action}'
+        )
         with self.registry_lock:
             if remote_player.id in self.active_connections:
                 worker_thread, message_queue = self.active_connections[remote_player.id]
                 if worker_thread.is_alive():
+                    self._log_debug(
+                        f'Found existing active worker thread for player {remote_player.id}. Forwarding action to queue.'
+                    )
                     message_queue.put(remote_action)
                     return 'forwarded'
+                else:
+                    self._log_debug(
+                        f'Stale worker thread detected for player {remote_player.id}. Re-spawning.'
+                    )
 
+            self._log_debug(
+                f'Spawning new worker connection loop for player {remote_player.id}'
+            )
             message_queue = queue.Queue()
             message_queue.put(remote_action)
             worker_thread = threading.Thread(
                 target=self._device_worker,
-                args=(remote_player, None, message_queue),
+                args=(remote_player, remote_action, message_queue),
                 daemon=True,
             )
             self.active_connections[remote_player.id] = (worker_thread, message_queue)
@@ -256,6 +290,9 @@ class RemotePlayers:
             return 'created'
 
     def get_status(self, remote_player):
+        self._log_debug(
+            f'Inbound client request for current runtime status of: {remote_player.name}'
+        )
         try:
             if remote_player.kind == 'sonos':
                 return sonos.get_status(remote_player)

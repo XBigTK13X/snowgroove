@@ -4,8 +4,8 @@ import sys
 
 class Config:
     def __init__(self):
-        self.server_version = "1.0.11"
-        self.server_build_date = "July 14, 2026"
+        self.server_version = '1.0.11'
+        self.server_build_date = 'July 14, 2026'
         self.server_build_dev_number = 1
         self.app_data_dir = '.snowgroove/'
         self.display_config = None
@@ -47,6 +47,8 @@ class Config:
         self.web_api_url = 'http://localhost:10063'
         self.web_media_url = '<need_to_set_an_env_var-SNOWGROOVE_WEB_MEDIA_URL>'
         self.auth_device_whitelist = ['tv-blue-cast', 'tv-blue-shield']
+
+        self.debug_remote_players = True
 
         self.refresh_postgres_url()
         self.refresh_app_data_dirs()

@@ -1,12 +1,88 @@
 import time
-import urllib
+import urllib.parse
 import json
 import soco
+import threading
+import queue
 from db import db
 from log import log
-import urllib.parse
+from settings import config
 from soco.data_structures import DidlMusicTrack, DidlResource
 import xml.etree.ElementTree as ET
+
+_active_subscriptions = {}
+
+
+def _log_debug(message):
+    if getattr(config, 'debug_remote_players', False):
+        log.info(f'[Sonos-DEBUG] {message}')
+
+
+class SonosTrackCompletionListener:
+    def __init__(self, sonos_player, on_finished_callback):
+        self.sonos_player = sonos_player
+        self.on_finished_callback = on_finished_callback
+        self._was_playing = False
+        self.subscription = None
+        self._worker_thread = None
+        self._running = False
+        _log_debug(
+            f'SonosTrackCompletionListener provisioned for speaker UID: {sonos_player.uid}'
+        )
+
+    def start(self, subscription):
+        self.subscription = subscription
+        self._running = True
+        self._worker_thread = threading.Thread(target=self._event_loop, daemon=True)
+        self._worker_thread.start()
+
+    def _event_loop(self):
+        _log_debug(f'Sonos event listener thread started for {self.sonos_player.uid}')
+        while self._running and self.subscription:
+            try:
+                # Block for up to 1 second waiting for an event payload
+                event = self.subscription.queue.get(timeout=1.0)
+                transport_state = event.variables.get('current_transport_state')
+                _log_debug(
+                    f'Inbound UPnP AVTransport event received -> State: {transport_state}. Was playing flag: {self._was_playing}'
+                )
+
+                if transport_state == 'PLAYING':
+                    self._was_playing = True
+
+                if self._was_playing and transport_state in (
+                    'STOPPED',
+                    'TRANSITIONING',
+                ):
+                    _log_debug(
+                        'Sonos end-of-track marker reached. Purging UPnP subscription channel and triggering next hook.'
+                    )
+                    self._was_playing = False
+                    # Stop the loop before invoking callback to prevent race conditions
+                    self._running = False
+                    self.unsubscribe()
+                    self.on_finished_callback()
+                    break
+            except queue.Empty:
+                continue
+            except Exception as loop_err:
+                _log_debug(
+                    f'Exception inside Sonos event listener thread loop: {loop_err}'
+                )
+                break
+
+    def unsubscribe(self):
+        self._running = False
+        _log_debug(
+            f'Tearing down active UPnP subscription for Sonos client: {self.sonos_player.uid}'
+        )
+        if self.subscription:
+            try:
+                self.subscription.unsubscribe()
+            except Exception as unsub_err:
+                _log_debug(f'Gracefully ignored unsubscription exception: {unsub_err}')
+            self.subscription = None
+        _active_subscriptions.pop(self.sonos_player.uid, None)
 
 
 def scan_remote_players():
@@ -45,18 +121,15 @@ def act(remote_player, remote_action, music_session):
     connection_info = json.loads(remote_player.connection_info_json)
     sonos_player = soco.SoCo(connection_info['host'])
 
-    if (
-        remote_action == 'play'
-        or remote_action == 'next'
-        or remote_action == 'previous'
-    ):
-        current_audio_file = music_session.music_queue['songs'][
-            music_session.music_queue['current_song_index']
-        ]
-        play(device_ip=connection_info['host'], audio_file=current_audio_file)
-    elif remote_action == 'pause':
+    if remote_action == 'pause':
+        uid = connection_info.get('uid')
+        if uid in _active_subscriptions:
+            _active_subscriptions[uid].unsubscribe()
         sonos_player.pause()
     elif remote_action == 'stop':
+        uid = connection_info.get('uid')
+        if uid in _active_subscriptions:
+            _active_subscriptions[uid].unsubscribe()
         sonos_player.stop()
     elif remote_action.startswith('seek--'):
         seek_target = remote_action.split('seek--')[-1]
@@ -72,7 +145,8 @@ def act(remote_player, remote_action, music_session):
                 sonos_player.volume = volume_percent
 
 
-def play(device_ip, audio_file):
+def play(device_ip, audio_file, on_track_finished=None, device_uid=None):
+    _log_debug(f'Play invocation initiated. Sonos target IP: {device_ip}')
     audio_url = audio_file['web_path']
 
     def encode_url(url):
@@ -88,44 +162,88 @@ def play(device_ip, audio_file):
     )
 
     title = audio_file.get('title', 'Unknown Title')
-    artist = audio_file.get('artist', 'Unknown Artist')
-    album = audio_file.get('album', 'Unknown Album')
-
     sonos_player = soco.SoCo(device_ip)
 
-    current_track = sonos_player.get_current_track_info()
-    transport_info = sonos_player.get_current_transport_info()
+    uid = device_uid or sonos_player.uid
+    _log_debug(f'Resolved player unique identification hash: {uid}')
 
-    if (
-        current_track.get('uri') == encoded_audio_url
-        and transport_info.get('current_transport_state') == 'PAUSED_PLAYBACK'
-    ):
-        sonos_player.play()
-        return
-
-    meta_xml = (
-        '<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"'
-        ' xmlns:dc="http://purl.org/dc/elements/1.1/"'
-        ' xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/">'
-        '<item id="-1" parentID="-1" restricted="true">'
-        f'<dc:title>{title}</dc:title>'
-        f'<dc:creator>{artist}</dc:creator>'
-        f'<upnp:artist>{artist}</upnp:artist>'
-        f'<upnp:album>{album}</upnp:album>'
-        + (
-            f'<upnp:albumArtURI>{cover_art_url}</upnp:albumArtURI>'
-            if cover_art_url
-            else ''
+    if uid in _active_subscriptions:
+        _log_debug(
+            'Stale active UPnP subscription mapping discovered for this unit. Purging old connection.'
         )
-        + f'<upnp:class>object.item.audioItem.musicTrack</upnp:class>'
-        f'<res protocolInfo="http-get:*:audio/mpeg:*">{encoded_audio_url}</res>'
-        '</item>'
-        '</DIDL-Lite>'
-    )
+        _active_subscriptions[uid].unsubscribe()
 
-    sonos_player.clear_queue()
-    sonos_player.add_uri_to_queue(encoded_audio_url, meta=meta_xml)
-    sonos_player.play_from_queue(0)
+    try:
+        current_track = sonos_player.get_current_track_info()
+        transport_info = sonos_player.get_current_transport_info()
+        _log_debug(
+            f'Current internal state -> URI: {current_track.get("uri")}, State: {transport_info.get("current_transport_state")}'
+        )
+
+        if (
+            current_track.get('uri') == encoded_audio_url
+            and transport_info.get('current_transport_state') == 'PAUSED_PLAYBACK'
+        ):
+            _log_debug(
+                'Matching active URL paused on speaker. Executing raw UPnP resume play command.'
+            )
+            if on_track_finished:
+                _log_debug(
+                    'Attaching event tracking hooks to AVTransport handler channel during resume sequence.'
+                )
+                listener = SonosTrackCompletionListener(sonos_player, on_track_finished)
+                sub = sonos_player.avTransport.subscribe()
+                listener.start(sub)
+                _active_subscriptions[uid] = listener
+            sonos_player.play()
+            return
+
+        meta_xml = (
+            '<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"'
+            ' xmlns:dc="http://purl.org/dc/elements/1.1/"'
+            ' xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/">'
+            '<item id="-1" parentID="-1" restricted="true">'
+            f'<dc:title>{title}</dc:title>'
+            f'<dc:creator>{audio_file.get("artist", "Unknown Artist")}</dc:creator>'
+            f'<upnp:artist>{audio_file.get("artist", "Unknown Artist")}</upnp:artist>'
+            f'<upnp:album>{audio_file.get("album", "Unknown Album")}</upnp:album>'
+            + (
+                f'<upnp:albumArtURI>{cover_art_url}</upnp:albumArtURI>'
+                if cover_art_url
+                else ''
+            )
+            + f'<upnp:class>object.item.audioItem.musicTrack</upnp:class>'
+            f'<res protocolInfo="http-get:*:audio/mpeg:*">{encoded_audio_url}</res>'
+            '</item>'
+            '</DIDL-Lite>'
+        )
+
+        _log_debug('Wiping hardware coordinator playback queue buffer...')
+        sonos_player.clear_queue()
+
+        _log_debug(
+            f'Injecting track resource configuration URL to internal queue layout. Metadata size: {len(meta_xml)} bytes.'
+        )
+        sonos_player.add_uri_to_queue(encoded_audio_url, meta=meta_xml)
+
+        if on_track_finished:
+            _log_debug(
+                'Subscribing listener mapping handler directly to UPnP network broadcast channel...'
+            )
+            listener = SonosTrackCompletionListener(sonos_player, on_track_finished)
+            sub = sonos_player.avTransport.subscribe()
+            listener.start(sub)
+            _active_subscriptions[uid] = listener
+
+        _log_debug(
+            'Firing play command tracking request for queue position point index 0.'
+        )
+        sonos_player.play_from_queue(0)
+        _log_debug('Sonos network packet transaction pipeline completed successfully.')
+    except Exception as sonos_err:
+        log.error(
+            f'Sonos hardware interaction failed with network execution error: {sonos_err}'
+        )
 
 
 def get_status(remote_player):
@@ -136,7 +254,6 @@ def get_status(remote_player):
         track_info = sonos_player.get_current_track_info()
         transport_info = sonos_player.get_current_transport_info()
 
-        # Convert HH:MM:SS string to total seconds
         position_str = track_info.get('position', '0:00:00')
         parts = position_str.split(':')
         position_seconds = 0
