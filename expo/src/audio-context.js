@@ -163,7 +163,14 @@ export function AudioContextProvider({ children }) {
             })
         } else {
             apiClient.getMusicSession().then(response => {
-                changeMusicSession(response)
+                if (response) {
+                    if (response.music_queue?.songs?.length) {
+                        let currentAudio = response.music_queue?.songs[response.music_queue.current_song_index]
+                        setCurrentAudioFile(currentAudio)
+                        currentAudioFileRef.current = currentAudio
+                    }
+                    changeMusicSession(response)
+                }
             })
         }
     }, [apiClient, targetPlayer])

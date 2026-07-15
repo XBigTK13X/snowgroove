@@ -138,6 +138,13 @@ class RemotePlayers:
                 now = time.time()
                 if now >= last_status_check + status_interval:
                     last_status_check = now
+
+                    music_session = db.op.get_music_session_by_remote_player_id(
+                        remote_player_id=remote_player.id
+                    )
+                    if not music_session:
+                        break
+
                     try:
                         player_status = self.get_status(remote_player)
                         is_playing = player_status.get('is_playing', False)
@@ -146,25 +153,23 @@ class RemotePlayers:
                             if not is_playing:
                                 last_action = 'pause'
                                 was_playing = False
+                                if message_queue.empty() and pending_seek is None:
+                                    break
                                 continue
 
                         if was_playing and not is_playing and last_action != 'pause':
-                            music_session = db.op.get_music_session_by_remote_player_id(
-                                remote_player_id=remote_player.id
-                            )
-                            if music_session:
-                                music_queue = json.loads(music_session.music_queue_json)
-                                if music_queue:
-                                    try:
-                                        self._execute_action(
-                                            remote_player=remote_player,
-                                            remote_action='next',
-                                        )
-                                        last_action = 'next'
-                                    except Exception as next_action_error:
-                                        log.error(
-                                            f'[Worker-{remote_player.id}] Failed executing next action: {next_action_error}'
-                                        )
+                            music_queue = json.loads(music_session.music_queue_json)
+                            if music_queue:
+                                try:
+                                    self._execute_action(
+                                        remote_player=remote_player,
+                                        remote_action='next',
+                                    )
+                                    last_action = 'next'
+                                except Exception as next_action_error:
+                                    log.error(
+                                        f'[Worker-{remote_player.id}] Failed executing next action: {next_action_error}'
+                                    )
 
                             was_playing = False
                         else:
@@ -172,6 +177,13 @@ class RemotePlayers:
                                 was_playing = True
                             elif last_action == 'pause':
                                 was_playing = False
+
+                        if (
+                            not is_playing
+                            and message_queue.empty()
+                            and pending_seek is None
+                        ):
+                            break
 
                     except Exception as loop_iteration_error:
                         log.warning(
