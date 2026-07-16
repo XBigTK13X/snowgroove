@@ -157,9 +157,6 @@ export function AudioContextProvider({ children }) {
                     changeTargetPlayer(response.remote_player_id, response.remote_player.name)
                 }
                 changeMusicSession(response)
-                if (response.remote_player_id) {
-                    setTimeout(() => { startRemotePolling() })
-                }
             })
         } else {
             apiClient.getMusicSession().then(response => {

@@ -171,10 +171,9 @@ def act(remote_player, remote_action, music_session):
                     media_controller.seek(seek_seconds)
         elif remote_action.startswith('volume--'):
             volume_target = remote_action.split('volume--')[-1]
-            if volume_target.isdigit():
-                volume_percent = int(volume_target)
-                if 0 <= volume_percent <= 100:
-                    cast_device.set_volume(volume_percent / 100.0)
+            volume_level = float(volume_target)
+            if 0.0 <= volume_level <= 1.0:
+                cast_device.set_volume(volume_level)
     except Exception as error_message:
         log.error(
             f'Failed to execute action {remote_action} on {remote_player.name}: {error_message}'
@@ -224,8 +223,15 @@ def play(connection_info, audio_file, on_track_finished=None):
                 ):
                     if config.debug_remote_players:
                         log.info(
-                            '[Chromecast-DEBUG] Target file is already active on device. Skipping redundant initialization.'
+                            '[Chromecast-DEBUG] Target file is already active on device. Updating tracking listener and skipping redundant initialization.'
                         )
+                    # Bind the track completion listener here so early returns don't lose the callback hook
+                    if on_track_finished:
+                        cast_device.media_controller._status_listeners = []
+                        listener = TrackCompletionListener(
+                            cast_device, on_track_finished
+                        )
+                        cast_device.media_controller.register_status_listener(listener)
                     return
             except Exception:
                 pass
@@ -255,6 +261,12 @@ def play(connection_info, audio_file, on_track_finished=None):
                     status.content_id == encoded_audio_url
                     and status.player_state == 'PAUSED'
                 ):
+                    if on_track_finished:
+                        media_controller._status_listeners = []
+                        listener = TrackCompletionListener(
+                            cast_device, on_track_finished
+                        )
+                        media_controller.register_status_listener(listener)
                     media_controller.play()
                     return
         except pychromecast.error.PyChromecastError as block_err:

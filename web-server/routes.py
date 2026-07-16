@@ -401,7 +401,7 @@ def music_session_routes(router):
     def volume_music_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
         music_session_id: int = Body(embed=True),
-        volume_percent: int = Body(embed=True),
+        volume_percent: float = Body(embed=True),
     ):
         music_session = db.op.get_music_session_by_id(id=music_session_id)
         remote_players.dispatch(

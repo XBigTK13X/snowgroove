@@ -115,9 +115,9 @@ export default function LandingPage(props) {
                         <C.SnowTextButton title="Next" onPress={() => {
                             playNextSong()
                         }} />
-                        <C.SnowTextButton title="Volume 30%" onPress={() => {
+                        <C.SnowTextButton title="Volume 20%" onPress={() => {
                             //TODO Show a slider modal
-                            changeVolume(0.3)
+                            changeVolume(0.2)
                         }} />
                     </C.SnowGrid>
                     <C.SnowBreak />

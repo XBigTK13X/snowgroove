@@ -282,7 +282,7 @@ class RemotePlayers:
             message_queue.put(remote_action)
             worker_thread = threading.Thread(
                 target=self._device_worker,
-                args=(remote_player, remote_action, message_queue),
+                args=(remote_player, None, message_queue),
                 daemon=True,
             )
             self.active_connections[remote_player.id] = (worker_thread, message_queue)
