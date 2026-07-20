@@ -8,6 +8,8 @@ def create_playlist(
         dbm = dbi.dm.Playlist()
         dbm.snowgroove_user_id = snowgroove_user_id
         dbm.name = name
+        dbm.version = 1
+        dbm.archived = False
         dbm.audio_file_fingerprints_json = dbi.json.dumps(audio_file_fingerprints)
 
         db.add(dbm)
@@ -20,26 +22,50 @@ def update_playlist(id: int, name: str, audio_file_fingerprints: list[str]):
     if not id:
         return None
     with dbi.session() as db:
-        (
-            db.query(dbi.dm.Playlist)
-            .filter(dbi.dm.Playlist.id == id)
-            .update(
-                {
-                    'audio_file_fingerprints_json': dbi.json.dumps(
-                        audio_file_fingerprints
-                    ),
-                    'name': name,
-                }
+        existing = db.query(dbi.dm.Playlist).filter(dbi.dm.Playlist.id == id).first()
+        if not existing:
+            return None
+
+        old_name = existing.name
+        if old_name != name:
+            (
+                db.query(dbi.dm.Playlist)
+                .filter(dbi.dm.Playlist.name == old_name)
+                .update({'name': name}, synchronize_session=False)
             )
-        )
+
+        current_version = getattr(existing, 'version', 1) or 1
+        new_version = current_version + 1
+
+        dbm = dbi.dm.Playlist()
+        dbm.snowgroove_user_id = existing.snowgroove_user_id
+        dbm.name = name
+        dbm.version = new_version
+        dbm.archived = False
+        dbm.audio_file_fingerprints_json = dbi.json.dumps(audio_file_fingerprints)
+
+        db.add(dbm)
         db.commit()
-        return db.query(dbi.dm.Playlist).filter(dbi.dm.Playlist.id == id).first()
+        db.refresh(dbm)
+        return dbm
 
 
 def get_playlist_by_id(id: int):
     with dbi.session() as db:
         playlist = db.query(dbi.dm.Playlist).filter(dbi.dm.Playlist.id == id).first()
-        if not playlist or not playlist.audio_file_fingerprints_json:
+        if not playlist:
+            return None
+
+        latest_version = (
+            db.query(dbi.func.max(dbi.dm.Playlist.version))
+            .filter(dbi.dm.Playlist.name == playlist.name)
+            .scalar()
+        )
+
+        if playlist.version != latest_version:
+            return None
+
+        if not playlist.audio_file_fingerprints_json:
             return playlist
 
         fingerprints = dbi.json.loads(playlist.audio_file_fingerprints_json)
@@ -95,7 +121,12 @@ def get_playlist_by_id(id: int):
 
 def get_playlist_by_name(name: str):
     with dbi.session() as db:
-        return db.query(dbi.dm.Playlist).filter(dbi.dm.Playlist.name == name).first()
+        return (
+            db.query(dbi.dm.Playlist)
+            .filter(dbi.dm.Playlist.name == name)
+            .order_by(dbi.dm.Playlist.version.desc())
+            .first()
+        )
 
 
 def upsert_playlist(
@@ -105,6 +136,7 @@ def upsert_playlist(
         existing = (
             db.query(dbi.dm.Playlist)
             .filter(dbi.or_(dbi.dm.Playlist.name == name, dbi.dm.Playlist.id == id))
+            .order_by(dbi.dm.Playlist.version.desc())
             .first()
         )
         if existing:
@@ -130,4 +162,35 @@ def upsert_playlist(
 
 def get_playlist_list():
     with dbi.session() as db:
-        return db.query(dbi.dm.Playlist).order_by(dbi.dm.Playlist.name).all()
+        playlist_alias = dbi.orm.aliased(dbi.dm.Playlist)
+
+        max_version_subquery = (
+            db.query(dbi.func.max(dbi.func.coalesce(playlist_alias.version, 1)))
+            .filter(playlist_alias.name == dbi.dm.Playlist.name)
+            .scalar_subquery()
+        )
+
+        results = (
+            db.query(dbi.dm.Playlist, dbi.dm.User.username)
+            .outerjoin(
+                dbi.dm.User,
+                dbi.dm.Playlist.snowgroove_user_id == dbi.dm.User.id,
+            )
+            .filter(
+                dbi.func.coalesce(dbi.dm.Playlist.version, 1) == max_version_subquery
+            )
+            .order_by(dbi.dm.Playlist.name)
+            .all()
+        )
+
+        owners = []
+        playlists = {}
+        for playlist, username in results:
+            if username not in owners:
+                owners.append(username)
+                playlists[username] = []
+            playlists[username].append(playlist)
+        owners.sort()
+        for owner in owners:
+            playlists[owner].sort(key=lambda xx: xx.name)
+        return {'owners': owners, 'playlists': playlists}

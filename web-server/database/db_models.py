@@ -435,3 +435,5 @@ class Playlist(BaseModel):
     snowgroove_user_id = orm.mapped_column(sa.ForeignKey('snowgroove_user.id'))
     name = sa.Column(sa.Text)
     audio_file_fingerprints_json = sa.Column(sa.Text)
+    archived = sa.Column(sa.Boolean)
+    version = sa.Column(sa.Integer)

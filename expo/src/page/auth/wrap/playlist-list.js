@@ -16,21 +16,25 @@ export default function PlaylistListPage() {
         return <C.SnowLabel center> Loading playlist list.</C.SnowLabel>
     }
 
-    if (!playlistList?.length) {
+    if (!playlistList?.owners?.length) {
         return <C.SnowLabel center>No playlists found.</C.SnowLabel>
     }
 
     return (
-        <C.SnowGrid items={playlistList} renderItem={(item) => {
-            return (
-                <C.SnowTextButton title={item.name} onPress={navPush({
-                    path: routes.playlistDetails,
-                    params: {
-                        playlistName: item.name,
-                        playlistId: item.id
-                    }
-                })} />
-            )
-        }} />
+        <C.SnowTabs focusStart focusKey="playlists" headers={playlistList.owners}>
+            {playlistList.owners.map((owner) => {
+                return <C.SnowGrid items={playlistList.playlists[owner]} renderItem={(playlist) => {
+                    return (
+                        <C.SnowTextButton title={playlist.name} onPress={navPush({
+                            path: routes.playlistDetails,
+                            params: {
+                                playlistName: playlist.name,
+                                playlistId: playlist.id
+                            }
+                        })} />
+                    )
+                }} />
+            })}
+        </C.SnowTabs>
     )
 }
