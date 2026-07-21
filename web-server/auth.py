@@ -80,12 +80,12 @@ async def get_current_user(
     user.ticket = db.op.get_ticket_by_cduid(cduid=user.cduid)
     if not user.ticket:
         raise expired_exception
-    # Don't bother checking permissions for the admin user
-    if user.username == 'admin':
-        return user
     user.ticket.snowgroove_user_id = user.id
     user.ticket.snowgroove_username = user.username
     user.ticket.is_admin = user.is_admin()
+    # Don't bother checking permissions for the admin user
+    if user.username == 'admin':
+        return user
     for scope in security_scopes.scopes:
         if scope not in token_data.scopes:
             raise HTTPException(

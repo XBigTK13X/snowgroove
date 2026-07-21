@@ -207,8 +207,10 @@ def get_playlist_list(ticket: dbi.dm.Ticket, flatten: bool = False):
         flattened = []
         for playlist, username in results:
             if ticket is not None:
-                if ticket.snowgroove_username != username and not ticket.is_allowed(
-                    playlist_name=playlist.name
+                if (
+                    not ticket.is_admin
+                    and ticket.snowgroove_username != username
+                    and not ticket.is_allowed(playlist_name=playlist.name)
                 ):
                     continue
             if flatten:
