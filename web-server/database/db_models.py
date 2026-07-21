@@ -44,6 +44,7 @@ class User(BaseModel):
     access_remote_players: orm.Mapped[List['RemotePlayer']] = orm.relationship(
         secondary='snowgroove_user_remote_player'
     )
+    access_playlists: orm.Mapped[List['UserPlaylist']] = orm.relationship()
 
     def is_admin(self):
         return 'admin' in self.permissions
@@ -67,6 +68,10 @@ class Ticket:
         self.shelf_ids = None
         self.crate_ids = None
         self.remote_player_ids = None
+        self.playlist_names = None
+        self.snowgroove_user_id = None
+        self.snowgroove_username = None
+        self.is_admin = False
 
     def tag_csv(self):
         return ','.join([f'{xx}' for xx in self.tag_ids])
@@ -83,6 +88,9 @@ class Ticket:
     def has_remote_player_restrictions(self):
         return self.remote_player_ids != None
 
+    def has_playlist_restrictions(self):
+        return self.playlist_names != None
+
     def is_allowed(
         self,
         crate_id: int = None,
@@ -91,6 +99,7 @@ class Ticket:
         tag_ids: list[int] = None,
         tag_provider=None,
         remote_player_id: int = None,
+        playlist_name: str = None,
     ):
         if crate_id != None:
             if self.crate_ids == None:
@@ -127,6 +136,10 @@ class Ticket:
             if self.remote_player_ids == None:
                 return True
             return remote_player_id in self.remote_player_ids
+        if playlist_name != None:
+            if self.playlist_names == None:
+                return True
+            return playlist_name in self.playlist_names
         return True
 
 
@@ -162,6 +175,14 @@ class UserRemotePlayer(BaseModel):
     remote_player_id: orm.Mapped[int] = orm.mapped_column(
         sa.ForeignKey('remote_player.id')
     )
+
+
+class UserPlaylist(BaseModel):
+    __tablename__ = 'snowgroove_user_playlist'
+    snowgroove_user_id: orm.Mapped[int] = orm.mapped_column(
+        sa.ForeignKey('snowgroove_user.id')
+    )
+    playlist_name = sa.Column(sa.Text)
 
 
 class ClientDevice(BaseModel):

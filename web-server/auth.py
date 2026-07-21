@@ -83,6 +83,9 @@ async def get_current_user(
     # Don't bother checking permissions for the admin user
     if user.username == 'admin':
         return user
+    user.ticket.snowgroove_user_id = user.id
+    user.ticket.snowgroove_username = user.username
+    user.ticket.is_admin = user.is_admin()
     for scope in security_scopes.scopes:
         if scope not in token_data.scopes:
             raise HTTPException(

@@ -9,10 +9,12 @@ export default function UserEditPage() {
     const [userTags, setUserTags] = C.React.useState([])
     const [userShelves, setUserShelves] = C.React.useState([])
     const [userRemotePlayers, setUserRemotePlayers] = C.React.useState([])
+    const [userPlaylists, setUserPlaylists] = C.React.useState([])
 
     const [tags, setTags] = C.React.useState('')
     const [shelves, setShelves] = C.React.useState('')
     const [remotePlayers, setRemotePlayers] = C.React.useState('')
+    const [playlistList, setPlaylistList] = C.React.useState('')
 
     C.React.useEffect(() => {
         apiClient.getUser(currentRoute.routeParams.userId).then((response) => {
@@ -21,6 +23,7 @@ export default function UserEditPage() {
                 setUserTags(response.access_tags.map(item => item.id))
                 setUserShelves(response.access_shelves.map(item => item.id))
                 setUserRemotePlayers(response.access_remote_players.map(item => item.id))
+                setUserPlaylists(response.access_playlists.map(item => item.playlist_name))
             }
         })
         apiClient.getTagList().then((response) => {
@@ -32,6 +35,9 @@ export default function UserEditPage() {
         apiClient.getRemotePlayerList().then((response) => {
             setRemotePlayers(response)
         })
+        apiClient.getPlaylistList(true).then((response) => {
+            setPlaylistList(response)
+        })
     }, [])
 
     const saveUserAccess = () => {
@@ -39,7 +45,8 @@ export default function UserEditPage() {
             userId: userId,
             tagIds: userTags,
             shelfIds: userShelves,
-            remotePlayerIds: userRemotePlayers
+            remotePlayerIds: userRemotePlayers,
+            playlistNames: userPlaylists
         }
         apiClient.saveUserAccess(payload)
     }
@@ -92,11 +99,30 @@ export default function UserEditPage() {
             }
         }
         if (accessible) {
-            const tagIndex = userRemotePlayers.indexOf(remotePlayerId)
-            if (tagIndex === -1) {
+            const playerIndex = userRemotePlayers.indexOf(remotePlayerId)
+            if (playerIndex === -1) {
                 let moddedRemotePlayers = [...userRemotePlayers]
                 moddedRemotePlayers.push(remotePlayerId)
                 setUserRemotePlayers(moddedRemotePlayers)
+            }
+        }
+    }
+
+    const setPlaylistAccess = (playlistName, accessible) => {
+        if (!accessible) {
+            const playlistIndex = userPlaylists.indexOf(playlistName)
+            if (playlistIndex !== -1) {
+                let moddedPlaylistList = [...userPlaylists]
+                moddedPlaylistList.splice(playlistIndex, 1)
+                setUserPlaylists(moddedPlaylistList)
+            }
+        }
+        if (accessible) {
+            const playlistIndex = userPlaylists.indexOf(playlistName)
+            if (playlistIndex === -1) {
+                let moddedPlaylistList = [...userPlaylists]
+                moddedPlaylistList.push(playlistName)
+                setUserPlaylists(moddedPlaylistList)
             }
         }
     }
@@ -192,6 +218,36 @@ export default function UserEditPage() {
         )
     }
 
+    let playlistPicker = null
+    if (playlistList?.length) {
+        const renderPlaylist = (playlist) => {
+            if (userPlaylists?.indexOf(playlist.name) !== -1) {
+                return (
+                    <C.SnowTextButton
+                        title={playlist.name + ' YES'}
+                        onPress={() => {
+                            setPlaylistAccess(playlist.name, false)
+                        }}
+                    ></C.SnowTextButton>
+                )
+            }
+            return (
+                <C.SnowTextButton
+                    title={playlist.name + ' NO'}
+                    onPress={() => {
+                        setPlaylistAccess(playlist.name, true)
+                    }}
+                ></C.SnowTextButton>
+            )
+        }
+        playlistPicker = (
+            <C.SnowView>
+                <C.SnowLabel center>Playlists</C.SnowLabel>
+                <C.SnowGrid short={true} items={playlistList} renderItem={renderPlaylist} />
+            </C.SnowView>
+        )
+    }
+
     return (
         <C.SnowView>
             <C.SnowGrid itemsPerRow={2}>
@@ -208,6 +264,7 @@ export default function UserEditPage() {
             {shelfPicker}
             {tagPicker}
             {remotePlayerPicker}
+            {playlistPicker}
             <C.SnowBreak />
             <C.SnowGrid>
                 <C.SnowTextButton title="Save User Access" onPress={saveUserAccess} />

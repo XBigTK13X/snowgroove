@@ -23,6 +23,16 @@ export default function PlaylistDetailsPage() {
                 <C.SnowTextButton title="Add Playlist to Queue" onPress={() => {
                     addAudioFileListToQueue(playlist?.audio_files)
                 }} />
+                {playlist.can_change ?
+                    <C.SnowTextButton
+                        title="Rename Playlist"
+                        onPress={navPush({
+                            path: routes.playlistRename,
+                            params: {
+                                playlistId: playlist.id, playlistName: playlist.name
+                            }
+                        })}
+                    /> : null}
             </C.SnowGrid>
             <C.SnowLabel center>Found {playlist.audio_files.length} items from playlist {currentRoute?.routeParams?.playlistName}.</C.SnowLabel>
             <C.SnowSongList disableDrag audioFiles={playlist.audio_files} />

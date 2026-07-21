@@ -33,6 +33,11 @@ def update_playlist(id: int, name: str, audio_file_fingerprints: list[str]):
                 .filter(dbi.dm.Playlist.name == old_name)
                 .update({'name': name}, synchronize_session=False)
             )
+            (
+                db.query(dbi.dm.UserPlaylist)
+                .filter(dbi.dm.UserPlaylist.playlist_name == old_name)
+                .update({'playlist_name': name}, synchronize_session=False)
+            )
 
         current_version = getattr(existing, 'version', 1) or 1
         new_version = current_version + 1
@@ -42,7 +47,10 @@ def update_playlist(id: int, name: str, audio_file_fingerprints: list[str]):
         dbm.name = name
         dbm.version = new_version
         dbm.archived = False
-        dbm.audio_file_fingerprints_json = dbi.json.dumps(audio_file_fingerprints)
+        if audio_file_fingerprints != None:
+            dbm.audio_file_fingerprints_json = dbi.json.dumps(audio_file_fingerprints)
+        else:
+            dbm.audio_file_fingerprints_json = existing.audio_file_fingerprints_json
 
         db.add(dbm)
         db.commit()
@@ -130,7 +138,11 @@ def get_playlist_by_name(name: str):
 
 
 def upsert_playlist(
-    id: int, name: str, audio_file_fingerprints: list[str], snowgroove_user_id: int
+    ticket: dbi.dm.Ticket,
+    id: int,
+    name: str,
+    audio_file_fingerprints: list[str],
+    snowgroove_user_id: int,
 ):
     with dbi.session() as db:
         existing = (
@@ -140,6 +152,13 @@ def upsert_playlist(
             .first()
         )
         if existing:
+            if (
+                not snowgroove_user_id == existing.snowgroove_user_id
+                and not ticket.is_admin
+            ):
+                return {
+                    'error': f"Unable to modify another user's playlist [{existing.name}]->[{existing.snowgroove_user_id}]"
+                }
             playlist = update_playlist(
                 id=existing.id,
                 name=name,
@@ -160,7 +179,7 @@ def upsert_playlist(
         return playlist
 
 
-def get_playlist_list():
+def get_playlist_list(ticket: dbi.dm.Ticket, flatten: bool = False):
     with dbi.session() as db:
         playlist_alias = dbi.orm.aliased(dbi.dm.Playlist)
 
@@ -185,12 +204,32 @@ def get_playlist_list():
 
         owners = []
         playlists = {}
+        flattened = []
         for playlist, username in results:
-            if username not in owners:
-                owners.append(username)
-                playlists[username] = []
-            playlists[username].append(playlist)
-        owners.sort()
+            if ticket is not None:
+                if ticket.snowgroove_username != username and not ticket.is_allowed(
+                    playlist_name=playlist.name
+                ):
+                    continue
+            if flatten:
+                if (
+                    playlist.snowgroove_user_id == ticket.snowgroove_user_id
+                    or ticket.is_admin
+                ):
+                    flattened.append(playlist)
+            else:
+                if username not in owners:
+                    owners.append(username)
+                    playlists[username] = []
+                playlists[username].append(playlist)
+
+        if flatten:
+            flattened.sort(key=lambda xx: xx.name)
+            return flattened
+
+        target_username = ticket.snowgroove_username if ticket else None
+        owners.sort(key=lambda xx: (xx != target_username, xx or ''))
+
         for owner in owners:
             playlists[owner].sort(key=lambda xx: xx.name)
         return {'owners': owners, 'playlists': playlists}

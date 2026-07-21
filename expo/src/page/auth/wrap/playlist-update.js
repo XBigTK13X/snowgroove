@@ -11,7 +11,7 @@ export default function PlaylistUpdatePage() {
 
     C.React.useEffect(() => {
         if (!playlistList) {
-            apiClient.getPlaylistList().then((response) => {
+            apiClient.getPlaylistList(true).then((response) => {
                 setPlaylistList(response)
             })
         }
@@ -28,14 +28,21 @@ export default function PlaylistUpdatePage() {
     const saveQueueAsPlaylist = (saveId, saveName) => {
         if (musicSession?.music_queue?.songs?.length) {
             apiClient.updatePlaylist(saveId, saveName, musicSession?.music_queue?.songs?.map(xx => xx.fingerprint)).then((response) => {
-                navPush({
-                    path: routes.playlistDetails,
-                    params: {
-                        playlistId: response.id,
-                        playlistName: response.name
-                    },
-                    func: false
-                })
+                if (response?.error) {
+                    toast.show(response.error, {
+                        duration: 1000,
+                        position: 'bottom',
+                    });
+                } else {
+                    navPush({
+                        path: routes.playlistDetails,
+                        params: {
+                            playlistId: response.id,
+                            playlistName: response.name
+                        },
+                        func: false
+                    })
+                }
             })
         } else {
             toast.show(`The queue is empty, did not save playlist [${saveName}].`, {

@@ -59,6 +59,7 @@ def user_routes(router):
         tag_ids: list[int] = Body(embed=True, default=[]),
         shelf_ids: list[int] = Body(embed=True, default=[]),
         remote_player_ids: list[int] = Body(embed=True, default=[]),
+        playlist_names: list[str] = Body(embed=True, default=[]),
     ):
         if not auth_user.is_admin():
             return None
@@ -67,6 +68,7 @@ def user_routes(router):
             tag_ids=tag_ids,
             shelf_ids=shelf_ids,
             remote_player_ids=remote_player_ids,
+            playlist_names=playlist_names,
         )
 
 
@@ -415,10 +417,11 @@ def playlist_routes(router):
     def upsert_playlist(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
         playlist_id: int = Body(embed=True, default=None),
-        audio_file_fingerprints: list[str] = Body(embed=True),
+        audio_file_fingerprints: list[str] = Body(embed=True, default=None),
         name: str = Body(embed=True),
     ):
         return db.op.upsert_playlist(
+            ticket=auth_user.ticket,
             id=playlist_id,
             name=name,
             audio_file_fingerprints=audio_file_fingerprints,
@@ -430,13 +433,18 @@ def playlist_routes(router):
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
         playlist_id: int,
     ):
-        return db.op.get_playlist_by_id(id=playlist_id)
+        playlist = db.op.get_playlist_by_id(id=playlist_id)
+        playlist.can_change = (
+            playlist.snowgroove_user_id == auth_user.id or auth_user.is_admin()
+        )
+        return playlist
 
     @router.get('/playlist/list', tags=['Playlist'])
     def get_playlist_list(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+        flatten: bool = False,
     ):
-        return db.op.get_playlist_list()
+        return db.op.get_playlist_list(ticket=auth_user.ticket, flatten=flatten)
 
 
 def auth_required(router):

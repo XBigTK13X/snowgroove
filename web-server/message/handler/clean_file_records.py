@@ -6,10 +6,10 @@ from message.job_media_scope import JobMediaScope
 
 def handle(scope: JobMediaScope):
     db.op.update_job(
-        job_id=scope.job_id, message=f'[WORKER] Handling a clean_file_records job'
+        job_id=scope.job_id, message='[WORKER] Handling a clean_file_records job'
     )
 
-    db.op.update_job(job_id=scope.job_id, message=f'Checking for orphaned records')
+    db.op.update_job(job_id=scope.job_id, message='Checking for orphaned records')
     results = db.op.purge_orphaned_records()
     if results:
         db.op.update_job(
@@ -21,9 +21,7 @@ def handle(scope: JobMediaScope):
     if scope.is_orphan():
         return True
 
-    db.op.update_job(
-        job_id=scope.job_id, message=f'Checking for deleted metadata files'
-    )
+    db.op.update_job(job_id=scope.job_id, message='Checking for deleted metadata files')
     results = db.op.purge_missing_metadata_file_records()
     if results:
         db.op.update_job(
@@ -32,7 +30,7 @@ def handle(scope: JobMediaScope):
         for result in results:
             db.op.update_job(job_id=scope.job_id, message=f'    {result}')
 
-    db.op.update_job(job_id=scope.job_id, message=f'Checking for deleted image files')
+    db.op.update_job(job_id=scope.job_id, message='Checking for deleted image files')
     results = db.op.purge_missing_image_file_records()
     if results:
         db.op.update_job(
@@ -41,23 +39,23 @@ def handle(scope: JobMediaScope):
         for result in results:
             db.op.update_job(job_id=scope.job_id, message=f'    {result}')
 
-    db.op.update_job(job_id=scope.job_id, message=f'Checking for deleted video files')
-    results = db.op.purge_missing_video_file_records()
+    db.op.update_job(job_id=scope.job_id, message='Checking for deleted audio files')
+    results = db.op.purge_missing_audio_file_records()
     if results:
         db.op.update_job(
-            job_id=scope.job_id, message=f'Purged {len(results)} video file records'
+            job_id=scope.job_id, message=f'Purged {len(results)} audio file records'
         )
         for result in results:
             db.op.update_job(job_id=scope.job_id, message=f'    {result}')
 
     db.op.update_job(
-        job_id=scope.job_id, message=f'Searching for any content without video files'
+        job_id=scope.job_id, message='Searching for any content without audio files'
     )
-    results = db.op.purge_shelf_content_without_video_files()
+    results = db.op.purge_shelf_content_without_audio_files()
     if results:
         db.op.update_job(
             job_id=scope.job_id,
-            message=f'Found {len(results)} shelf entries without video files',
+            message=f'Found {len(results)} crate entries without audio files',
         )
         for result in results:
             db.op.update_job(job_id=scope.job_id, message=f'    {result}')

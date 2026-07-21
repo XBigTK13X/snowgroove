@@ -260,7 +260,8 @@ export class ApiClient {
             user_id: payload.userId,
             tag_ids: payload.tagIds,
             shelf_ids: payload.shelfIds,
-            remote_player_ids: payload.remotePlayerIds
+            remote_player_ids: payload.remotePlayerIds,
+            playlist_names: payload.playlistNames
         }, false)
     }
 
@@ -288,7 +289,10 @@ export class ApiClient {
         return this.get('/search', { query })
     }
 
-    getPlaylistList = () => {
+    getPlaylistList = (flatten) => {
+        if (flatten) {
+            return this.get('/playlist/list?flatten=true')
+        }
         return this.get('/playlist/list')
     }
 

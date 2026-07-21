@@ -68,6 +68,7 @@ def get_user_by_id(user_id: int):
             .options(dbi.orm.joinedload(dbi.dm.User.access_tags))
             .options(dbi.orm.joinedload(dbi.dm.User.access_shelves))
             .options(dbi.orm.joinedload(dbi.dm.User.access_remote_players))
+            .options(dbi.orm.joinedload(dbi.dm.User.access_playlists))
             .first()
         )
 
@@ -91,7 +92,11 @@ def delete_user_by_id(user_id: int):
 
 
 def save_user_access(
-    user_id: int, tag_ids: list[int], shelf_ids: list[int], remote_player_ids: list[int]
+    user_id: int,
+    tag_ids: list[int],
+    shelf_ids: list[int],
+    remote_player_ids: list[int],
+    playlist_names: list[str],
 ):
     if not user_id:
         return False
@@ -109,6 +114,12 @@ def save_user_access(
         user_remote_players.append(
             {'snowgroove_user_id': user_id, 'remote_player_id': remote_player_id}
         )
+
+    user_playlists = []
+    for playlist_name in playlist_names:
+        user_playlists.append(
+            {'snowgroove_user_id': user_id, 'playlist_name': playlist_name}
+        )
     with dbi.session() as db:
         db.query(dbi.dm.UserTag).filter(
             dbi.dm.UserTag.snowgroove_user_id == user_id
@@ -119,9 +130,13 @@ def save_user_access(
         db.query(dbi.dm.UserRemotePlayer).filter(
             dbi.dm.UserRemotePlayer.snowgroove_user_id == user_id
         ).delete()
+        db.query(dbi.dm.UserPlaylist).filter(
+            dbi.dm.UserPlaylist.snowgroove_user_id == user_id
+        ).delete()
         db.commit()
         db.bulk_insert_mappings(dbi.dm.UserTag, user_tags)
         db.bulk_insert_mappings(dbi.dm.UserShelf, user_shelves)
         db.bulk_insert_mappings(dbi.dm.UserRemotePlayer, user_remote_players)
+        db.bulk_insert_mappings(dbi.dm.UserPlaylist, user_playlists)
         db.commit()
     return True
