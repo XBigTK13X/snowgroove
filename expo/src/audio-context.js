@@ -346,7 +346,7 @@ export function AudioContextProvider({ children }) {
                 }
             }
             return queue
-        }, shouldPlayImmediately)
+        }, true)
 
         if (shouldPlayImmediately) {
             currentAudioFileRef.current = audioFile
@@ -358,19 +358,24 @@ export function AudioContextProvider({ children }) {
 
     async function addAudioFileListToQueue(audioFiles) {
         if (audioFiles?.length) {
-            let shouldPlayImmediately = !isPlaying
+            let shouldPlayImmediately = !isPlayingRef.current
             updateMusicQueue((queue) => {
                 if (!queue.hasOwnProperty('dedupe')) {
                     queue.dedupe = {}
                 }
-                for (let audioFile of audioFiles) {
+                const newSongs = []
+                for (let ii = 0; ii < audioFiles.length; ii++) {
+                    const audioFile = audioFiles[ii]
                     if (!queue.dedupe.hasOwnProperty(audioFile.fingerprint)) {
                         queue.dedupe[audioFile.fingerprint] = true
-                        queue.songs.push(audioFile)
+                        newSongs.push(audioFile)
                     }
                 }
+                if (newSongs.length > 0) {
+                    queue.songs.push(...newSongs)
+                }
                 return queue
-            }, shouldPlayImmediately)
+            }, true)
 
             if (shouldPlayImmediately) {
                 currentAudioFileRef.current = audioFiles[0]
