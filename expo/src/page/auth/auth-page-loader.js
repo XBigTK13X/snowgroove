@@ -27,14 +27,14 @@ function HeaderNav(props) {
                     onPress={navPush({ path: routes.landing })}
                 />
                 <SnowTextButton
-                    title="Library"
-                    short
-                    onPress={navPush({ path: routes.library })}
-                />
-                <SnowTextButton
                     title={targetPlayer?.name ?? "Queue"}
                     onPress={navPush({ path: routes.musicSessionDetails })}
                     short
+                />
+                <SnowTextButton
+                    title="Library"
+                    short
+                    onPress={navPush({ path: routes.library })}
                 />
                 <SnowTextButton title="Sign Out" short onPress={signOut} />
                 {isAdmin ? <SnowTextButton
@@ -42,11 +42,6 @@ function HeaderNav(props) {
                     short
                     onPress={navPush({ path: routes.adminDashboard })} />
                     : null}
-                <SnowTextButton
-                    title={`${displayName}`}
-                    short
-                    onPress={navPush({ path: routes.info })}
-                    onLongPress={navPush({ path: routes.options })} />
                 <SnowTextButton
                     title={`Back`}
                     short
