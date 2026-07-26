@@ -173,7 +173,8 @@ def act(remote_player, remote_action, music_session):
             volume_target = remote_action.split('volume--')[-1]
             volume_level = float(volume_target)
             if 0.0 <= volume_level <= 1.0:
-                cast_device.set_volume(volume_level)
+                scaled_volume = volume_level * 0.5
+                cast_device.set_volume(scaled_volume)
     except Exception as error_message:
         log.error(
             f'Failed to execute action {remote_action} on {remote_player.name}: {error_message}'
