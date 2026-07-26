@@ -25,14 +25,6 @@ export default function LibraryPage(props) {
         })
     }, [])
 
-    C.React.useEffect(() => {
-        startRemotePolling()
-
-        return () => {
-            stopRemotePolling()
-        }
-    }, [])
-
     let destinations = [
         <C.SnowTextButton title="Search" onPress={navPush({ path: routes.search })} />,
         <C.SnowTextButton title="Playlists" onPress={navPush({ path: routes.playlistList })} />,
@@ -51,16 +43,13 @@ export default function LibraryPage(props) {
     }
     if (shelves !== null) {
         return (
-            <C.View>
-                <C.SnowGrid
-                    yy={4}
-                    focusStart={!currentAudioFile}
-                    focusKey="destinations"
-                    itemsPerRow={2}>
-                    {destinations}
-                </C.SnowGrid>
-                <C.SnowText style={styles.footer} center>{`[built ${config.clientBuildDate}] [snowgroove v${config.clientVersion}] [snowui v${snowuiPackageInfo.version}]`}</C.SnowText>
-            </C.View>
+            <C.SnowGrid
+                yy={4}
+                focusStart
+                focusKey="destinations"
+                itemsPerRow={2}>
+                {destinations}
+            </C.SnowGrid>
         )
     }
 
