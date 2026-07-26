@@ -12,16 +12,7 @@
       ],
       "expo-secure-store",
       [
-        "expo-navigation-bar",
-        {
-          "hidden": false
-        }
-      ],
-      [
-        "expo-status-bar",
-        {
-          "hidden": false
-        }
+        "expo-navigation-bar"
       ],
       [
         "expo-build-properties",

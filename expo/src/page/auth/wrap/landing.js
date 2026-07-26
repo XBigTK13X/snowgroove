@@ -109,9 +109,9 @@ export default function LandingPage(props) {
             let progressDisplay = `${displayName} [${playerTarget}] ${C.util.secondsToTimestamp(positionSeconds)} / ${C.util.secondsToTimestamp(currentAudioFile.duration)}`
             playerControls = (
                 <C.View>
-                    <C.SnowLabel marquee center>{currentAudioFile.title}</C.SnowLabel>
-                    <C.SnowLabel marquee center>{currentAudioFile.album}</C.SnowLabel>
-                    <C.SnowLabel marquee center>{currentAudioFile.artist}</C.SnowLabel>
+                    <C.SnowLabel style={{ marginBottom: 0, marginTop: 0 }} marquee center>{currentAudioFile.title}</C.SnowLabel>
+                    <C.SnowLabel style={{ marginBottom: 0, marginTop: 0 }} marquee center>{currentAudioFile.album}</C.SnowLabel>
+                    <C.SnowLabel style={{ marginBottom: 0, marginTop: 0 }} marquee center>{currentAudioFile.artist}</C.SnowLabel>
                     <C.SnowGrid yy={2}>
                         <C.Image
                             style={{ width: SnowStyle.isWeb ? 200 : 100, height: SnowStyle.isWeb ? 200 : 100 }}

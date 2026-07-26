@@ -195,14 +195,31 @@ def act(remote_player, remote_action, music_session):
             sonos_player.volume = volume_level * 100
 
 
+import html
+
+
 def play(device_ip, audio_file, on_track_finished=None, device_uid=None):
     _log_debug(f'Play invocation initiated. Sonos target IP: {device_ip}')
     audio_url = audio_file['web_path']
 
     def encode_url(url):
-        parts = list(urllib.parse.urlparse(url))
-        parts[2] = urllib.parse.quote(parts[2])
-        return urllib.parse.urlunparse(parts)
+        if not url:
+            return url
+        parsed_url = urllib.parse.urlparse(url)
+        full_path = parsed_url.path
+        if parsed_url.fragment:
+            full_path = f'{full_path}#{parsed_url.fragment}'
+        quoted_path = urllib.parse.quote(full_path, safe='/')
+        return urllib.parse.urlunparse(
+            (
+                parsed_url.scheme,
+                parsed_url.netloc,
+                quoted_path,
+                parsed_url.params,
+                parsed_url.query,
+                '',
+            )
+        )
 
     encoded_audio_url = encode_url(audio_url)
     cover_art_url = (
@@ -211,7 +228,12 @@ def play(device_ip, audio_file, on_track_finished=None, device_uid=None):
         else ''
     )
 
-    title = audio_file.get('title', 'Unknown Title')
+    title = html.escape(audio_file.get('title', 'Unknown Title'))
+    artist = html.escape(audio_file.get('artist', 'Unknown Artist'))
+    album = html.escape(audio_file.get('album', 'Unknown Album'))
+    escaped_audio_url = html.escape(encoded_audio_url)
+    escaped_cover_art_url = html.escape(cover_art_url) if cover_art_url else ''
+
     sonos_player = soco.SoCo(device_ip)
 
     uid = device_uid or sonos_player.uid
@@ -254,16 +276,16 @@ def play(device_ip, audio_file, on_track_finished=None, device_uid=None):
             ' xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/">'
             '<item id="-1" parentID="-1" restricted="true">'
             f'<dc:title>{title}</dc:title>'
-            f'<dc:creator>{audio_file.get("artist", "Unknown Artist")}</dc:creator>'
-            f'<upnp:artist>{audio_file.get("artist", "Unknown Artist")}</upnp:artist>'
-            f'<upnp:album>{audio_file.get("album", "Unknown Album")}</upnp:album>'
+            f'<dc:creator>{artist}</dc:creator>'
+            f'<upnp:artist>{artist}</upnp:artist>'
+            f'<upnp:album>{album}</upnp:album>'
             + (
-                f'<upnp:albumArtURI>{cover_art_url}</upnp:albumArtURI>'
-                if cover_art_url
+                f'<upnp:albumArtURI>{escaped_cover_art_url}</upnp:albumArtURI>'
+                if escaped_cover_art_url
                 else ''
             )
-            + f'<upnp:class>object.item.audioItem.musicTrack</upnp:class>'
-            f'<res protocolInfo="http-get:*:audio/mpeg:*">{encoded_audio_url}</res>'
+            + '<upnp:class>object.item.audioItem.musicTrack</upnp:class>'
+            f'<res protocolInfo="http-get:*:audio/mpeg:*">{escaped_audio_url}</res>'
             '</item>'
             '</DIDL-Lite>'
         )

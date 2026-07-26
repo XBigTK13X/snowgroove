@@ -91,8 +91,10 @@ export function AudioContextProvider({ children }) {
                 }
             }
 
+            const formattedUri = encodeURI(audioFile.web_path).replace(/#/g, '%23')
+
             const { sound: newSound } = await Audio.Sound.createAsync(
-                { uri: audioFile.web_path },
+                { uri: formattedUri },
                 { shouldPlay: true, volume: volumeRef.current },
                 onPlaybackStatusUpdate
             )

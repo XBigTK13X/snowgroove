@@ -87,12 +87,12 @@ const DraggableRow = React.memo((props) => {
     const panResponder = React.useMemo(() => {
         return PanResponder.create({
             onStartShouldSetPanResponder: () => true,
-            onMoveShouldSetPanResponder: (event, gestureState) => {
-                if (disableDrag) return false
-                return isDraggingRef.current
-            },
+            onMoveShouldSetPanResponder: () => true,
             onPanResponderGrant: (event) => {
-                touchStartPos.current = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY }
+                touchStartPos.current = {
+                    x: event.nativeEvent.pageX,
+                    y: event.nativeEvent.pageY
+                }
 
                 if (disableDrag) return
 
@@ -105,26 +105,32 @@ const DraggableRow = React.memo((props) => {
                 if (!isDraggingRef.current) {
                     const deltaX = Math.abs(event.nativeEvent.pageX - touchStartPos.current.x)
                     const deltaY = Math.abs(event.nativeEvent.pageY - touchStartPos.current.y)
-                    if (deltaX > 5 || deltaY > 5) {
+
+                    if (deltaX > 8 || deltaY > 8) {
                         clearTimeout(longPressTimeout.current)
                     }
                     return
                 }
+
                 onDragMove(gestureState.dy)
             },
             onPanResponderRelease: (event, gestureState) => {
                 clearTimeout(longPressTimeout.current)
+
                 if (isDraggingRef.current) {
                     onDragEnd(gestureState.dy)
                 } else {
                     const deltaX = Math.abs(event.nativeEvent.pageX - touchStartPos.current.x)
                     const deltaY = Math.abs(event.nativeEvent.pageY - touchStartPos.current.y)
-                    if (deltaX < 5 && deltaY < 5 && onPress) {
+
+                    if (deltaX < 8 && deltaY < 8 && onPress) {
                         onPress(item)
                     }
                 }
             },
-            onPanResponderTerminationRequest: () => !isDraggingRef.current,
+            onPanResponderTerminationRequest: () => {
+                return !isDraggingRef.current
+            },
             onPanResponderTerminate: () => {
                 clearTimeout(longPressTimeout.current)
                 if (isDraggingRef.current) {

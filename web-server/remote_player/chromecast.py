@@ -185,9 +185,24 @@ def play(connection_info, audio_file, on_track_finished=None):
     audio_url = audio_file['web_path']
 
     def encode_url(url):
-        parts = list(urllib.parse.urlparse(url))
-        parts[2] = urllib.parse.quote(parts[2])
-        return urllib.parse.urlunparse(parts)
+        if not url:
+            return url
+        parsed_url = urllib.parse.urlparse(url)
+        # Escape # in path to avoid urlparse splitting it into fragment
+        full_path = parsed_url.path
+        if parsed_url.fragment:
+            full_path = f'{full_path}#{parsed_url.fragment}'
+        quoted_path = urllib.parse.quote(full_path, safe='/')
+        return urllib.parse.urlunparse(
+            (
+                parsed_url.scheme,
+                parsed_url.netloc,
+                quoted_path,
+                parsed_url.params,
+                parsed_url.query,
+                '',
+            )
+        )
 
     encoded_audio_url = encode_url(audio_url)
     cover_art_url = (
