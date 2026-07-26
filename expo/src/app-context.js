@@ -182,6 +182,7 @@ export function AppContextProvider(props) {
         setDisplayName(null)
         setIsAdmin(false)
         setClientOptions(null)
+        changeTargetPlayer(null, null)
         return Snow.saveData(CONST.storageKey.session, null)
             .then(() => {
                 return Snow.saveData(CONST.storageKey.displayName, null)

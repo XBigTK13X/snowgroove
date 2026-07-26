@@ -153,7 +153,7 @@ export function AudioContextProvider({ children }) {
     }
 
     React.useEffect(() => {
-        if (!apiClient) {
+        if (!apiClient || !apiClient.isAuthenticated()) {
             return
         }
 
@@ -179,7 +179,7 @@ export function AudioContextProvider({ children }) {
                 }
             })
         }
-    }, [apiClient, targetPlayer])
+    }, [apiClient, targetPlayer, apiClient?.authToken])
 
     function startRemotePolling() {
         if (!apiClient || !isRemote || !targetPlayer?.id || !session || pollIntervalRef.current) {

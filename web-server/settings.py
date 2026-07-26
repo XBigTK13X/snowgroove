@@ -46,7 +46,7 @@ class Config:
         self.media_test_root = ''
         self.web_api_url = 'http://localhost:10063'
         self.web_media_url = '<need_to_set_an_env_var-SNOWGROOVE_WEB_MEDIA_URL>'
-        self.auth_device_whitelist = ['tv-blue-cast', 'tv-blue-shield']
+        self.auth_device_whitelist = []
 
         self.debug_remote_players = False
 
