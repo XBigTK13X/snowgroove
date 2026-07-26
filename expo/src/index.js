@@ -1,8 +1,8 @@
 import AppContext from './app-context'
 export { AppContextProvider, useAppContext } from './app-context'
 
-import AudioContext from './audio-context'
-export { AudioContextProvider, useAudioContext } from './audio-context'
+import AudioContext from './audio/audio-context'
+export { AudioContextProvider, useAudioContext } from './audio/audio-context'
 
 import C from './common'
 export { default as C } from './common'

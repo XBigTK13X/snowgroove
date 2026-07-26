@@ -6,7 +6,6 @@ export default function LandingPage(props) {
     const {
         displayName,
         apiClient,
-        routes,
         config,
         targetPlayer
     } = useAppContext()

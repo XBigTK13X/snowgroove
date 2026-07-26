@@ -8,7 +8,7 @@ export default function CrateDetailsPage(props) {
 
 
     const { addCrateToQueue } = useAudioContext()
-    const { apiClient, routes, isAdmin } = useAppContext()
+    const { apiClient, isAdmin } = useAppContext()
     const [crateList, setCrateList] = C.React.useState(null)
     const [crateDetails, setCrateDetails] = C.React.useState(null)
 

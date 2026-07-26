@@ -1,9 +1,8 @@
-import { C, useAppContext, useAudioContext } from 'snowgroove'
+import { C, useAppContext } from 'snowgroove'
 
 export default function PlaylistRenamePage() {
     const { navPush, currentRoute } = C.useSnowContext()
     const { apiClient, routes } = useAppContext()
-    const { musicSession } = useAudioContext()
 
     const [playlistList, setPlaylistList] = C.React.useState(null)
     const [playlistName, setPlaylistName] = C.React.useState('')

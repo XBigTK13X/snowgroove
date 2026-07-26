@@ -1,5 +1,4 @@
-import { C, useAppContext, useAudioContext } from 'snowgroove'
-import Snow from 'expo-snowui'
+import { C, useAppContext } from 'snowgroove'
 
 function DeviceGroup(props) {
     const { routes } = useAppContext()

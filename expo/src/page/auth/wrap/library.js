@@ -1,4 +1,4 @@
-import { C, useAppContext, useAudioContext } from 'snowgroove'
+import { C, useAppContext } from 'snowgroove'
 import Snow from 'expo-snowui'
 const snowuiPackageInfo = require('expo-snowui/package.json')
 

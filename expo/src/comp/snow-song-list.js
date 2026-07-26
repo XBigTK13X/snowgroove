@@ -1,5 +1,5 @@
 import Snow from 'expo-snowui'
-import { useAudioContext } from '../audio-context'
+import { useAudioContext } from '../audio/audio-context'
 import { useAppContext } from '../app-context'
 import SnowDraggableColumn from './snow-draggable-column'
 

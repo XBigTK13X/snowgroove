@@ -82,7 +82,7 @@ class RemotePlayers:
         debounce_wait = 0.35
 
         def handle_track_finished():
-            log.info(
+            self._log_debug(
                 f'Track finished callback received for {remote_player.name}. Injecting "next" action.'
             )
             message_queue.put('next')
