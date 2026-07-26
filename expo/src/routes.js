@@ -3,6 +3,7 @@ export var routes = {
     signIn: '/sign-in',
     enterPassword: '/password',
     landing: '/auth/wrap/landing',
+    library: '/auth/wrap/library',
     info: '/auth/wrap/info',
 
     deviceDetails: '/auth/wrap/details/device',

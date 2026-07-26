@@ -3,8 +3,19 @@ import Snow from 'expo-snowui'
 const snowuiPackageInfo = require('expo-snowui/package.json')
 
 export default function LandingPage(props) {
-    const { apiClient, routes, config, targetPlayer } = useAppContext()
-    const { SnowStyle, navPush } = C.useSnowContext(props)
+    const {
+        displayName,
+        apiClient,
+        routes,
+        config,
+        targetPlayer
+    } = useAppContext()
+    const {
+        SnowStyle,
+        navPush,
+        pushModal,
+        popModal
+    } = C.useSnowContext(props)
     const {
         changeVolume,
         currentAudioFile,
@@ -17,20 +28,10 @@ export default function LandingPage(props) {
         startRemotePolling,
         stopRemotePolling,
         togglePlayback,
+        volume
     } = useAudioContext()
     const [shelves, setShelves] = C.React.useState(null)
-
-    C.React.useEffect(() => {
-        if (config.debugVideoUrl) {
-            const parts = config.debugVideoUrl.split('?')
-            const payload = {
-                path: parts[0],
-                params: Snow.queryToObject(parts[1]),
-                func: false
-            }
-            navPush(payload)
-        }
-    }, [config])
+    const volumeRef = C.React.useRef(null)
 
     C.React.useEffect(() => {
         apiClient.getShelfList().then((response) => {
@@ -46,9 +47,9 @@ export default function LandingPage(props) {
         }
     }, [])
 
-    if (config.debugVideoUrl) {
-        return null
-    }
+    C.React.useEffect(() => {
+        volumeRef.current = volume
+    }, [volume])
 
     const styles = {
         footer: {
@@ -58,24 +59,42 @@ export default function LandingPage(props) {
         }
     }
 
-    let destinations = [
-        <C.SnowTextButton title="Search" onPress={navPush({ path: routes.search })} />,
-        <C.SnowTextButton title="Playlists" onPress={navPush({ path: routes.playlistList })} />,
-        <C.SnowTextButton title="Devices" onPress={navPush({ path: routes.deviceList })} />,
-    ]
+    const showVolumeModal = () => {
+        const initialVolume = volumeRef.current ?? volume ?? 1.0
 
-    if (shelves) {
-        destinations = (shelves.map((shelf) => {
+        const VolumeSliderModal = () => {
+            const [localVol, setLocalVol] = C.React.useState(initialVolume)
+            const displayPercent = Math.round(Math.min(Math.max(0, localVol * 100), 100))
+
             return (
-                <C.SnowTextButton
-                    title={"Browse"}
-                    onPress={navPush({ path: routes.crateDetails, params: { shelfId: shelf.id } })}
-                />
+                <C.SnowGrid itemsPerRow={1}>
+                    <C.SnowLabel center>Volume</C.SnowLabel>
+                    <C.SnowRangeSlider
+                        onValueChange={(volumePercent) => {
+                            setLocalVol(volumePercent)
+                            volumeRef.current = volumePercent
+                            changeVolume(volumePercent)
+                        }}
+                        percent={localVol}
+                    />
+                    <C.SnowText center>{displayPercent}%</C.SnowText>
+                    <C.SnowTextButton title="Close" onPress={popModal} />
+                </C.SnowGrid>
             )
-        })).concat(destinations)
+        }
+
+        pushModal({
+            render: () => <VolumeSliderModal />,
+            props: {
+                center: true,
+                obscure: true,
+                onRequestClose: popModal
+            }
+        })
     }
+
     if (shelves !== null) {
-        let nowPlaying = "Nothing is currently playing."
+        let nowPlaying = `${displayName} has nothing currently playing.`
         let playerControls = (
             <C.View>
                 <C.SnowText center>{nowPlaying}</C.SnowText>
@@ -87,18 +106,18 @@ export default function LandingPage(props) {
             if (targetPlayer?.name) {
                 playerTarget = `${targetPlayer.name}`
             }
-            nowPlaying = `${currentAudioFile.title} - ${currentAudioFile.album} - ${currentAudioFile.artist}`
-            let progressDisplay = `[${playerTarget}] ${C.util.secondsToTimestamp(positionSeconds)} / ${C.util.secondsToTimestamp(currentAudioFile.duration)}`
+            let progressDisplay = `${displayName} [${playerTarget}] ${C.util.secondsToTimestamp(positionSeconds)} / ${C.util.secondsToTimestamp(currentAudioFile.duration)}`
             playerControls = (
                 <C.View>
-                    <C.SnowLabel marquee center>{nowPlaying}</C.SnowLabel>
+                    <C.SnowLabel marquee center>{currentAudioFile.title}</C.SnowLabel>
+                    <C.SnowLabel marquee center>{currentAudioFile.album}</C.SnowLabel>
+                    <C.SnowLabel marquee center>{currentAudioFile.artist}</C.SnowLabel>
                     <C.SnowGrid yy={2}>
                         <C.Image
-                            style={{ width: 200, height: 200 }}
+                            style={{ width: SnowStyle.isWeb ? 200 : 100, height: SnowStyle.isWeb ? 200 : 100 }}
                             source={{ uri: currentAudioFile.thumbnail_web_path }}
                             contentFit="contain" />
                     </C.SnowGrid>
-                    <C.SnowLabel center>Progress</C.SnowLabel>
                     <C.SnowRangeSlider
                         onValueChange={(seekPercent) => {
                             seekToSeconds(seekPercent * currentAudioFile.duration)
@@ -116,28 +135,16 @@ export default function LandingPage(props) {
                         <C.SnowTextButton title="Next" onPress={() => {
                             playNextSong()
                         }} />
+                        <C.SnowTextButton title="Volume" onPress={() => {
+                            showVolumeModal()
+                        }} />
                     </C.SnowGrid>
-                    <C.SnowLabel center>Volume</C.SnowLabel>
-                    <C.SnowRangeSlider
-                        onValueChange={(volumePercent) => {
-                            changeVolume(volumePercent)
-                        }}
-                        percent={progressPercent}
-                    />
-                    <C.SnowBreak />
                 </C.View>
             )
         }
         return (
             <C.View>
                 {playerControls}
-                <C.SnowGrid
-                    yy={4}
-                    focusStart={!currentAudioFile}
-                    focusKey="destinations"
-                    itemsPerRow={2}>
-                    {destinations}
-                </C.SnowGrid>
                 <C.SnowText style={styles.footer} center>{`[built ${config.clientBuildDate}] [snowgroove v${config.clientVersion}] [snowui v${snowuiPackageInfo.version}]`}</C.SnowText>
             </C.View>
         )

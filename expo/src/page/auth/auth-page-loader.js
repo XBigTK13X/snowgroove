@@ -22,9 +22,14 @@ function HeaderNav(props) {
                 itemsPerRow={6}
                 focusKey="header" >
                 <SnowTextButton
-                    title="Home"
+                    title="Playing"
                     short
                     onPress={navPush({ path: routes.landing })}
+                />
+                <SnowTextButton
+                    title="Library"
+                    short
+                    onPress={navPush({ path: routes.library })}
                 />
                 <SnowTextButton
                     title={targetPlayer?.name ?? "Queue"}

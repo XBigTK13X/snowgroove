@@ -12,7 +12,16 @@
       ],
       "expo-secure-store",
       [
-        "expo-navigation-bar"
+        "expo-navigation-bar",
+        {
+          "hidden": false
+        }
+      ],
+      [
+        "expo-status-bar",
+        {
+          "hidden": false
+        }
       ],
       [
         "expo-build-properties",
@@ -54,12 +63,16 @@
     "name": "snowgroove",
     "slug": "snowgroove",
     "orientation": "landscape",
+    "androidStatusBar": {
+      "hidden": false,
+      "translucent": false
+    },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#AC03F4"
       },
       "package": "com.simplepathstudios.snowgroove",
-      "edgeToEdgeEnabled": true,
+      "edgeToEdgeEnabled": false,
       "backgroundColor": "#000000",
       "versionCode": 1,
       "permissions": [

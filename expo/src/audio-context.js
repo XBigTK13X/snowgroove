@@ -14,6 +14,10 @@ export function AudioContextProvider({ children }) {
     const [currentAudioFile, setCurrentAudioFile] = React.useState(null)
     const currentAudioFileRef = React.useRef(null)
     const [positionSeconds, setPositionSeconds] = React.useState(0)
+    const [volume, setVolume] = React.useState(1.0)
+    const volumeRef = React.useRef(1.0)
+
+    const isSeekingRef = React.useRef(false)
 
     const sessionRef = React.useRef(null)
     const soundRef = React.useRef(null)
@@ -29,6 +33,48 @@ export function AudioContextProvider({ children }) {
     const setPlaying = (val) => {
         setIsPlaying(val)
         isPlayingRef.current = val
+    }
+
+    const handlePlaybackStatusUpdateRef = React.useRef(null)
+
+    async function handlePlaybackStatusUpdate(status) {
+        if (status.isLoaded) {
+            if (!isSeekingRef.current) {
+                setPositionSeconds(status.positionMillis / 1000)
+            }
+            if (status.didJustFinish) {
+                setPlaying(false)
+                setPositionSeconds(0)
+
+                let nextSong = null
+
+                updateMusicQueue((queue) => {
+                    if (!queue?.songs?.length) return queue
+                    queue.current_song_index += 1
+                    if (queue.current_song_index >= queue.songs.length) {
+                        queue.current_song_index = 0
+                    }
+                    nextSong = queue.songs[queue.current_song_index]
+                    return queue
+                }, true)
+
+                if (nextSong) {
+                    currentAudioFileRef.current = nextSong
+                    setCurrentAudioFile(nextSong)
+                    await currentPlayer.play(nextSong)
+                }
+            }
+        }
+    }
+
+    React.useEffect(() => {
+        handlePlaybackStatusUpdateRef.current = handlePlaybackStatusUpdate
+    })
+
+    const onPlaybackStatusUpdate = (status) => {
+        if (handlePlaybackStatusUpdateRef.current) {
+            handlePlaybackStatusUpdateRef.current(status)
+        }
     }
 
     const localPlayer = {
@@ -47,10 +93,10 @@ export function AudioContextProvider({ children }) {
 
             const { sound: newSound } = await Audio.Sound.createAsync(
                 { uri: audioFile.web_path },
-                { shouldPlay: true },
-                handlePlaybackStatusUpdate
+                { shouldPlay: true, volume: volumeRef.current },
+                onPlaybackStatusUpdate
             )
-            newSound.setOnPlaybackStatusUpdate(handlePlaybackStatusUpdate)
+            newSound.setOnPlaybackStatusUpdate(onPlaybackStatusUpdate)
             setSound(newSound)
             setPlaying(true)
         },
@@ -60,7 +106,12 @@ export function AudioContextProvider({ children }) {
             setPlaying(false)
         },
         async resume() {
-            if (!soundRef.current) return
+            if (!soundRef.current) {
+                if (currentAudioFileRef.current) {
+                    await localPlayer.play(currentAudioFileRef.current)
+                }
+                return
+            }
             await soundRef.current.playAsync()
             setPlaying(true)
         },
@@ -74,8 +125,10 @@ export function AudioContextProvider({ children }) {
             await soundRef.current.setPositionAsync(seconds * 1000)
         },
         async setVolume(percent) {
+            const volumeValue = Math.max(0, Math.min(1, percent))
+            setVolume(volumeValue)
+            volumeRef.current = volumeValue
             if (!soundRef.current) return
-            const volumeValue = Math.max(0, Math.min(100, percent)) / 100
             await soundRef.current.setVolumeAsync(volumeValue)
         }
     }
@@ -115,8 +168,11 @@ export function AudioContextProvider({ children }) {
             }
         },
         async setVolume(percent) {
+            const volumeValue = Math.max(0, Math.min(1, percent))
+            setVolume(volumeValue)
+            volumeRef.current = volumeValue
             if (apiClient && musicSession) {
-                await apiClient.musicSessionVolume(musicSession.id, percent)
+                await apiClient.musicSessionVolume(musicSession.id, volumeValue * 100)
             }
         }
     }
@@ -145,41 +201,44 @@ export function AudioContextProvider({ children }) {
     }, [targetPlayer, isRemote])
 
     const changeMusicSession = (updater) => {
-        setMusicSession((current) => {
-            const next = typeof updater === 'function' ? updater(current) : updater
-            sessionRef.current = next
-            return next
-        })
+        const next = typeof updater === 'function' ? updater(sessionRef.current) : updater
+        sessionRef.current = next
+        setMusicSession(next)
+        return next
+    }
+
+    async function fetchLatestSession() {
+        if (!apiClient || !apiClient.isAuthenticated()) return null
+        let response = null
+        if (targetPlayer?.id) {
+            response = await apiClient.getMusicSession(targetPlayer.id, targetPlayer.name)
+        } else {
+            response = await apiClient.getMusicSession()
+        }
+        if (response) {
+            changeMusicSession(response)
+        }
+        return response
     }
 
     React.useEffect(() => {
         if (!apiClient || !apiClient.isAuthenticated()) {
+            if (!isRemote) {
+                localPlayer.pause()
+            }
             return
         }
 
-        if (targetPlayer?.id) {
-            apiClient.getMusicSession(targetPlayer.id, targetPlayer.name).then(response => {
-                if (!response.remote_player_id) {
-                    changeTargetPlayer(null, null)
+        fetchLatestSession().then((response) => {
+            if (response && !targetPlayer?.id) {
+                if (response.music_queue?.songs?.length) {
+                    let currentAudio = response.music_queue?.songs[response.music_queue.current_song_index]
+                    setCurrentAudioFile(currentAudio)
+                    currentAudioFileRef.current = currentAudio
                 }
-                else if (targetPlayer.id !== response.remote_player_id) {
-                    changeTargetPlayer(response.remote_player_id, response.remote_player.name)
-                }
-                changeMusicSession(response)
-            })
-        } else {
-            apiClient.getMusicSession().then(response => {
-                if (response) {
-                    if (response.music_queue?.songs?.length) {
-                        let currentAudio = response.music_queue?.songs[response.music_queue.current_song_index]
-                        setCurrentAudioFile(currentAudio)
-                        currentAudioFileRef.current = currentAudio
-                    }
-                    changeMusicSession(response)
-                }
-            })
-        }
-    }, [apiClient, targetPlayer, apiClient?.authToken])
+            }
+        })
+    }, [apiClient, targetPlayer, apiClient?.authToken, isRemote])
 
     function startRemotePolling() {
         if (!apiClient || !isRemote || !targetPlayer?.id || !session || pollIntervalRef.current) {
@@ -195,11 +254,16 @@ export function AudioContextProvider({ children }) {
                             setCurrentAudioFile(currentAudio)
                             currentAudioFileRef.current = currentAudio
                         }
-                        if (response.status.position_seconds !== undefined) {
+                        if (response.status.position_seconds !== undefined && !isSeekingRef.current) {
                             setPositionSeconds(response.status.position_seconds)
                         }
                         if (response.status.is_playing !== undefined) {
                             setPlaying(response.status.is_playing)
+                        }
+                        if (response.status.volume !== undefined) {
+                            const normalizedVolume = response.status.volume / 100
+                            setVolume(normalizedVolume)
+                            volumeRef.current = normalizedVolume
                         }
                     }
                 })
@@ -225,72 +289,45 @@ export function AudioContextProvider({ children }) {
         }
     }, [])
 
-    async function forceServerSync() {
-        const latestSession = sessionRef.current
+    async function forceServerSync(targetSession) {
+        const latestSession = targetSession || sessionRef.current
         if (latestSession?.id && latestSession?.music_queue) {
             await apiClient.updateMusicSessionMusicQueue(latestSession.id, latestSession.music_queue)
         }
     }
 
-    const debouncedServerSync = useDebouncedCallback(async () => {
+    const debouncedServerSync = useDebouncedCallback(async (targetSession) => {
         try {
-            await forceServerSync()
+            await forceServerSync(targetSession)
         } catch (error) {
             console.error('Failed to sync music queue with server', error)
         }
-    }, 1000)
+    }, 400)
 
-    async function updateMusicQueue(updater, immediateSync = false) {
-        changeMusicSession((currentSession) => {
-            if (!currentSession) {
-                return currentSession
-            }
-            let updatedSession = JSON.parse(JSON.stringify(currentSession))
+    function updateMusicQueue(updater, immediateSync = false) {
+        if (!sessionRef.current) return null
+
+        let updatedSession = JSON.parse(JSON.stringify(sessionRef.current))
+        if (updatedSession?.music_queue) {
             updatedSession.music_queue = updater(updatedSession.music_queue)
-            return updatedSession
-        })
+        }
+
+        sessionRef.current = updatedSession
+        setMusicSession(updatedSession)
 
         if (immediateSync) {
             debouncedServerSync.cancel()
-            await forceServerSync()
+            forceServerSync(updatedSession)
         } else {
-            debouncedServerSync()
+            debouncedServerSync(updatedSession)
         }
-    }
 
-    async function handlePlaybackStatusUpdate(status) {
-        if (status.isLoaded) {
-            setPositionSeconds(status.positionMillis / 1000)
-            if (status.didJustFinish) {
-                setPlaying(false)
-                setPositionSeconds(0)
-
-                let nextSong = null
-                let shouldPlayNext = false
-
-                await updateMusicQueue((queue) => {
-                    queue.current_song_index += 1
-                    if (queue.current_song_index > queue?.songs?.length - 1) {
-                        queue.current_song_index = 0
-                    } else {
-                        nextSong = queue?.songs?.at(queue.current_song_index)
-                        shouldPlayNext = true
-                    }
-                    return queue
-                }, true)
-
-                if (shouldPlayNext && nextSong) {
-                    setCurrentAudioFile(nextSong)
-                    currentAudioFileRef.current = nextSong
-                    await currentPlayer.play(nextSong)
-                }
-            }
-        }
+        return updatedSession
     }
 
     async function addAudioFileToQueue(audioFile, playNext) {
         let shouldPlayImmediately = !isPlayingRef.current
-        await updateMusicQueue((queue) => {
+        updateMusicQueue((queue) => {
             if (!queue.hasOwnProperty('dedupe')) {
                 queue.dedupe = {}
             }
@@ -322,7 +359,7 @@ export function AudioContextProvider({ children }) {
     async function addAudioFileListToQueue(audioFiles) {
         if (audioFiles?.length) {
             let shouldPlayImmediately = !isPlaying
-            await updateMusicQueue((queue) => {
+            updateMusicQueue((queue) => {
                 if (!queue.hasOwnProperty('dedupe')) {
                     queue.dedupe = {}
                 }
@@ -353,7 +390,7 @@ export function AudioContextProvider({ children }) {
         let hasSongs = null
         let newIndex = null
         let songs = null
-        await updateMusicQueue((queue) => {
+        updateMusicQueue((queue) => {
             delete queue.dedupe[audioFile.fingerprint]
             let foundIndex = queue.songs.findIndex(item => item.id === audioFile.id)
             let lastItem = foundIndex === queue.songs.length - 1
@@ -411,7 +448,7 @@ export function AudioContextProvider({ children }) {
     }
 
     async function reorderMusicQueue(updatedList) {
-        await updateMusicQueue(queue => {
+        updateMusicQueue(queue => {
             queue.songs = updatedList
             if (currentAudioFileRef.current) {
                 for (let ii = 0; ii < queue.songs.length; ii++) {
@@ -426,7 +463,7 @@ export function AudioContextProvider({ children }) {
     }
 
     async function clearMusicQueue() {
-        await updateMusicQueue(queue => {
+        updateMusicQueue(queue => {
             currentPlayer.stop()
             queue.dedupe = {}
             queue.songs = []
@@ -435,7 +472,6 @@ export function AudioContextProvider({ children }) {
             setCurrentAudioFile(null)
             return queue
         }, true)
-
     }
 
     function shuffleArray(array) {
@@ -449,7 +485,7 @@ export function AudioContextProvider({ children }) {
     }
 
     async function shuffleMusicQueue() {
-        await updateMusicQueue(queue => {
+        updateMusicQueue(queue => {
             currentPlayer.stop()
             queue.current_song_index = 0
             queue.songs = shuffleArray(queue.songs)
@@ -465,7 +501,7 @@ export function AudioContextProvider({ children }) {
     }
 
     async function playAudioFile(audioFile) {
-        await updateMusicQueue((queue) => {
+        updateMusicQueue((queue) => {
             const targetIndex = queue.songs.findIndex((song) => song.id === audioFile.id)
             if (targetIndex !== -1) {
                 queue.current_song_index = targetIndex
@@ -482,19 +518,29 @@ export function AudioContextProvider({ children }) {
         if (isPlaying) {
             await currentPlayer.pause()
         } else {
-            await currentPlayer.resume()
+            if (!isRemote && !soundRef.current && currentAudioFileRef.current) {
+                await localPlayer.play(currentAudioFileRef.current)
+            } else {
+                await currentPlayer.resume()
+            }
         }
     }
 
     async function seekToSeconds(seconds) {
         let targetSeconds = Math.floor(Math.max(0, Math.min(seconds, currentAudioFileRef.current?.duration || 0)))
+        isSeekingRef.current = true
         setPositionSeconds(targetSeconds)
-        await currentPlayer.seek(targetSeconds)
+        try {
+            await currentPlayer.seek(targetSeconds)
+        } finally {
+            isSeekingRef.current = false
+        }
     }
 
     async function moveCurrentIndex(amount) {
         let nextSong = null
-        await updateMusicQueue((queue) => {
+        updateMusicQueue((queue) => {
+            if (!queue?.songs?.length) return queue
             queue.current_song_index += amount
             if (queue.current_song_index < 0) {
                 queue.current_song_index = queue.songs.length - 1
@@ -506,13 +552,15 @@ export function AudioContextProvider({ children }) {
             }
             nextSong = queue.songs[queue.current_song_index]
             return queue
-        }, true)
+        }, false)
 
         if (nextSong) {
             currentAudioFileRef.current = nextSong
             setCurrentAudioFile(nextSong)
             setPositionSeconds(0)
-            await currentPlayer.play(nextSong)
+            if (!isRemote) {
+                await currentPlayer.play(nextSong)
+            }
         }
     }
 
@@ -555,7 +603,8 @@ export function AudioContextProvider({ children }) {
         shuffleMusicQueue,
         startRemotePolling,
         stopRemotePolling,
-        stopAudio
+        stopAudio,
+        volume
     }
 
     return (

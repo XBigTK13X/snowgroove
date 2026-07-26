@@ -2,6 +2,7 @@ import { routes } from './routes'
 import SignInPage from './page/sign-in'
 import EnterPasswordPage from './page/password'
 import LandingPage from './page/auth/wrap/landing'
+import LibraryPage from './page/auth/wrap/library'
 import InfoPage from './page/auth/wrap/info'
 
 import DeviceDetailsPage from './page/auth/wrap/device-details'
@@ -37,6 +38,7 @@ export var pages = {
     [routes.signIn]: SignInPage,
     [routes.enterPassword]: EnterPasswordPage,
     [routes.landing]: LandingPage,
+    [routes.library]: LibraryPage,
     [routes.info]: InfoPage,
 
     [routes.deviceDetails]: DeviceDetailsPage,

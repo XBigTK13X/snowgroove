@@ -20,8 +20,7 @@
         "react-native-screens": "4.16.0",
         "react-native-uuid": "2.0.3",
         "react-native-web": "0.21.1",
-        "use-debounce": "10.0.6",
-        "valtio": "2.1.8"
+        "use-debounce": "10.0.6"
     },
     "devDependencies": {
         "@babel/core": "7.28.4",

@@ -2,8 +2,6 @@ import React from 'react';
 import Snow from 'expo-snowui'
 import uuid from 'react-native-uuid';
 
-import { useSnapshot } from 'valtio'
-import { playerState } from './player/player-state'
 import CONST from './constant'
 import util from './util'
 import { config } from './settings'
