@@ -23,6 +23,12 @@ export class RemoteAudioHandler {
         }
     }
 
+    async resume(sessionId) {
+        if (this.apiClient && sessionId) {
+            await this.apiClient.musicSessionPlay(sessionId)
+        }
+    }
+
     async stop(sessionId) {
         if (this.apiClient && sessionId) {
             await this.apiClient.musicSessionStop(sessionId)
@@ -37,23 +43,27 @@ export class RemoteAudioHandler {
 
     async setVolume(percent, sessionId) {
         if (this.apiClient && sessionId) {
-            await this.apiClient.musicSessionVolume(sessionId, percent * 100)
+            await this.apiClient.musicSessionVolume(sessionId, percent)
         }
     }
 
     startPolling() {
-        if (!this.apiClient || !this.targetPlayer?.id || this.pollInterval) return
+        if (!this.apiClient || !this.targetPlayer?.id || this.pollInterval) {
+            return
+        }
 
-        const poll = () => {
+        const pollRemotePlaybackProgress = () => {
             this.apiClient.getRemotePlayer(this.targetPlayer.id)
-                .then(response => {
-                    if (response?.status) {
+                .then((response) => {
+                    if (response && response.status) {
                         this.onStateSync?.(response)
                     }
                 })
+                .catch(() => { })
         }
-        poll()
-        this.pollInterval = setInterval(poll, 1000)
+
+        pollRemotePlaybackProgress()
+        this.pollInterval = setInterval(pollRemotePlaybackProgress, 1000)
     }
 
     stopPolling() {

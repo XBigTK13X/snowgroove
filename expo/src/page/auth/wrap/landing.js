@@ -106,14 +106,15 @@ export default function LandingPage(props) {
                 playerTarget = `${targetPlayer.name}`
             }
             let progressDisplay = `${displayName} [${playerTarget}] ${C.util.secondsToTimestamp(positionSeconds)} / ${C.util.secondsToTimestamp(currentAudioFile.duration)}`
+            let NowText = SnowStyle.isPortrait ? C.SnowText : C.SnowLabel
             playerControls = (
                 <C.View>
-                    <C.SnowLabel style={{ marginBottom: 0, marginTop: 0 }} marquee center>{currentAudioFile.title}</C.SnowLabel>
-                    <C.SnowLabel style={{ marginBottom: 0, marginTop: 0 }} marquee center>{currentAudioFile.album}</C.SnowLabel>
-                    <C.SnowLabel style={{ marginBottom: 0, marginTop: 0 }} marquee center>{currentAudioFile.artist}</C.SnowLabel>
+                    <NowText style={{ marginBottom: 0, marginTop: 0 }} marquee center>{currentAudioFile.title}</NowText>
+                    <NowText style={{ marginBottom: 0, marginTop: 0 }} marquee center>{currentAudioFile.album}</NowText>
+                    <NowText style={{ marginBottom: 0, marginTop: 0 }} marquee center>{currentAudioFile.artist}</NowText>
                     <C.SnowGrid yy={2}>
                         <C.Image
-                            style={{ width: SnowStyle.isWeb ? 200 : 100, height: SnowStyle.isWeb ? 200 : 100 }}
+                            style={{ width: SnowStyle.isPortrait ? 150 : 300, height: SnowStyle.isPortrait ? 150 : 300 }}
                             source={{ uri: currentAudioFile.thumbnail_web_path }}
                             contentFit="contain" />
                     </C.SnowGrid>

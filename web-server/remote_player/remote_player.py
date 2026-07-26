@@ -55,6 +55,30 @@ class RemotePlayers:
                 with self.registry_lock:
                     if remote_player.id not in self.active_connections:
                         message_queue = queue.Queue()
+
+                        def handle_track_finished():
+                            self._log_debug(
+                                f'Track finished callback received for {remote_player.name}. Injecting "next" action.'
+                            )
+                            message_queue.put('next')
+
+                        status = self.get_status(remote_player)
+                        if status.get('is_playing'):
+                            connection_info = json.loads(
+                                remote_player.connection_info_json
+                            )
+                            if remote_player.kind == 'sonos':
+                                sonos.attach_listener(
+                                    device_ip=connection_info['host'],
+                                    on_track_finished=handle_track_finished,
+                                    device_uid=connection_info.get('uid'),
+                                )
+                            elif remote_player.kind == 'chromecast':
+                                chromecast.attach_listener(
+                                    connection_info=connection_info,
+                                    on_track_finished=handle_track_finished,
+                                )
+
                         worker_thread = threading.Thread(
                             target=self._device_worker,
                             args=(remote_player, None, message_queue),
@@ -203,7 +227,6 @@ class RemotePlayers:
         self._log_debug(
             f'Loaded music session index: {music_session.music_queue.get("current_song_index")} / Total songs: {len(music_session.music_queue.get("songs", []))}'
         )
-
         if remote_action == 'next':
             music_session.music_queue['current_song_index'] += 1
             if (
@@ -214,9 +237,6 @@ class RemotePlayers:
             db.op.update_music_session_music_queue(
                 music_session_id=music_session.id, music_queue=music_session.music_queue
             )
-            self._log_debug(
-                f'Queue index advanced to {music_session.music_queue["current_song_index"]}'
-            )
         elif remote_action == 'previous':
             music_session.music_queue['current_song_index'] -= 1
             if music_session.music_queue['current_song_index'] < 0:
@@ -225,9 +245,6 @@ class RemotePlayers:
                 )
             db.op.update_music_session_music_queue(
                 music_session_id=music_session.id, music_queue=music_session.music_queue
-            )
-            self._log_debug(
-                f'Queue index rewound to {music_session.music_queue["current_song_index"]}'
             )
 
         if remote_player.kind == 'sonos':

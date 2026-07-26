@@ -130,6 +130,37 @@ def _connect(connection_info):
     return cast_device
 
 
+def attach_listener(connection_info, on_track_finished):
+    if not on_track_finished:
+        return
+
+    try:
+        cast_device = _get_cached_cast(connection_info, force_refresh=False)
+        if not cast_device:
+            return
+
+        media_controller = cast_device.media_controller
+        if cast_device.app_id:
+            try:
+                media_controller.block_until_active(timeout=2.0)
+                media_controller.update_status()
+            except pychromecast.error.PyChromecastError:
+                pass
+
+        if config.debug_remote_players:
+            log.info(
+                f'[Chromecast-DEBUG] Re-attaching track completion listener for cast target UUID: {cast_device.cast_info.uuid}'
+            )
+
+        media_controller._status_listeners = []
+        listener = TrackCompletionListener(cast_device, on_track_finished)
+        media_controller.register_status_listener(listener)
+    except Exception as error_message:
+        log.error(
+            f'Failed to re-attach Chromecast completion listener: {error_message}'
+        )
+
+
 def act(remote_player, remote_action, music_session):
     connection_info = json.loads(remote_player.connection_info_json)
 
@@ -173,7 +204,7 @@ def act(remote_player, remote_action, music_session):
             volume_target = remote_action.split('volume--')[-1]
             volume_level = float(volume_target)
             if 0.0 <= volume_level <= 1.0:
-                scaled_volume = volume_level * 0.5
+                scaled_volume = volume_level * 0.7
                 cast_device.set_volume(scaled_volume)
     except Exception as error_message:
         log.error(

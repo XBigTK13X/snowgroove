@@ -4,8 +4,8 @@ import sys
 
 class Config:
     def __init__(self):
-        self.server_version = "1.1.4"
-        self.server_build_date = "July 25, 2026"
+        self.server_version = "1.1.5"
+        self.server_build_date = "July 26, 2026"
         self.server_build_dev_number = 1
         self.app_data_dir = '.snowgroove/'
         self.display_config = None
@@ -48,7 +48,7 @@ class Config:
         self.web_media_url = '<need_to_set_an_env_var-SNOWGROOVE_WEB_MEDIA_URL>'
         self.auth_device_whitelist = []
 
-        self.debug_remote_players = False
+        self.debug_remote_players = True
 
         self.refresh_postgres_url()
         self.refresh_app_data_dirs()

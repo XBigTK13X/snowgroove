@@ -53,23 +53,20 @@ export function AudioContextProvider({ children }) {
         }
         if (response) {
             changeMusicSession(response)
+            if (response.music_queue?.songs?.length) {
+                let currentAudio = response.music_queue.songs[response.music_queue.current_song_index]
+                setCurrentAudioFile(currentAudio)
+                currentAudioFileRef.current = currentAudio
+            }
         }
         return response
     }
 
-    const playAudioFile = React.useCallback(async (audioFile) => {
-        queueManager.setQueueIndexBySongId(audioFile.id)
-        currentAudioFileRef.current = audioFile
-        setCurrentAudioFile(audioFile)
-        setPositionSeconds(0)
-
-        if (isRemote) {
-            await activeHandler.play(sessionRef.current?.id)
-        } else {
-            await activeHandler.loadAndPlay(audioFile)
+    const handleLocalStatusUpdate = React.useCallback((status) => {
+        if (!isSeekingRef.current) {
+            setPositionSeconds(status.positionMillis / 1000)
         }
-        setPlaying(true)
-    }, [isRemote, queueManager])
+    }, [])
 
     const handleSongFinished = React.useCallback(async () => {
         setPlaying(false)
@@ -84,17 +81,21 @@ export function AudioContextProvider({ children }) {
         }
     }, [queueManager])
 
-    const handleLocalStatusUpdate = React.useCallback((status) => {
-        if (!isSeekingRef.current) {
-            setPositionSeconds(status.positionMillis / 1000)
-        }
-    }, [])
-
     const handleRemoteStateSync = React.useCallback((response) => {
         if (response.music_queue?.songs?.length) {
-            let currentAudio = response.music_queue?.songs[response.music_queue.current_song_index]
+            let currentAudio = response.music_queue.songs[response.music_queue.current_song_index]
             setCurrentAudioFile(currentAudio)
             currentAudioFileRef.current = currentAudio
+
+            // Update local session state so queue index stays in sync with remote auto-advances
+            if (sessionRef.current) {
+                const updatedSession = {
+                    ...sessionRef.current,
+                    music_queue: response.music_queue
+                }
+                sessionRef.current = updatedSession
+                setMusicSession(updatedSession)
+            }
         }
         if (response.status?.position_seconds !== undefined && !isSeekingRef.current) {
             setPositionSeconds(response.status.position_seconds)
@@ -128,6 +129,20 @@ export function AudioContextProvider({ children }) {
     }, [apiClient, targetPlayer])
 
     const activeHandler = isRemote ? remoteHandlerRef.current : localHandlerRef.current
+
+    const playAudioFile = React.useCallback(async (audioFile) => {
+        await queueManager.setQueueIndexBySongId(audioFile.id)
+        currentAudioFileRef.current = audioFile
+        setCurrentAudioFile(audioFile)
+        setPositionSeconds(0)
+
+        if (isRemote) {
+            await activeHandler.play(sessionRef.current?.id)
+        } else {
+            await activeHandler.loadAndPlay(audioFile)
+        }
+        setPlaying(true)
+    }, [isRemote, queueManager, activeHandler])
 
     const prevTargetPlayerRef = React.useRef(targetPlayer)
     React.useEffect(() => {
@@ -175,6 +190,12 @@ export function AudioContextProvider({ children }) {
             remoteHandlerRef.current.cleanup()
         }
     }, [])
+
+    React.useEffect(() => {
+        if (isRemote && targetPlayer?.id) {
+            remoteHandlerRef.current.startPolling()
+        }
+    }, [isRemote, targetPlayer?.id, musicSession?.id])
 
     async function handleAddAudioFileToQueue(audioFile, playNext) {
         let shouldPlayImmediately = !isPlayingRef.current
@@ -259,20 +280,20 @@ export function AudioContextProvider({ children }) {
             isSeekingRef.current = false
         }
     }
-
     async function moveCurrentIndex(amount) {
-        const nextSong = queueManager.advanceQueueIndex(amount)
+        const nextSong = await queueManager.advanceQueueIndex(amount, true)
         if (nextSong) {
             currentAudioFileRef.current = nextSong
             setCurrentAudioFile(nextSong)
             setPositionSeconds(0)
-            if (!isRemote) {
+            if (isRemote) {
+                await activeHandler.play(sessionRef.current?.id)
+            } else {
                 await activeHandler.loadAndPlay(nextSong)
-                setPlaying(true)
             }
+            setPlaying(true)
         }
     }
-
     async function changeVolume(percent) {
         const volumeValue = Math.max(0, Math.min(1, percent))
         setVolume(volumeValue)

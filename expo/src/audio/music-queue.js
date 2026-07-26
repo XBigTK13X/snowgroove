@@ -20,7 +20,7 @@ export function useMusicQueue({ apiClient, session, setSession }) {
         }
     }, 400)
 
-    const updateMusicQueue = React.useCallback((updater, immediateSync = false) => {
+    const updateMusicQueue = React.useCallback(async (updater, immediateSync = false) => {
         if (!sessionRef.current) return null
 
         let updatedSession = JSON.parse(JSON.stringify(sessionRef.current))
@@ -33,7 +33,7 @@ export function useMusicQueue({ apiClient, session, setSession }) {
 
         if (immediateSync) {
             debouncedServerSync.cancel()
-            forceServerSync(updatedSession)
+            await forceServerSync(updatedSession)
         } else {
             debouncedServerSync(updatedSession)
         }
@@ -191,9 +191,9 @@ export function useMusicQueue({ apiClient, session, setSession }) {
         return firstSong
     }, [updateMusicQueue])
 
-    const advanceQueueIndex = React.useCallback((amount) => {
+    const advanceQueueIndex = React.useCallback(async (amount, immediateSync = true) => {
         let nextSong = null
-        updateMusicQueue((queue) => {
+        await updateMusicQueue((queue) => {
             if (!queue?.songs?.length) return queue
             queue.current_song_index += amount
             if (queue.current_song_index < 0) {
@@ -206,12 +206,12 @@ export function useMusicQueue({ apiClient, session, setSession }) {
             }
             nextSong = queue.songs[queue.current_song_index]
             return queue
-        }, false)
+        }, immediateSync)
         return nextSong
     }, [updateMusicQueue])
 
-    const setQueueIndexBySongId = React.useCallback((songId) => {
-        updateMusicQueue((queue) => {
+    const setQueueIndexBySongId = React.useCallback(async (songId) => {
+        await updateMusicQueue((queue) => {
             const targetIndex = queue.songs.findIndex((song) => song.id === songId)
             if (targetIndex !== -1) {
                 queue.current_song_index = targetIndex

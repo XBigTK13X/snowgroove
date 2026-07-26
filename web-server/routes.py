@@ -337,7 +337,7 @@ def music_session_routes(router):
             music_session_id=music_session_id, music_queue=music_queue
         )
 
-    @router.delete('/music-session/song/next', tags=['Music Session'])
+    @router.post('/music-session/song/next', tags=['Music Session'])
     def play_next_song_in_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
         music_session_id: int = Body(embed=True),
@@ -403,7 +403,7 @@ def music_session_routes(router):
     def volume_music_session(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
         music_session_id: int = Body(embed=True),
-        volume_percent: float = Body(embed=True),
+        volume_percent: float = Body(embed=True),  # 0.0->1.0
     ):
         music_session = db.op.get_music_session_by_id(id=music_session_id)
         remote_players.dispatch(

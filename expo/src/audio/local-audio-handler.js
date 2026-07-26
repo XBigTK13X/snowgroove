@@ -21,7 +21,7 @@ export class LocalAudioHandler {
     }
 
     _handleStatusUpdate = (status) => {
-        if (!status.isLoaded) return
+        if (!status || !status.isLoaded) return
         this.onStatusUpdate?.(status)
         if (status.didJustFinish) {
             this.onFinished?.()
@@ -37,7 +37,10 @@ export class LocalAudioHandler {
     }
 
     async stop() {
-        if (this.sound) await this.sound.pauseAsync()
+        if (this.sound) {
+            await this.sound.pauseAsync()
+            await this.sound.setPositionAsync(0)
+        }
     }
 
     async seek(seconds) {
@@ -52,6 +55,7 @@ export class LocalAudioHandler {
     async cleanup() {
         if (this.sound) {
             try {
+                await this.sound.setOnPlaybackStatusUpdate(null)
                 await this.sound.stopAsync()
                 await this.sound.unloadAsync()
             } catch (swallow) { }

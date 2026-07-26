@@ -7,8 +7,7 @@ import queue
 from db import db
 from log import log
 from settings import config
-from soco.data_structures import DidlMusicTrack, DidlResource
-import xml.etree.ElementTree as ET
+import html
 
 _active_subscriptions = {}
 
@@ -24,9 +23,11 @@ class SonosTrackCompletionListener:
         self.on_finished_callback = on_finished_callback
         self._was_playing = False
         self.subscription = None
-        self._worker_thread = None
+        self._event_thread = None
+        self._poll_thread = None
         self._running = False
         self._initial_track_uri = None
+        self._last_pos_sec = 0
         _log_debug(
             f'SonosTrackCompletionListener provisioned for speaker UID: {sonos_player.uid}'
         )
@@ -39,84 +40,112 @@ class SonosTrackCompletionListener:
             current_info = self.sonos_player.get_current_track_info()
             self._initial_track_uri = current_info.get('uri')
 
-            # Seed the playing status directly from the hardware on startup
             transport_info = self.sonos_player.get_current_transport_info()
             if transport_info.get('current_transport_state') == 'PLAYING':
                 self._was_playing = True
         except Exception:
             self._initial_track_uri = None
 
-        self._worker_thread = threading.Thread(target=self._event_loop, daemon=True)
-        self._worker_thread.start()
+        self._event_thread = threading.Thread(target=self._event_loop, daemon=True)
+        self._event_thread.start()
+
+        self._poll_thread = threading.Thread(target=self._poll_loop, daemon=True)
+        self._poll_thread.start()
+
+    def _parse_seconds(self, time_str):
+        if not time_str or not isinstance(time_str, str):
+            return 0
+        parts = time_str.split(':')
+        try:
+            if len(parts) == 3:
+                return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+            elif len(parts) == 2:
+                return int(parts[0]) * 60 + int(parts[1])
+        except ValueError:
+            return 0
+        return 0
+
+    def _check_completion(self):
+        try:
+            track_info = self.sonos_player.get_current_track_info()
+            transport_info = self.sonos_player.get_current_transport_info()
+            state = transport_info.get('current_transport_state')
+
+            pos_sec = self._parse_seconds(track_info.get('position'))
+            dur_sec = self._parse_seconds(track_info.get('duration'))
+            current_uri = track_info.get('uri')
+
+            _log_debug(
+                f'[Sonos-Check] State: {state}, Pos: {pos_sec}/{dur_sec}, LastPos: {self._last_pos_sec}, WasPlaying: {self._was_playing}'
+            )
+
+            if state == 'PLAYING':
+                self._was_playing = True
+
+            has_advanced = (
+                self._initial_track_uri
+                and current_uri
+                and current_uri != self._initial_track_uri
+            )
+            has_stopped = self._was_playing and state == 'STOPPED'
+
+            # Track finished if position reached end and state stopped/changed, OR position wrapped back to 0 after being near the end
+            pos_wrapped_around = (
+                self._was_playing
+                and dur_sec > 0
+                and self._last_pos_sec >= (dur_sec - 3)
+                and pos_sec <= 2
+            )
+            has_finished = (
+                self._was_playing
+                and dur_sec > 0
+                and pos_sec >= (dur_sec - 1)
+                and state != 'PLAYING'
+            )
+
+            self._last_pos_sec = pos_sec
+
+            if has_advanced or has_stopped or has_finished or pos_wrapped_around:
+                _log_debug(
+                    f'Sonos end-of-track verified (Stopped: {has_stopped}, Advanced: {has_advanced}, Finished: {has_finished}, Wrapped: {pos_wrapped_around}). Triggering next hook.'
+                )
+                self._was_playing = False
+                self._running = False
+                threading.Thread(target=self._trigger_completion, daemon=True).start()
+                return True
+        except Exception as check_err:
+            _log_debug(f'Error during completion check: {check_err}')
+        return False
 
     def _event_loop(self):
         _log_debug(f'Sonos event listener thread started for {self.sonos_player.uid}')
         while self._running and self.subscription:
             try:
-                event = self.subscription.events.get(timeout=1.0)
+                event = self.subscription.events.get(timeout=0.5)
                 transport_state = event.variables.get('current_transport_state')
-
-                current_uri = None
-                track_meta_xml = event.variables.get('current_track_meta_data')
-                if track_meta_xml and hasattr(track_meta_xml, 'item'):
-                    current_uri = getattr(track_meta_xml.item, 'resources', [None])[0]
-                    if current_uri and hasattr(current_uri, 'uri'):
-                        current_uri = current_uri.uri
-
                 _log_debug(
                     f'Inbound UPnP AVTransport event received -> State: {transport_state}. Was playing flag: {self._was_playing}'
                 )
-
-                # If an event payload has an empty state, pull the current info directly from hardware
-                if not transport_state:
-                    try:
-                        transport_info = self.sonos_player.get_current_transport_info()
-                        transport_state = transport_info.get(
-                            'current_transport_state', 'STOPPED'
-                        )
-                    except Exception:
-                        continue
-
                 if transport_state == 'PLAYING':
                     self._was_playing = True
 
-                has_dropped_to_stopped = (
-                    self._was_playing and transport_state == 'STOPPED'
-                )
-                has_advanced_track = False
-
-                if self._initial_track_uri and transport_state in (
-                    'PLAYING',
-                    'TRANSITIONING',
-                ):
-                    try:
-                        if not current_uri:
-                            current_info = self.sonos_player.get_current_track_info()
-                            current_uri = current_info.get('uri')
-
-                        if current_uri and current_uri != self._initial_track_uri:
-                            has_advanced_track = True
-                    except Exception:
-                        pass
-
-                if has_dropped_to_stopped or has_advanced_track:
-                    _log_debug(
-                        f'Sonos end-of-track marker verified (Stopped: {has_dropped_to_stopped}, Track Shifted: {has_advanced_track}). Triggering next hook.'
-                    )
-                    self._was_playing = False
-                    self._running = False
-
-                    threading.Thread(
-                        target=self._trigger_completion, daemon=True
-                    ).start()
+                if self._check_completion():
                     break
             except queue.Empty:
                 continue
             except Exception as loop_err:
-                _log_debug(
-                    f'Exception inside Sonos event listener thread loop: {loop_err}'
-                )
+                _log_debug(f'Exception inside Sonos event listener loop: {loop_err}')
                 break
+
+    def _poll_loop(self):
+        _log_debug(f'Sonos polling thread started for {self.sonos_player.uid}')
+        while self._running:
+            time.sleep(1.0)
+            if not self._running:
+                break
+            if self._was_playing:
+                if self._check_completion():
+                    break
 
     def _trigger_completion(self):
         self.unsubscribe()
@@ -195,7 +224,24 @@ def act(remote_player, remote_action, music_session):
             sonos_player.volume = volume_level * 100
 
 
-import html
+def attach_listener(device_ip, on_track_finished, device_uid=None):
+    if not on_track_finished:
+        return
+
+    sonos_player = soco.SoCo(device_ip)
+    uid = device_uid or sonos_player.uid
+
+    if uid in _active_subscriptions:
+        _active_subscriptions[uid].unsubscribe()
+
+    try:
+        _log_debug(f'Re-attaching UPnP event listener for restored speaker {uid}...')
+        listener = SonosTrackCompletionListener(sonos_player, on_track_finished)
+        sub = sonos_player.avTransport.subscribe()
+        listener.start(sub)
+        _active_subscriptions[uid] = listener
+    except Exception as err:
+        log.error(f'Failed to re-attach Sonos completion listener: {err}')
 
 
 def play(device_ip, audio_file, on_track_finished=None, device_uid=None):

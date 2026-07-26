@@ -126,10 +126,7 @@ export function AppContextProvider(props) {
     }
 
     const onApiError = (err) => {
-        const player = useSnapshot(playerState)
-        if (!player.isPlaying) {
-            setApiError(err)
-        }
+        setApiError(err)
     }
 
     const setWebApiUrl = (webApiUrl) => {
