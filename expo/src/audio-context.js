@@ -33,9 +33,18 @@ export function AudioContextProvider({ children }) {
 
     const localPlayer = {
         async play(audioFile) {
-            if (soundRef.current) {
-                await soundRef.current.unloadAsync()
+            const soundToUnload = soundRef.current
+            setSound(null)
+            soundRef.current = null
+
+            if (soundToUnload) {
+                try {
+                    await soundToUnload.stopAsync()
+                    await soundToUnload.unloadAsync()
+                } catch (swallow) {
+                }
             }
+
             const { sound: newSound } = await Audio.Sound.createAsync(
                 { uri: audioFile.web_path },
                 { shouldPlay: true },

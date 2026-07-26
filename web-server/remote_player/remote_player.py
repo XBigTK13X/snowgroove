@@ -7,6 +7,7 @@ from log import log
 from settings import config
 import remote_player.chromecast as chromecast
 import remote_player.sonos as sonos
+import remote_player.virtual as virtual
 
 
 def scan_remote_players(job_id: int):
@@ -14,7 +15,9 @@ def scan_remote_players(job_id: int):
     chromecast_players = chromecast.scan_remote_players()
     db.op.update_job(job_id=job_id, message='Searching for Sonos devices')
     sonos_players = sonos.scan_remote_players()
-    remote_players = chromecast_players + sonos_players
+    db.op.update_job(job_id=job_id, message='Creating Virtual devices')
+    virtual_players = virtual.scan_remote_players()
+    remote_players = chromecast_players + sonos_players + virtual_players
     for remote_player in remote_players:
         db.op.update_job(
             job_id=job_id,
@@ -254,6 +257,18 @@ class RemotePlayers:
                 )
             else:
                 chromecast.act(remote_player, remote_action, music_session)
+        elif remote_player.kind == 'virtual':
+            self._log_debug('Routing action to virtual module handler.')
+            if remote_action in ['play', 'next', 'previous']:
+                current_audio_file = music_session.music_queue['songs'][
+                    music_session.music_queue['current_song_index']
+                ]
+                connection_info = json.loads(remote_player.connection_info_json)
+                virtual.play(
+                    connection_info, current_audio_file, on_track_finished=on_finished
+                )
+            else:
+                virtual.act(remote_player, remote_action, music_session)
         else:
             log.info(f'Unhandled remote_player kind [{remote_player.kind}]')
 
@@ -298,6 +313,8 @@ class RemotePlayers:
                 return sonos.get_status(remote_player)
             elif remote_player.kind == 'chromecast':
                 return chromecast.get_status(remote_player)
+            elif remote_player.kind == 'virtual':
+                return virtual.get_status(remote_player)
             else:
                 log.warning(f'Unhandled status lookup for kind [{remote_player.kind}]')
                 return {'position_seconds': 0, 'is_playing': False}

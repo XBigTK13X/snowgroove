@@ -94,10 +94,11 @@ export default function LandingPage(props) {
                     <C.SnowLabel marquee center>{nowPlaying}</C.SnowLabel>
                     <C.SnowGrid yy={2}>
                         <C.Image
-                            style={{ width: 300, height: 300 }}
+                            style={{ width: 200, height: 200 }}
                             source={{ uri: currentAudioFile.thumbnail_web_path }}
                             contentFit="contain" />
                     </C.SnowGrid>
+                    <C.SnowLabel center>Progress</C.SnowLabel>
                     <C.SnowRangeSlider
                         onValueChange={(seekPercent) => {
                             seekToSeconds(seekPercent * currentAudioFile.duration)
@@ -115,11 +116,14 @@ export default function LandingPage(props) {
                         <C.SnowTextButton title="Next" onPress={() => {
                             playNextSong()
                         }} />
-                        <C.SnowTextButton title="Volume 20%" onPress={() => {
-                            //TODO Show a slider modal
-                            changeVolume(0.2)
-                        }} />
                     </C.SnowGrid>
+                    <C.SnowLabel center>Volume</C.SnowLabel>
+                    <C.SnowRangeSlider
+                        onValueChange={(volumePercent) => {
+                            changeVolume(volumePercent)
+                        }}
+                        percent={progressPercent}
+                    />
                     <C.SnowBreak />
                 </C.View>
             )

@@ -4,8 +4,8 @@ import sys
 
 class Config:
     def __init__(self):
-        self.server_version = "1.1.3"
-        self.server_build_date = "July 21, 2026"
+        self.server_version = '1.1.3'
+        self.server_build_date = 'July 21, 2026'
         self.server_build_dev_number = 1
         self.app_data_dir = '.snowgroove/'
         self.display_config = None
@@ -42,7 +42,7 @@ class Config:
         self.supervisor_username = 'snowgroove'
 
         self.search_results_per_shelf_limit = 200
-        self.thumbnail_dimensions = '340x500'
+        self.thumbnail_dimensions = '300x300'
         self.media_test_root = ''
         self.web_api_url = 'http://localhost:10063'
         self.web_media_url = '<need_to_set_an_env_var-SNOWGROOVE_WEB_MEDIA_URL>'

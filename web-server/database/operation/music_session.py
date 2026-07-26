@@ -61,7 +61,10 @@ def get_music_session_by_remote_player_id(remote_player_id: int):
     with dbi.session() as db:
         return (
             db.query(dbi.dm.MusicSession)
-            .filter(dbi.dm.MusicSession.remote_player_id == remote_player_id)
+            .filter(
+                dbi.dm.MusicSession.remote_player_id == remote_player_id,
+                dbi.dm.MusicSession.client_device_user_id.is_(None),
+            )
             .options(dbi.orm.joinedload(dbi.dm.MusicSession.remote_player))
             .first()
         )
@@ -69,9 +72,23 @@ def get_music_session_by_remote_player_id(remote_player_id: int):
 
 def get_music_session_by_cduid(cduid: int):
     with dbi.session() as db:
+        cdu = (
+            db.query(dbi.dm.ClientDeviceUser)
+            .filter(dbi.dm.ClientDeviceUser.id == cduid)
+            .first()
+        )
+        if not cdu:
+            return None
         return (
             db.query(dbi.dm.MusicSession)
-            .filter(dbi.dm.MusicSession.client_device_user_id == cduid)
+            .join(
+                dbi.dm.ClientDeviceUser,
+                dbi.dm.MusicSession.client_device_user_id == dbi.dm.ClientDeviceUser.id,
+            )
+            .filter(
+                dbi.dm.ClientDeviceUser.snowgroove_user_id == cdu.snowgroove_user_id,
+                dbi.dm.MusicSession.remote_player_id.is_(None),
+            )
             .options(dbi.orm.joinedload(dbi.dm.MusicSession.client_device_user))
             .first()
         )

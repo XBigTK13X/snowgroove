@@ -58,4 +58,7 @@ def get_remote_player_list(ticket: dbi.dm.Ticket):
         query = db.query(dbi.dm.RemotePlayer)
         if ticket.has_remote_player_restrictions():
             query = query.filter(dbi.dm.RemotePlayer.id.in_(ticket.remote_player_ids))
-        return query.order_by(dbi.dm.RemotePlayer.name).all()
+        results = query.order_by(dbi.dm.RemotePlayer.name).all()
+        if ticket.is_admin:
+            return results
+        return [xx for xx in results if not xx.kind == 'virtual']
