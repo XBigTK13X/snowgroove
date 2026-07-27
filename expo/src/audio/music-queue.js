@@ -1,16 +1,51 @@
 import React from 'react'
 import { useDebouncedCallback } from 'use-debounce'
+import { useAppContext } from '../app-context'
 
 export function useMusicQueue({ apiClient, session, setSession }) {
+    const { targetPlayer } = useAppContext()
+
     const sessionRef = React.useRef(session)
     sessionRef.current = session
+
+    const apiClientRef = React.useRef(apiClient)
+    apiClientRef.current = apiClient
+
+    const setSessionRef = React.useRef(setSession)
+    setSessionRef.current = setSession
+
+    const prevTargetPlayerIdRef = React.useRef(null)
+
+    const loadMusicSession = React.useCallback(async (playerId) => {
+        const client = apiClientRef.current
+        if (!client) return
+
+        try {
+            let response = await client.getMusicSession(playerId)
+            if (response) {
+                sessionRef.current = response
+                setSessionRef.current?.(response)
+            }
+        } catch (error) {
+            console.error('Failed to load music session from server', error)
+        }
+    }, [])
+
+    React.useEffect(() => {
+        const currentPlayerId = targetPlayer?.id ?? null
+
+        if (prevTargetPlayerIdRef.current !== currentPlayerId) {
+            prevTargetPlayerIdRef.current = currentPlayerId
+            loadMusicSession(currentPlayerId)
+        }
+    }, [targetPlayer?.id, loadMusicSession])
 
     const forceServerSync = React.useCallback(async (targetSession) => {
         const latestSession = targetSession || sessionRef.current
         if (latestSession?.id && latestSession?.music_queue) {
-            await apiClient?.updateMusicSessionMusicQueue(latestSession.id, latestSession.music_queue)
+            await apiClientRef.current?.updateMusicSessionMusicQueue(latestSession.id, latestSession.music_queue)
         }
-    }, [apiClient])
+    }, [])
 
     const debouncedServerSync = useDebouncedCallback(async (targetSession) => {
         try {
@@ -29,7 +64,7 @@ export function useMusicQueue({ apiClient, session, setSession }) {
         }
 
         sessionRef.current = updatedSession
-        setSession(updatedSession)
+        setSessionRef.current?.(updatedSession)
 
         if (immediateSync) {
             debouncedServerSync.cancel()
@@ -39,7 +74,7 @@ export function useMusicQueue({ apiClient, session, setSession }) {
         }
 
         return updatedSession
-    }, [setSession, debouncedServerSync, forceServerSync])
+    }, [debouncedServerSync, forceServerSync])
 
     const addAudioFileToQueue = React.useCallback(async (audioFile, playNext) => {
         return updateMusicQueue((queue) => {
@@ -88,10 +123,11 @@ export function useMusicQueue({ apiClient, session, setSession }) {
     }, [updateMusicQueue])
 
     const addCrateToQueue = React.useCallback(async (crateId) => {
-        if (!apiClient) return
-        let response = await apiClient.getCrateSongList(crateId)
+        const client = apiClientRef.current
+        if (!client) return
+        let response = await client.getCrateSongList(crateId)
         await addAudioFileListToQueue(response?.audio_files)
-    }, [apiClient, addAudioFileListToQueue])
+    }, [addAudioFileListToQueue])
 
     const removeAudioFileFromQueue = React.useCallback(async (audioFile, skipPlay) => {
         let hasSongs = null
@@ -231,6 +267,7 @@ export function useMusicQueue({ apiClient, session, setSession }) {
         clearMusicQueue,
         shuffleMusicQueue,
         advanceQueueIndex,
-        setQueueIndexBySongId
+        setQueueIndexBySongId,
+        loadMusicSession
     }
 }

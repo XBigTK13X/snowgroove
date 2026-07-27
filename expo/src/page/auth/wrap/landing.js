@@ -112,13 +112,8 @@ export default function LandingPage(props) {
                     <NowText style={{ marginBottom: 0, marginTop: 0 }} marquee center>{currentAudioFile.title}</NowText>
                     <NowText style={{ marginBottom: 0, marginTop: 0 }} marquee center>{currentAudioFile.album}</NowText>
                     <NowText style={{ marginBottom: 0, marginTop: 0 }} marquee center>{currentAudioFile.artist}</NowText>
-                    <C.SnowGrid yy={2}>
-                        <C.Image
-                            style={{ width: SnowStyle.isPortrait ? 150 : 300, height: SnowStyle.isPortrait ? 150 : 300 }}
-                            source={{ uri: currentAudioFile.thumbnail_web_path }}
-                            contentFit="contain" />
-                    </C.SnowGrid>
                     <C.SnowRangeSlider
+                        yy={2}
                         onValueChange={(seekPercent) => {
                             seekToSeconds(seekPercent * currentAudioFile.duration)
                         }}
@@ -138,6 +133,12 @@ export default function LandingPage(props) {
                         <C.SnowTextButton title="Volume" onPress={() => {
                             showVolumeModal()
                         }} />
+                    </C.SnowGrid>
+                    <C.SnowGrid yy={4}>
+                        <C.Image
+                            style={{ width: SnowStyle.isPortrait ? 150 : 300, height: SnowStyle.isPortrait ? 150 : 300 }}
+                            source={{ uri: currentAudioFile.thumbnail_web_path }}
+                            contentFit="contain" />
                     </C.SnowGrid>
                 </C.View>
             )

@@ -6,18 +6,35 @@ export class LocalAudioHandler {
         this.volume = 1.0
         this.onStatusUpdate = onStatusUpdate
         this.onFinished = onFinished
+        this.loadingPromise = null
     }
 
     async loadAndPlay(audioFile) {
         await this.cleanup()
 
-        const formattedUri = encodeURI(audioFile.web_path).replace(/#/g, '%23')
-        const { sound: newSound } = await Audio.Sound.createAsync(
-            { uri: formattedUri },
-            { shouldPlay: true, volume: this.volume },
-            this._handleStatusUpdate
-        )
-        this.sound = newSound
+        const currentPromise = (async () => {
+            const formattedUri = encodeURI(audioFile.web_path).replace(/#/g, '%23')
+            const { sound: newSound } = await Audio.Sound.createAsync(
+                { uri: formattedUri },
+                { shouldPlay: true, volume: this.volume },
+                this._handleStatusUpdate
+            )
+
+            // If a newer load was triggered while this was initializing, destroy this instance immediately
+            if (this.loadingPromise !== currentPromise) {
+                try {
+                    await newSound.setOnPlaybackStatusUpdate(null)
+                    await newSound.stopAsync()
+                    await newSound.unloadAsync()
+                } catch (swallow) { }
+                return
+            }
+
+            this.sound = newSound
+        })()
+
+        this.loadingPromise = currentPromise
+        await currentPromise
     }
 
     _handleStatusUpdate = (status) => {
@@ -53,13 +70,16 @@ export class LocalAudioHandler {
     }
 
     async cleanup() {
-        if (this.sound) {
+        const soundToCleanup = this.sound
+        this.sound = null
+        this.loadingPromise = null
+
+        if (soundToCleanup) {
             try {
-                await this.sound.setOnPlaybackStatusUpdate(null)
-                await this.sound.stopAsync()
-                await this.sound.unloadAsync()
+                await soundToCleanup.setOnPlaybackStatusUpdate(null)
+                await soundToCleanup.stopAsync()
+                await soundToCleanup.unloadAsync()
             } catch (swallow) { }
-            this.sound = null
         }
     }
 }
