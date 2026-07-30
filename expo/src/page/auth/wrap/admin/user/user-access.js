@@ -33,7 +33,7 @@ export default function UserEditPage() {
             setShelves(response)
         })
         apiClient.getRemotePlayerList().then((response) => {
-            setRemotePlayers(response)
+            setRemotePlayers(response.player_list)
         })
         apiClient.getPlaylistList(true).then((response) => {
             setPlaylistList(response)

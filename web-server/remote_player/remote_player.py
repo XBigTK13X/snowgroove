@@ -340,3 +340,29 @@ class RemotePlayers:
                 f'Failed to fetch hardware status for player {remote_player.id}: {ee}'
             )
             return {'position_seconds': 0, 'is_playing': False}
+
+    def stop_all_players(self, ticket):
+        self._log_debug('Stopping playback on all known remote players...')
+        remote_players = db.op.get_remote_player_list(ticket=ticket)
+        for remote_player in remote_players:
+            try:
+                self._log_debug(
+                    f'Dispatching "stop" action to player [{remote_player.name}] (ID: {remote_player.id})'
+                )
+                with self.registry_lock:
+                    if remote_player.id in self.active_connections:
+                        worker_thread, message_queue = self.active_connections[
+                            remote_player.id
+                        ]
+                        while not message_queue.empty():
+                            try:
+                                message_queue.get_nowait()
+                                message_queue.task_done()
+                            except queue.Empty:
+                                break
+
+                self.dispatch(remote_player=remote_player, remote_action='stop')
+            except Exception as dispatch_error:
+                log.error(
+                    f'Failed to stop playback for player {remote_player.id}: {dispatch_error}'
+                )

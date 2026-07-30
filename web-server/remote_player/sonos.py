@@ -87,9 +87,7 @@ class SonosTrackCompletionListener:
                 and current_uri
                 and current_uri != self._initial_track_uri
             )
-            has_stopped = self._was_playing and state == 'STOPPED'
 
-            # Track finished if position reached end and state stopped/changed, OR position wrapped back to 0 after being near the end
             pos_wrapped_around = (
                 self._was_playing
                 and dur_sec > 0
@@ -105,9 +103,9 @@ class SonosTrackCompletionListener:
 
             self._last_pos_sec = pos_sec
 
-            if has_advanced or has_stopped or has_finished or pos_wrapped_around:
+            if has_advanced or has_finished or pos_wrapped_around:
                 _log_debug(
-                    f'Sonos end-of-track verified (Stopped: {has_stopped}, Advanced: {has_advanced}, Finished: {has_finished}, Wrapped: {pos_wrapped_around}). Triggering next hook.'
+                    f'Sonos end-of-track verified (Advanced: {has_advanced}, Finished: {has_finished}, Wrapped: {pos_wrapped_around}). Triggering next hook.'
                 )
                 self._was_playing = False
                 self._running = False

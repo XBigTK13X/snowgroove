@@ -23,10 +23,12 @@ function DeviceGroup(props) {
 export default function DeviceListPage(props) {
     const { apiClient } = useAppContext()
     const [remotePlayers, setRemotePlayers] = C.React.useState(null)
+    const [canStopAll, setCanStopAll] = C.React.useState(null)
 
     C.React.useEffect(() => {
         apiClient.getRemotePlayerList().then((response) => {
-            setRemotePlayers(response)
+            setRemotePlayers(response.player_list)
+            setCanStopAll(response.can_stop_all)
         })
     }, [])
 
@@ -48,6 +50,10 @@ export default function DeviceListPage(props) {
         }))
     return (
         <C.SnowView {...props}>
+
+            {canStopAll ? <C.SnowGrid itemsPerRow={1}><C.SnowTextButton title="Stop All" onPress={() => {
+                apiClient.stopAllRemotePlayers()
+            }} /></C.SnowGrid> : null}
             {speakers?.length ? <DeviceGroup focusStart focusKey="speakers" title="Speakers" items={speakers} /> : null}
             {speakers?.length && groups?.length ? <C.SnowBreak /> : null}
             {groups?.length ? <DeviceGroup focusStart={!speakers?.length} focusKey="groups" title="Groups" items={groups} /> : null}

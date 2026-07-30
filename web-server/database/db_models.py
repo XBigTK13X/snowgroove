@@ -76,6 +76,14 @@ class Ticket:
     def tag_csv(self):
         return ','.join([f'{xx}' for xx in self.tag_ids])
 
+    def has_restrictions(self):
+        return (
+            self.has_shelf_restrictions()
+            or self.has_tag_restrictions()
+            or self.has_crate_restrictions()
+            or self.has_remote_player_restrictions()
+        )
+
     def has_shelf_restrictions(self):
         return self.shelf_ids != None
 
