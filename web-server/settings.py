@@ -81,11 +81,13 @@ config = Config()
 for key, val in vars(config).items():
     env_var_key = f'SNOWGROOVE_{key.upper()}'
     env_var_value = os.environ.get(env_var_key)
-    if env_var_value:
-        if env_var_value.lower() == 'true':
-            env_var_value = True
-        if env_var_value.lower() == 'false':
-            env_var_value = False
+    if env_var_value is not None:
+        if isinstance(env_var_value, str):
+            lower_val = env_var_value.lower()
+            if lower_val == 'true':
+                env_var_value = True
+            elif lower_val == 'false':
+                env_var_value = False
         setattr(config, key, env_var_value)
 
 

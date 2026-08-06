@@ -291,7 +291,13 @@ def play(device_ip, audio_file, on_track_finished=None, device_uid=None):
 
     try:
         try:
-            sonos_player.is_mute = False
+            sonos_player.mute = False
+            if sonos_player.renderingControl:
+                sonos_player.renderingControl.SetMute(
+                    [('InstanceID', 0), ('Channel', 'Master'), ('DesiredMute', False)]
+                )
+            if sonos_player.group and sonos_player.group.coordinator:
+                sonos_player.group.coordinator.mute = False
         except Exception as mute_err:
             _log_debug(f'Failed to enforce unmuted state: {mute_err}')
 
