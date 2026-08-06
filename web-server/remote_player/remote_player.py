@@ -38,7 +38,7 @@ class RemotePlayers:
         self.registry_lock = threading.Lock()
 
     def _log_debug(self, message):
-        if getattr(config, 'debug_remote_players', False):
+        if config.debug_remote_players:
             log.info(f'[RemotePlayers-DEBUG] {message}')
 
     def recover_active_sessions(self):

@@ -4,8 +4,8 @@ import sys
 
 class Config:
     def __init__(self):
-        self.server_version = "1.1.8"
-        self.server_build_date = "July 31, 2026"
+        self.server_version = '1.1.9'
+        self.server_build_date = 'August 06, 2026'
         self.server_build_dev_number = 1
         self.app_data_dir = '.snowgroove/'
         self.display_config = None
@@ -82,6 +82,10 @@ for key, val in vars(config).items():
     env_var_key = f'SNOWGROOVE_{key.upper()}'
     env_var_value = os.environ.get(env_var_key)
     if env_var_value:
+        if env_var_value.lower() == 'true':
+            env_var_value = True
+        if env_var_value.lower() == 'false':
+            env_var_value = False
         setattr(config, key, env_var_value)
 
 

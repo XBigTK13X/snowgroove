@@ -121,17 +121,17 @@ export default function LandingPage(props) {
                     />
                     <C.SnowText center>{progressDisplay}</C.SnowText>
                     <C.SnowGrid yy={3} itemsPerRow={2}>
-                        <C.SnowTextButton title="Previous" onPress={() => {
-                            playPreviousSong()
-                        }} />
                         <C.SnowTextButton focusStart title={isPlaying ? "Pause" : "Play"} onPress={() => {
                             togglePlayback()
                         }} />
-                        <C.SnowTextButton title="Next" onPress={() => {
-                            playNextSong()
-                        }} />
                         <C.SnowTextButton title="Volume" onPress={() => {
                             showVolumeModal()
+                        }} />
+                        <C.SnowTextButton title="Previous" onPress={() => {
+                            playPreviousSong()
+                        }} />
+                        <C.SnowTextButton title="Next" onPress={() => {
+                            playNextSong()
                         }} />
                     </C.SnowGrid>
                     <C.SnowGrid yy={4}>

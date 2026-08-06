@@ -13,7 +13,7 @@ _active_subscriptions = {}
 
 
 def _log_debug(message):
-    if getattr(config, 'debug_remote_players', False):
+    if config.debug_remote_players:
         log.info(f'[Sonos-DEBUG] {message}')
 
 
@@ -290,6 +290,11 @@ def play(device_ip, audio_file, on_track_finished=None, device_uid=None):
         _active_subscriptions[uid].unsubscribe()
 
     try:
+        try:
+            sonos_player.is_mute = False
+        except Exception as mute_err:
+            _log_debug(f'Failed to enforce unmuted state: {mute_err}')
+
         current_track = sonos_player.get_current_track_info()
         transport_info = sonos_player.get_current_transport_info()
         _log_debug(

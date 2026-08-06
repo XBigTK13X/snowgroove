@@ -6,7 +6,7 @@ from settings import config
 
 
 def _log_debug(message):
-    if getattr(config, 'debug_remote_players', False):
+    if config.debug_remote_players:
         log.info(f'[Virtual-DEBUG] {message}')
 
 

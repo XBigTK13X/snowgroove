@@ -219,7 +219,6 @@ def play(connection_info, audio_file, on_track_finished=None):
         if not url:
             return url
         parsed_url = urllib.parse.urlparse(url)
-        # Escape # in path to avoid urlparse splitting it into fragment
         full_path = parsed_url.path
         if parsed_url.fragment:
             full_path = f'{full_path}#{parsed_url.fragment}'
@@ -259,7 +258,11 @@ def play(connection_info, audio_file, on_track_finished=None):
         if not cast_device:
             return
 
-        # Check if the device is already streaming this exact file before altering state
+        try:
+            cast_device.set_volume_muted(False)
+        except Exception as mute_err:
+            log.warning(f'Failed to un-mute Chromecast target device: {mute_err}')
+
         if cast_device.app_id == pychromecast.config.APP_MEDIA_RECEIVER:
             try:
                 cast_device.media_controller.update_status()
@@ -272,7 +275,6 @@ def play(connection_info, audio_file, on_track_finished=None):
                         log.info(
                             '[Chromecast-DEBUG] Target file is already active on device. Updating tracking listener and skipping redundant initialization.'
                         )
-                    # Bind the track completion listener here so early returns don't lose the callback hook
                     if on_track_finished:
                         cast_device.media_controller._status_listeners = []
                         listener = TrackCompletionListener(
