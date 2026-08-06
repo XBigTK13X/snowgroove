@@ -1,10 +1,16 @@
-import React from 'react'
-import { Animated, PanResponder, Text, View } from 'react-native'
+import React, { useRef, useState, useCallback, useEffect } from 'react'
+import { Animated, PanResponder, Text, View, FlatList, Pressable, StyleSheet } from 'react-native'
 import Snow from 'expo-snowui'
 
-const styles = {
+const styles = StyleSheet.create({
     container: {
-        flex: 1
+        flex: 1,
+        minHeight: 0
+    },
+    listWrapper: {
+        flex: 1,
+        minHeight: 0,
+        position: 'relative'
     },
     label: {
         fontSize: 16,
@@ -13,17 +19,7 @@ const styles = {
         color: '#fff'
     },
     row: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        zIndex: 1
-    },
-    draggingRow: {
-        zIndex: 100,
-        shadowColor: '#000',
-        shadowOpacity: 0.4,
-        shadowRadius: 6,
-        elevation: 6
+        width: '100%'
     },
     innerRow: {
         flex: 1,
@@ -42,10 +38,16 @@ const styles = {
         borderBottomColor: 'rgba(255, 255, 255, 0.1)',
         backgroundColor: 'transparent'
     },
-    innerRowDragging: {
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-        borderRadius: 4,
-        borderBottomWidth: 0
+    dragOverlay: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        zIndex: 1000,
+        elevation: 12,
+        shadowColor: '#000',
+        shadowOpacity: 0.5,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 }
     },
     dropIndicator: {
         position: 'absolute',
@@ -53,143 +55,71 @@ const styles = {
         right: 0,
         height: 3,
         backgroundColor: '#00ffff',
-        zIndex: 50,
-        marginTop: -1.5
+        zIndex: 50
     }
-}
+})
 
 const DraggableRow = React.memo((props) => {
     const {
         item,
         index,
         rowHeight,
-        isDragging,
-        dragY,
-        onDragStart,
-        onDragMove,
-        onDragEnd,
+        onLongPressRow,
         onPress,
         disableDrag,
         activeIndex,
         SnowStyle,
-        focusKey,
-        parentPath,
-        xx,
-        renderItem
+        renderItem,
+        isBeingDragged
     } = props
 
-    const longPressTimeout = React.useRef(null)
-    const touchStartPos = React.useRef({ x: 0, y: 0 })
-    const isDraggingRef = React.useRef(false)
+    const handlePress = useCallback(() => {
+        if (onPress) {
+            onPress(item)
+        }
+    }, [onPress, item])
 
-    isDraggingRef.current = isDragging
+    const handleLongPress = useCallback(() => {
+        if (disableDrag) return
+        onLongPressRow(index)
+    }, [disableDrag, index, onLongPressRow])
 
-    const panResponder = React.useMemo(() => {
-        return PanResponder.create({
-            onStartShouldSetPanResponder: () => true,
-            onMoveShouldSetPanResponder: () => true,
-            onPanResponderGrant: (event) => {
-                touchStartPos.current = {
-                    x: event.nativeEvent.pageX,
-                    y: event.nativeEvent.pageY
-                }
-
-                if (disableDrag) return
-
-                clearTimeout(longPressTimeout.current)
-                longPressTimeout.current = setTimeout(() => {
-                    onDragStart(index)
-                }, 500)
-            },
-            onPanResponderMove: (event, gestureState) => {
-                if (!isDraggingRef.current) {
-                    const deltaX = Math.abs(event.nativeEvent.pageX - touchStartPos.current.x)
-                    const deltaY = Math.abs(event.nativeEvent.pageY - touchStartPos.current.y)
-
-                    if (deltaX > 8 || deltaY > 8) {
-                        clearTimeout(longPressTimeout.current)
-                    }
-                    return
-                }
-
-                onDragMove(gestureState.dy)
-            },
-            onPanResponderRelease: (event, gestureState) => {
-                clearTimeout(longPressTimeout.current)
-
-                if (isDraggingRef.current) {
-                    onDragEnd(gestureState.dy)
-                } else {
-                    const deltaX = Math.abs(event.nativeEvent.pageX - touchStartPos.current.x)
-                    const deltaY = Math.abs(event.nativeEvent.pageY - touchStartPos.current.y)
-
-                    if (deltaX < 8 && deltaY < 8 && onPress) {
-                        onPress(item)
-                    }
-                }
-            },
-            onPanResponderTerminationRequest: () => {
-                return !isDraggingRef.current
-            },
-            onPanResponderTerminate: () => {
-                clearTimeout(longPressTimeout.current)
-                if (isDraggingRef.current) {
-                    onDragEnd(0)
-                }
-            }
-        })
-    }, [index, disableDrag, onDragStart, onDragMove, onDragEnd, onPress, item])
-
-    const calculatedTop = index * rowHeight
-    const rowStyle = [
-        styles.row,
-        {
-            top: calculatedTop,
-            height: rowHeight
-        },
-        isDragging && styles.draggingRow,
-        isDragging && { transform: [{ translateY: dragY }] }
-    ]
-
-    if (index % 2 === 0) {
-        rowStyle.push({
-            backgroundColor: activeIndex === index ? SnowStyle.color.core : SnowStyle.color.core + '50'
-        })
-    } else {
-        rowStyle.push({
-            backgroundColor: activeIndex === index ? SnowStyle.color.coreDark : SnowStyle.color.coreDark + '50'
-        })
-    }
+    const backgroundColor = index % 2 === 0
+        ? (activeIndex === index ? SnowStyle.color.core : SnowStyle.color.core + '50')
+        : (activeIndex === index ? SnowStyle.color.coreDark : SnowStyle.color.coreDark + '50')
 
     const componentKey = item.id ? `drag-item-${item.id}-${index}` : `drag-index-${index}`
 
     return (
-        <Animated.View
+        <View
             key={componentKey}
-            style={rowStyle}
-            accessibilityRole="button"
-            data-focus-key={`${focusKey}-item-${index}`}
-            data-parent-path={parentPath}
-            data-xx={xx}
-            data-yy={index}
+            style={[
+                styles.row,
+                { height: rowHeight, backgroundColor, opacity: isBeingDragged ? 0.2 : 1 }
+            ]}
         >
-            <Snow.View yy={index} style={[styles.innerRow, isDragging && styles.innerRowDragging]}>
-                <View style={styles.rowBackgroundClicker} {...panResponder.panHandlers}>
-                    <Snow.View pointerEvents="box-none" style={{ flex: 1, justifyContent: 'center' }}>
+            <View style={styles.innerRow}>
+                <Pressable
+                    style={styles.rowBackgroundClicker}
+                    onPress={handlePress}
+                    onLongPress={handleLongPress}
+                    delayLongPress={250}
+                >
+                    <View pointerEvents={disableDrag ? 'auto' : 'box-none'} style={{ flex: 1, justifyContent: 'center' }}>
                         {renderItem(item, index)}
-                    </Snow.View>
-                </View>
-            </Snow.View>
-        </Animated.View>
+                    </View>
+                </Pressable>
+            </View>
+        </View>
     )
 }, (prevProps, nextProps) => {
     return (
         prevProps.index === nextProps.index &&
-        prevProps.isDragging === nextProps.isDragging &&
         prevProps.activeIndex === nextProps.activeIndex &&
         prevProps.item === nextProps.item &&
         prevProps.rowHeight === nextProps.rowHeight &&
-        prevProps.disableDrag === nextProps.disableDrag
+        prevProps.disableDrag === nextProps.disableDrag &&
+        prevProps.isBeingDragged === nextProps.isBeingDragged
     )
 })
 
@@ -197,101 +127,176 @@ export function SnowDraggableColumn(props) {
     const { SnowStyle } = Snow.useSnowContext(props)
     const rowHeight = props.rowHeight ?? 120
 
-    const [itemsOrder, setItemsOrder] = React.useState(props.items || [])
-    const [draggingIndex, setDraggingIndex] = React.useState(null)
-    const [targetIndex, setTargetIndex] = React.useState(null)
+    const [draggingIndex, setDraggingIndex] = useState(null)
+    const [targetIndex, setTargetIndex] = useState(null)
 
-    const dragY = React.useRef(new Animated.Value(0)).current
-    const stateRef = React.useRef({ draggingIndex: null, targetIndex: null, itemsOrder: [] })
+    const dragY = useRef(new Animated.Value(0)).current
+    const scrollOffset = useRef(0)
 
-    React.useEffect(() => {
-        setItemsOrder(props.items || [])
-    }, [props.items])
+    const stateRef = useRef({ draggingIndex: null, targetIndex: null, items: null })
+    stateRef.current.draggingIndex = draggingIndex
+    stateRef.current.targetIndex = targetIndex
+    stateRef.current.items = props.items || null
 
-    React.useEffect(() => {
-        stateRef.current.draggingIndex = draggingIndex
-        stateRef.current.targetIndex = targetIndex
-        stateRef.current.itemsOrder = itemsOrder
-    }, [draggingIndex, targetIndex, itemsOrder])
-
-    const handleDragStart = React.useCallback((index) => {
-        dragY.setValue(0)
-        setDraggingIndex(index)
-        setTargetIndex(index)
+    useEffect(() => {
+        return () => {
+            stateRef.current = { draggingIndex: null, targetIndex: null, items: null }
+            dragY.stopAnimation()
+            dragY.removeAllListeners()
+        }
     }, [dragY])
 
-    const handleDragMove = React.useCallback((deltaY) => {
-        dragY.setValue(deltaY)
-        const currentDragging = stateRef.current.draggingIndex
-        if (currentDragging !== null) {
-            const calculated = currentDragging + Math.round(deltaY / rowHeight)
-            const nextTarget = Math.max(0, Math.min(calculated, stateRef.current.itemsOrder.length - 1))
-            if (nextTarget !== stateRef.current.targetIndex) {
-                setTargetIndex(nextTarget)
+    const panResponder = useRef(
+        PanResponder.create({
+            onStartShouldSetPanResponder: () => false,
+            onStartShouldSetPanResponderCapture: () => false,
+            onMoveShouldSetPanResponder: () => stateRef.current?.draggingIndex !== null,
+            onMoveShouldSetPanResponderCapture: () => stateRef.current?.draggingIndex !== null,
+            onPanResponderGrant: () => { },
+            onPanResponderMove: (event, gestureState) => {
+                const currentDragging = stateRef.current?.draggingIndex
+                if (currentDragging === null || currentDragging === undefined) return
+
+                const initialTop = (currentDragging * rowHeight) - scrollOffset.current
+                const currentTop = initialTop + gestureState.dy
+
+                dragY.setValue(currentTop)
+
+                const itemsCount = stateRef.current?.items?.length ?? 0
+                if (itemsCount === 0) return
+
+                const calculatedTarget = Math.round((currentTop + scrollOffset.current) / rowHeight)
+                const boundedTarget = Math.max(0, Math.min(calculatedTarget, itemsCount - 1))
+
+                if (boundedTarget !== stateRef.current.targetIndex) {
+                    setTargetIndex(boundedTarget)
+                }
+            },
+            onPanResponderRelease: (event, gestureState) => {
+                const currentDragging = stateRef.current?.draggingIndex
+                const currentTarget = stateRef.current?.targetIndex
+                const currentItems = stateRef.current?.items
+
+                setDraggingIndex(null)
+                setTargetIndex(null)
+
+                if (
+                    currentDragging !== null &&
+                    currentDragging !== undefined &&
+                    currentTarget !== null &&
+                    currentTarget !== undefined &&
+                    currentDragging !== currentTarget &&
+                    currentItems
+                ) {
+                    const listCopy = [...currentItems]
+                    const [movedItem] = listCopy.splice(currentDragging, 1)
+                    listCopy.splice(currentTarget, 0, movedItem)
+
+                    if (props.onReorder) {
+                        props.onReorder(listCopy)
+                    }
+                }
+            },
+            onPanResponderTerminate: () => {
+                setDraggingIndex(null)
+                setTargetIndex(null)
             }
-        }
-    }, [dragY, rowHeight])
+        })
+    ).current
 
-    const handleDragEnd = React.useCallback((deltaY) => {
-        const currentDragging = stateRef.current.draggingIndex
-        const currentTarget = stateRef.current.targetIndex
+    const handleLongPressRow = useCallback((index) => {
+        const initialTop = (index * rowHeight) - scrollOffset.current
+        dragY.setValue(initialTop)
+        setDraggingIndex(index)
+        setTargetIndex(index)
+    }, [rowHeight, dragY])
 
-        setDraggingIndex(null)
-        setTargetIndex(null)
-        dragY.setValue(0)
+    const handleScroll = useCallback((event) => {
+        scrollOffset.current = event.nativeEvent.contentOffset.y
+    }, [])
 
-        if (currentDragging !== null && currentTarget !== null && currentTarget !== currentDragging) {
-            const updatedList = [...stateRef.current.itemsOrder]
-            const [movedItem] = updatedList.splice(currentDragging, 1)
-            updatedList.splice(currentTarget, 0, movedItem)
+    const renderRowItem = useCallback(({ item, index }) => {
+        return (
+            <DraggableRow
+                item={item}
+                index={index}
+                rowHeight={rowHeight}
+                onLongPressRow={handleLongPressRow}
+                onPress={props.onPress}
+                disableDrag={props.disableDrag}
+                activeIndex={props.activeIndex}
+                SnowStyle={SnowStyle}
+                renderItem={props.renderItem}
+                isBeingDragged={draggingIndex === index}
+            />
+        )
+    }, [
+        rowHeight,
+        handleLongPressRow,
+        props.onPress,
+        props.disableDrag,
+        props.activeIndex,
+        SnowStyle,
+        props.renderItem,
+        draggingIndex
+    ])
 
-            setItemsOrder(updatedList)
-            if (props.onReorder) {
-                props.onReorder(updatedList)
-            }
-        }
-    }, [dragY, props])
+    const keyExtractor = useCallback((item, index) => {
+        return item.id ? `drag-item-${item.id}` : `drag-index-${index}`
+    }, [])
+
+    const draggedItem = draggingIndex !== null ? props.items?.[draggingIndex] : null
 
     return (
-        <Snow.View {...props} style={styles.container}>
+        <View style={styles.container}>
             {props.title ? (
                 <Text style={styles.label}>
-                    {props.title} ({itemsOrder.length})
+                    {props.title} ({props.items?.length ?? 0})
                 </Text>
             ) : null}
-            <Snow.View style={{ height: itemsOrder.length * rowHeight, width: '100%', position: 'relative' }}>
-                {itemsOrder.map((item, index) => (
-                    <DraggableRow
-                        key={item.id ? `drag-item-${item.id}` : `drag-index-${index}`}
-                        item={item}
-                        index={index}
-                        rowHeight={rowHeight}
-                        isDragging={draggingIndex === index}
-                        dragY={dragY}
-                        onDragStart={handleDragStart}
-                        onDragMove={handleDragMove}
-                        onDragEnd={handleDragEnd}
-                        onPress={props.onPress}
-                        disableDrag={props.disableDrag}
-                        activeIndex={props.activeIndex}
-                        SnowStyle={SnowStyle}
-                        focusKey={props.focusKey}
-                        parentPath={props.parentPath}
-                        xx={props.xx}
-                        renderItem={props.renderItem}
-                    />
-                ))}
 
-                {draggingIndex !== null && targetIndex !== null && draggingIndex !== targetIndex ? (
-                    <Snow.View
+            <View style={styles.listWrapper} {...panResponder.panHandlers}>
+                <FlatList
+                    style={{ flex: 1 }}
+                    data={props.items}
+                    renderItem={renderRowItem}
+                    keyExtractor={keyExtractor}
+                    onScroll={handleScroll}
+                    scrollEventThrottle={16}
+                    scrollEnabled={draggingIndex === null}
+                    nestedScrollEnabled={true}
+                    removeClippedSubviews={false}
+                />
+
+                {draggingIndex !== null && targetIndex !== null ? (
+                    <View
                         style={[
                             styles.dropIndicator,
-                            { top: targetIndex * rowHeight + (draggingIndex < targetIndex ? rowHeight : 0) }
+                            { top: (targetIndex * rowHeight) - scrollOffset.current }
                         ]}
+                        pointerEvents="none"
                     />
                 ) : null}
-            </Snow.View>
-        </Snow.View>
+
+                {draggingIndex !== null && draggedItem ? (
+                    <Animated.View
+                        style={[
+                            styles.dragOverlay,
+                            {
+                                height: rowHeight,
+                                top: dragY,
+                                backgroundColor: SnowStyle.color.core
+                            }
+                        ]}
+                        pointerEvents="none"
+                    >
+                        <View style={styles.rowBackgroundClicker}>
+                            {props.renderItem(draggedItem, draggingIndex)}
+                        </View>
+                    </Animated.View>
+                ) : null}
+            </View>
+        </View>
     )
 }
 

@@ -4,7 +4,7 @@ import { useAppContext } from '../app-context'
 import SnowDraggableColumn from './snow-draggable-column'
 
 export function SnowSongList(props) {
-    const { pushModal, popModal, navPush } = Snow.useSnowContext()
+    const { pushModal, popModal, navPush, SnowStyle } = Snow.useSnowContext(props)
     const { routes } = useAppContext()
     const {
         addAudioFileToQueue,
@@ -67,10 +67,19 @@ export function SnowSongList(props) {
             onReorder={reorderMusicQueue}
             renderItem={(item, itemIndex) => {
                 let itemDisplay = ''
-                if (props.activeQueue) {
-                    itemDisplay = `(${itemIndex + 1}/${props.audioFiles.length}) ${item.title} | ${item.album} | ${item.artist}`
-                } else {
-                    itemDisplay = `(${item.disc ?? 1}/${item.track}) ${item.title} | ${item.album} | ${item.artist}`
+                if (SnowStyle.isPortrait) {
+                    if (props.activeQueue) {
+                        itemDisplay = `(${itemIndex + 1}/${props.audioFiles.length}) ${item.title}\n${item.album}\n${item.artist}`
+                    } else {
+                        itemDisplay = `(${item.disc ?? 1}/${item.track}) ${item.title}\n${item.album}\n${item.artist}`
+                    }
+                }
+                else {
+                    if (props.activeQueue) {
+                        itemDisplay = `(${itemIndex + 1}/${props.audioFiles.length}) ${item.title} | ${item.album} | ${item.artist}`
+                    } else {
+                        itemDisplay = `(${item.disc ?? 1}/${item.track}) ${item.title} | ${item.album} | ${item.artist}`
+                    }
                 }
 
 

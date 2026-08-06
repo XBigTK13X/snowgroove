@@ -22,6 +22,23 @@ function HeaderNav(props) {
                 itemsPerRow={3}
                 focusKey="header" >
                 <SnowTextButton
+                    title="Sign Out"
+                    short
+                    onPress={signOut} />
+                {isAdmin ? <SnowTextButton
+                    title="Dashboard"
+                    short
+                    onPress={navPush({ path: routes.adminDashboard })} />
+                    : null}
+                <SnowTextButton
+                    title={`Back`}
+                    short
+                    onPress={navPop(true)} />
+            </SnowGrid>
+            <SnowGrid
+                itemsPerRow={3}
+                focusKey="header-action" >
+                <SnowTextButton
                     title="Playing"
                     onPress={navPush({ path: routes.landing })}
                 />
@@ -33,16 +50,6 @@ function HeaderNav(props) {
                     title="Library"
                     onPress={navPush({ path: routes.library })}
                 />
-                <SnowTextButton
-                    title="Sign Out"
-                    onPress={signOut} />
-                {isAdmin ? <SnowTextButton
-                    title="Dashboard"
-                    onPress={navPush({ path: routes.adminDashboard })} />
-                    : null}
-                <SnowTextButton
-                    title={`Back`}
-                    onPress={navPop(true)} />
             </SnowGrid>
             <SnowBreak />
         </Snow.View >

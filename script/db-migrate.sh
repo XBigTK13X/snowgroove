@@ -1,5 +1,5 @@
 #! /bin/bash
-
+echo "Migrating database"
 if [ -z $1 ];then
     cd web-server
     uv run alembic upgrade head
