@@ -1,85 +1,77 @@
-import { Audio } from 'expo-av'
+import { createAudioPlayer } from 'expo-audio'
 
 export class LocalAudioHandler {
     constructor({ onStatusUpdate, onFinished }) {
-        this.sound = null
+        this.player = null
         this.volume = 1.0
         this.onStatusUpdate = onStatusUpdate
         this.onFinished = onFinished
-        this.loadingPromise = null
+        this.statusSubscription = null
     }
 
     async loadAndPlay(audioFile) {
         await this.cleanup()
 
-        const currentPromise = (async () => {
-            const formattedUri = encodeURI(audioFile.web_path).replace(/#/g, '%23')
-            const { sound: newSound } = await Audio.Sound.createAsync(
-                { uri: formattedUri },
-                { shouldPlay: true, volume: this.volume },
-                this._handleStatusUpdate
-            )
+        const rawUri = audioFile.web_path
+        const formattedUri = rawUri.includes('%') ? rawUri : encodeURI(rawUri)
 
-            // If a newer load was triggered while this was initializing, destroy this instance immediately
-            if (this.loadingPromise !== currentPromise) {
-                try {
-                    await newSound.setOnPlaybackStatusUpdate(null)
-                    await newSound.stopAsync()
-                    await newSound.unloadAsync()
-                } catch (swallow) { }
-                return
+        const newPlayer = createAudioPlayer({ uri: formattedUri })
+        newPlayer.volume = this.volume
+
+        this.statusSubscription = newPlayer.addListener('playbackStatusUpdate', (status) => {
+            if (!status) return
+
+            this.onStatusUpdate?.({
+                positionMillis: (status.currentTime || 0) * 1000,
+                isLoaded: status.isLoaded,
+                isPlaying: status.isPlaying
+            })
+
+            if (status.didJustFinish) {
+                this.onFinished?.()
             }
+        })
 
-            this.sound = newSound
-        })()
-
-        this.loadingPromise = currentPromise
-        await currentPromise
-    }
-
-    _handleStatusUpdate = (status) => {
-        if (!status || !status.isLoaded) return
-        this.onStatusUpdate?.(status)
-        if (status.didJustFinish) {
-            this.onFinished?.()
-        }
+        this.player = newPlayer
+        this.player.play()
     }
 
     async pause() {
-        if (this.sound) await this.sound.pauseAsync()
+        if (this.player) this.player.pause()
     }
 
     async resume() {
-        if (this.sound) await this.sound.playAsync()
+        if (this.player) this.player.play()
     }
 
     async stop() {
-        if (this.sound) {
-            await this.sound.pauseAsync()
-            await this.sound.setPositionAsync(0)
+        if (this.player) {
+            this.player.pause()
+            this.player.seekTo(0)
         }
     }
 
     async seek(seconds) {
-        if (this.sound) await this.sound.setPositionAsync(seconds * 1000)
+        if (this.player) this.player.seekTo(seconds)
     }
 
     async setVolume(percent) {
         this.volume = Math.max(0, Math.min(1, percent))
-        if (this.sound) await this.sound.setVolumeAsync(this.volume)
+        if (this.player) this.player.volume = this.volume
     }
 
     async cleanup() {
-        const soundToCleanup = this.sound
-        this.sound = null
-        this.loadingPromise = null
+        if (this.statusSubscription) {
+            this.statusSubscription.remove()
+            this.statusSubscription = null
+        }
 
-        if (soundToCleanup) {
+        if (this.player) {
             try {
-                await soundToCleanup.setOnPlaybackStatusUpdate(null)
-                await soundToCleanup.stopAsync()
-                await soundToCleanup.unloadAsync()
+                this.player.pause()
+                this.player.release()
             } catch (swallow) { }
+            this.player = null
         }
     }
 }

@@ -264,7 +264,7 @@ export function AudioContextProvider({ children }) {
             await activeHandler.pause(sessionRef.current?.id)
             setPlaying(false)
         } else {
-            if (!isRemote && !localHandlerRef.current.sound && currentAudioFileRef.current) {
+            if (!isRemote && !localHandlerRef.current.player && currentAudioFileRef.current) {
                 await localHandlerRef.current.loadAndPlay(currentAudioFileRef.current)
             } else {
                 await activeHandler.resume(sessionRef.current?.id)

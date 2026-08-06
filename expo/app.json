@@ -1,6 +1,6 @@
 {
   "expo": {
-    "version": "1.1.9",
+    "version": "1.1.10",
     "scheme": "com.simplepathstudios.snowgroove",
     "newArchEnabled": true,
     "plugins": [
@@ -29,7 +29,7 @@
         }
       ],
       [
-        "expo-av",
+        "expo-audio",
         {
           "microphonePermission": false,
           "playsInSilentModeIOS": true,
@@ -54,16 +54,11 @@
     "name": "snowgroove",
     "slug": "snowgroove",
     "orientation": "landscape",
-    "androidStatusBar": {
-      "hidden": false,
-      "translucent": false
-    },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#AC03F4"
       },
       "package": "com.simplepathstudios.snowgroove",
-      "edgeToEdgeEnabled": false,
       "backgroundColor": "#000000",
       "versionCode": 1,
       "permissions": [

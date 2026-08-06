@@ -12,10 +12,11 @@ console.error = (...args) => {
     originalError(...args)
 }
 
-import { Audio } from 'expo-av'
-import PageLoader from "./src/page/page-loader";
+import PageLoader from "./src/page/page-loader"
 
-Audio.setAudioModeAsync({
+import { setAudioModeAsync } from 'expo-audio'
+
+setAudioModeAsync({
     allowsRecordingIOS: false,
     staysActiveInBackground: true,
     playsInSilentModeIOS: true,
@@ -25,4 +26,4 @@ Audio.setAudioModeAsync({
     console.error('Failed to set global audio mode:', error)
 })
 
-export default PageLoader;
+export default PageLoader
