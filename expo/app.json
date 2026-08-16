@@ -1,6 +1,6 @@
 {
   "expo": {
-    "version": "1.1.10",
+    "version": "1.1.11",
     "scheme": "com.simplepathstudios.snowgroove",
     "newArchEnabled": true,
     "plugins": [

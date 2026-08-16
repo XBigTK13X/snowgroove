@@ -3410,6 +3410,11 @@ react-native-uuid@2.0.4, react-native-uuid@^2.0.4:
   resolved "https://registry.yarnpkg.com/react-native-uuid/-/react-native-uuid-2.0.4.tgz#0c4f345523c5feac0282d3a51fe19887727df988"
   integrity sha512-LSJNeh559qC17fgVPBsWuTSW/OygFp2dwTcf94IQBLYft5FzIQS9pCsuT36OPvyvDOMb6yiGr6TafaJDnz9PPQ==
 
+react-native-volume-manager@^2.0.8:
+  version "2.0.8"
+  resolved "https://registry.yarnpkg.com/react-native-volume-manager/-/react-native-volume-manager-2.0.8.tgz#4217c00e975043cdc10f908c8aba2c77a05d2b46"
+  integrity sha512-aZM47/mYkdQ4CbXpKYO6Ajiczv7fxbQXZ9c0H8gRuQUaS3OCz/MZABer6o9aDWq0KMNsQ7q7GVFLRPnSSeeMmw==
+
 react-native-web@0.21.2:
   version "0.21.2"
   resolved "https://registry.yarnpkg.com/react-native-web/-/react-native-web-0.21.2.tgz#0f6983dfea600d9cc1c66fda87ff9ca585eaa647"
