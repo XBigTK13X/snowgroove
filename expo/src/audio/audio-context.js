@@ -1,4 +1,5 @@
 import React from 'react'
+import { VolumeManager } from 'react-native-volume-manager'
 import { useAppContext } from '../app-context'
 import { LocalAudioHandler } from './local-audio-handler'
 import { RemoteAudioHandler } from './remote-audio-handler'
@@ -15,6 +16,7 @@ export function AudioContextProvider({ children }) {
     const currentAudioFileRef = React.useRef(null)
     const [positionSeconds, setPositionSeconds] = React.useState(0)
     const [volume, setVolume] = React.useState(1.0)
+    const volumeRef = React.useRef(1.0)
 
     const isSeekingRef = React.useRef(false)
     const sessionRef = React.useRef(null)
@@ -104,6 +106,7 @@ export function AudioContextProvider({ children }) {
         if (response.status?.volume !== undefined) {
             const normalizedVolume = response.status.volume / 100
             setVolume(normalizedVolume)
+            volumeRef.current = normalizedVolume
         }
     }, [])
 
@@ -199,6 +202,35 @@ export function AudioContextProvider({ children }) {
             remoteHandlerRef.current.startPolling()
         }
     }, [isRemote, targetPlayer?.id, musicSession?.id])
+
+    React.useEffect(() => {
+        if (!isRemote) return
+
+        let lastVolumeLevel = null
+        VolumeManager.showNativeVolumeUI({ enabled: false })
+
+        const subscription = VolumeManager.addVolumeListener((event) => {
+            if (lastVolumeLevel === null) {
+                lastVolumeLevel = event.volume
+                return
+            }
+
+            const difference = event.volume - lastVolumeLevel
+            lastVolumeLevel = event.volume
+
+            if (Math.abs(difference) > 0.001) {
+                const targetVolume = Math.max(0, Math.min(1, volumeRef.current + difference))
+                volumeRef.current = targetVolume
+                setVolume(targetVolume)
+                remoteHandlerRef.current.setVolume(targetVolume, sessionRef.current?.id)
+            }
+        })
+
+        return () => {
+            subscription.remove()
+            VolumeManager.showNativeVolumeUI({ enabled: true })
+        }
+    }, [isRemote])
 
     async function handleAddAudioFileToQueue(audioFile, playNext) {
         let shouldPlayImmediately = !isPlayingRef.current
@@ -302,6 +334,7 @@ export function AudioContextProvider({ children }) {
     async function changeVolume(percent) {
         const volumeValue = Math.max(0, Math.min(1, percent))
         setVolume(volumeValue)
+        volumeRef.current = volumeValue
         await activeHandler.setVolume(volumeValue, sessionRef.current?.id)
     }
 

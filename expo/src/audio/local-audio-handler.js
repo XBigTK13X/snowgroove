@@ -33,6 +33,14 @@ export class LocalAudioHandler {
         })
 
         this.player = newPlayer
+
+        this.player.setActiveForLockScreen(true, {
+            title: audioFile.title || 'Unknown Title',
+            artist: audioFile.artist || 'Unknown Artist',
+            albumTitle: audioFile.album || 'Unknown Album',
+            artworkUrl: audioFile.thumbnail_web_path || undefined
+        })
+
         this.player.play()
     }
 
@@ -48,6 +56,7 @@ export class LocalAudioHandler {
         if (this.player) {
             this.player.pause()
             this.player.seekTo(0)
+            this.player.setActiveForLockScreen(false)
         }
     }
 
@@ -68,6 +77,7 @@ export class LocalAudioHandler {
 
         if (this.player) {
             try {
+                this.player.setActiveForLockScreen(false)
                 this.player.pause()
                 this.player.release()
             } catch (swallow) { }

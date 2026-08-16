@@ -1,3 +1,5 @@
+expo/android/
+expo/ios/
 keystore.properties
 build-out/
 .snowgroove/

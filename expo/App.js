@@ -13,15 +13,13 @@ console.error = (...args) => {
 }
 
 import PageLoader from "./src/page/page-loader"
-
 import { setAudioModeAsync } from 'expo-audio'
 
 setAudioModeAsync({
-    allowsRecordingIOS: false,
-    staysActiveInBackground: true,
-    playsInSilentModeIOS: true,
-    shouldDuckAndroid: true,
-    playThroughEarpieceAndroid: false,
+    playsInSilentMode: true,
+    shouldPlayInBackground: true,
+    interruptionMode: 'doNotMix',
+    shouldRouteThroughEarpiece: false
 }).catch((error) => {
     console.error('Failed to set global audio mode:', error)
 })

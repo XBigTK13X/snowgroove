@@ -4,6 +4,7 @@ export class RemoteAudioHandler {
         this.targetPlayer = targetPlayer
         this.onStateSync = onStateSync
         this.pollInterval = null
+        this.pendingVolumeTimeout = null
     }
 
     updateConfig({ apiClient, targetPlayer }) {
@@ -42,9 +43,19 @@ export class RemoteAudioHandler {
     }
 
     async setVolume(percent, sessionId) {
-        if (this.apiClient && sessionId) {
-            await this.apiClient.musicSessionVolume(sessionId, percent)
+        if (!this.apiClient || !sessionId) return
+
+        if (this.pendingVolumeTimeout) {
+            clearTimeout(this.pendingVolumeTimeout)
         }
+
+        this.pendingVolumeTimeout = setTimeout(async () => {
+            try {
+                await this.apiClient.musicSessionVolume(sessionId, percent)
+            } catch (error) {
+                console.error('Failed to sync remote volume:', error)
+            }
+        }, 150)
     }
 
     startPolling() {
@@ -70,6 +81,10 @@ export class RemoteAudioHandler {
         if (this.pollInterval) {
             clearInterval(this.pollInterval)
             this.pollInterval = null
+        }
+        if (this.pendingVolumeTimeout) {
+            clearTimeout(this.pendingVolumeTimeout)
+            this.pendingVolumeTimeout = null
         }
     }
 

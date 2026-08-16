@@ -5,6 +5,19 @@
     "newArchEnabled": true,
     "plugins": [
       [
+        "expo-splash-screen",
+        {
+          "image": "./assets/icon/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#AC03F4",
+          "android": {
+            "image": "./assets/icon/splash.png",
+            "resizeMode": "contain",
+            "backgroundColor": "#AC03F4"
+          }
+        }
+      ],
+      [
         "@react-native-tvos/config-tv",
         {
           "androidTVBanner": "./assets/icon/android/tvbanner.png"
@@ -32,8 +45,7 @@
         "expo-audio",
         {
           "microphonePermission": false,
-          "playsInSilentModeIOS": true,
-          "staysActiveInBackground": true
+          "enableBackgroundPlayback": true
         }
       ],
       [
@@ -45,26 +57,22 @@
         }
       ]
     ],
-    "splash": {
-      "image": "./assets/icon/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#AC03F4"
-    },
     "icon": "./assets/icon/appicon.png",
     "name": "snowgroove",
     "slug": "snowgroove",
     "orientation": "landscape",
     "android": {
       "adaptiveIcon": {
+        "foregroundImage": "./assets/icon/appicon.png",
         "backgroundColor": "#AC03F4"
       },
       "package": "com.simplepathstudios.snowgroove",
       "backgroundColor": "#000000",
       "versionCode": 1,
       "permissions": [
-        "BACKGROUND_AUDIO",
         "FOREGROUND_SERVICE",
-        "FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+        "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "POST_NOTIFICATIONS"
       ]
     },
     "ios": {
