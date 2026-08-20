@@ -50,14 +50,6 @@ export default function LandingPage(props) {
         volumeRef.current = volume
     }, [volume])
 
-    const styles = {
-        footer: {
-            width: '100%',
-            textAlign: 'right',
-            color: SnowStyle.color.active
-        }
-    }
-
     const showVolumeModal = () => {
         const initialVolume = volumeRef.current ?? volume ?? 1.0
 
@@ -146,7 +138,11 @@ export default function LandingPage(props) {
         return (
             <C.View>
                 {playerControls}
-                <C.SnowText style={styles.footer} center>{`[built ${config.clientBuildDate}] [snowgroove v${config.clientVersion}] [snowui v${snowuiPackageInfo.version}]`}</C.SnowText>
+                <C.SnowVersion
+                    appName="snowgroove"
+                    appVersion={config.clientVersion}
+                    buildDate={config.clientBuildDate}
+                />
             </C.View>
         )
     }
