@@ -4,13 +4,14 @@ import Snow from 'expo-snowui'
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
-        minHeight: 0
+        width: '100%'
     },
     listWrapper: {
-        flex: 1,
-        minHeight: 0,
+        width: '100%',
         position: 'relative'
+    },
+    listContent: {
+        width: '100%'
     },
     label: {
         fontSize: 16,
@@ -23,6 +24,7 @@ const styles = StyleSheet.create({
     },
     innerRow: {
         flex: 1,
+        width: '100%',
         position: 'relative'
     },
     rowBackgroundClicker: {
@@ -105,7 +107,7 @@ const DraggableRow = React.memo((props) => {
                     onLongPress={handleLongPress}
                     delayLongPress={250}
                 >
-                    <View pointerEvents={disableDrag ? 'auto' : 'box-none'} style={{ flex: 1, justifyContent: 'center' }}>
+                    <View pointerEvents={disableDrag ? 'auto' : 'box-none'} style={{ flex: 1, width: '100%', justifyContent: 'center' }}>
                         {renderItem(item, index)}
                     </View>
                 </Pressable>
@@ -131,7 +133,6 @@ export function SnowDraggableColumn(props) {
     const [targetIndex, setTargetIndex] = useState(null)
 
     const dragY = useRef(new Animated.Value(0)).current
-    const scrollOffset = useRef(0)
 
     const stateRef = useRef({ draggingIndex: null, targetIndex: null, items: null })
     stateRef.current.draggingIndex = draggingIndex
@@ -157,7 +158,7 @@ export function SnowDraggableColumn(props) {
                 const currentDragging = stateRef.current?.draggingIndex
                 if (currentDragging === null || currentDragging === undefined) return
 
-                const initialTop = (currentDragging * rowHeight) - scrollOffset.current
+                const initialTop = currentDragging * rowHeight
                 const currentTop = initialTop + gestureState.dy
 
                 dragY.setValue(currentTop)
@@ -165,7 +166,7 @@ export function SnowDraggableColumn(props) {
                 const itemsCount = stateRef.current?.items?.length ?? 0
                 if (itemsCount === 0) return
 
-                const calculatedTarget = Math.round((currentTop + scrollOffset.current) / rowHeight)
+                const calculatedTarget = Math.round(currentTop / rowHeight)
                 const boundedTarget = Math.max(0, Math.min(calculatedTarget, itemsCount - 1))
 
                 if (boundedTarget !== stateRef.current.targetIndex) {
@@ -205,15 +206,11 @@ export function SnowDraggableColumn(props) {
     ).current
 
     const handleLongPressRow = useCallback((index) => {
-        const initialTop = (index * rowHeight) - scrollOffset.current
+        const initialTop = index * rowHeight
         dragY.setValue(initialTop)
         setDraggingIndex(index)
         setTargetIndex(index)
     }, [rowHeight, dragY])
-
-    const handleScroll = useCallback((event) => {
-        scrollOffset.current = event.nativeEvent.contentOffset.y
-    }, [])
 
     const renderRowItem = useCallback(({ item, index }) => {
         return (
@@ -257,14 +254,14 @@ export function SnowDraggableColumn(props) {
 
             <View style={styles.listWrapper} {...panResponder.panHandlers}>
                 <FlatList
-                    style={{ flex: 1 }}
+                    style={{ width: '100%' }}
+                    contentContainerStyle={styles.listContent}
                     data={props.items}
                     renderItem={renderRowItem}
                     keyExtractor={keyExtractor}
-                    onScroll={handleScroll}
-                    scrollEventThrottle={16}
-                    scrollEnabled={draggingIndex === null}
-                    nestedScrollEnabled={true}
+                    scrollEnabled={false}
+                    showsVerticalScrollIndicator={false}
+                    showsHorizontalScrollIndicator={false}
                     removeClippedSubviews={false}
                 />
 
@@ -272,7 +269,7 @@ export function SnowDraggableColumn(props) {
                     <View
                         style={[
                             styles.dropIndicator,
-                            { top: (targetIndex * rowHeight) - scrollOffset.current }
+                            { top: targetIndex * rowHeight }
                         ]}
                         pointerEvents="none"
                     />

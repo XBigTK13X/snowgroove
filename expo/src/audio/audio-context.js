@@ -73,7 +73,7 @@ export function AudioContextProvider({ children }) {
         setPlaying(false)
         setPositionSeconds(0)
 
-        const nextSong = await queueManager.advanceQueueIndex(1)
+        const nextSong = await queueManager.advanceQueueIndex(1, false)
         if (nextSong) {
             currentAudioFileRef.current = nextSong
             setCurrentAudioFile(nextSong)

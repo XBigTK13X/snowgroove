@@ -9,16 +9,13 @@ export class LocalAudioHandler {
         this.statusSubscription = null
     }
 
-    async loadAndPlay(audioFile) {
-        await this.cleanup()
+    attachListeners(targetPlayer) {
+        if (this.statusSubscription) {
+            this.statusSubscription.remove()
+            this.statusSubscription = null
+        }
 
-        const rawUri = audioFile.web_path
-        const formattedUri = rawUri.includes('%') ? rawUri : encodeURI(rawUri)
-
-        const newPlayer = createAudioPlayer({ uri: formattedUri })
-        newPlayer.volume = this.volume
-
-        this.statusSubscription = newPlayer.addListener('playbackStatusUpdate', (status) => {
+        this.statusSubscription = targetPlayer.addListener('playbackStatusUpdate', (status) => {
             if (!status) return
 
             this.onStatusUpdate?.({
@@ -31,16 +28,33 @@ export class LocalAudioHandler {
                 this.onFinished?.()
             }
         })
+    }
 
-        this.player = newPlayer
+    async loadAndPlay(audioFile) {
+        const rawUri = audioFile.web_path
+        const formattedUri = rawUri.includes('%') ? rawUri : encodeURI(rawUri)
 
-        this.player.setActiveForLockScreen(true, {
+        const lockScreenMetadata = {
             title: audioFile.title || 'Unknown Title',
             artist: audioFile.artist || 'Unknown Artist',
             albumTitle: audioFile.album || 'Unknown Album',
             artworkUrl: audioFile.thumbnail_web_path || undefined
-        })
+        }
 
+        if (this.player) {
+            this.player.replace({ uri: formattedUri })
+            this.player.setActiveForLockScreen(true, lockScreenMetadata)
+            this.player.play()
+            return
+        }
+
+        const newPlayer = createAudioPlayer({ uri: formattedUri })
+        newPlayer.volume = this.volume
+
+        this.attachListeners(newPlayer)
+        this.player = newPlayer
+
+        this.player.setActiveForLockScreen(true, lockScreenMetadata)
         this.player.play()
     }
 
