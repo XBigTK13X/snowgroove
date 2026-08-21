@@ -42,8 +42,8 @@ export class LocalAudioHandler {
         }
 
         if (this.player) {
-            this.player.replace({ uri: formattedUri })
             this.player.setActiveForLockScreen(true, lockScreenMetadata)
+            await this.player.replace({ uri: formattedUri })
             this.player.play()
             return
         }

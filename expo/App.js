@@ -18,8 +18,9 @@ import { setAudioModeAsync } from 'expo-audio'
 setAudioModeAsync({
     playsInSilentMode: true,
     shouldPlayInBackground: true,
-    interruptionMode: 'doNotMix',
-    shouldRouteThroughEarpiece: false
+    interruptionMode: 'duckOthers',
+    shouldRouteThroughEarpiece: false,
+    staysActiveInBackground: true
 }).catch((error) => {
     console.error('Failed to set global audio mode:', error)
 })
