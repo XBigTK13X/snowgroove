@@ -7,6 +7,12 @@ export class LocalAudioHandler {
         this.onStatusUpdate = onStatusUpdate
         this.onFinished = onFinished
         this.statusSubscription = null
+        this.currentAudioFile = null
+    }
+
+    updateConfig({ onStatusUpdate, onFinished }) {
+        if (onStatusUpdate) this.onStatusUpdate = onStatusUpdate
+        if (onFinished) this.onFinished = onFinished
     }
 
     attachListeners(targetPlayer) {
@@ -30,7 +36,9 @@ export class LocalAudioHandler {
         })
     }
 
-    async loadAndPlay(audioFile) {
+    async play(audioFile) {
+        if (!audioFile) return
+        this.currentAudioFile = audioFile
         const rawUri = audioFile.web_path
         const formattedUri = rawUri.includes('%') ? rawUri : encodeURI(rawUri)
 
@@ -63,7 +71,11 @@ export class LocalAudioHandler {
     }
 
     async resume() {
-        if (this.player) this.player.play()
+        if (this.player) {
+            this.player.play()
+        } else if (this.currentAudioFile) {
+            await this.play(this.currentAudioFile)
+        }
     }
 
     async stop() {
@@ -81,6 +93,12 @@ export class LocalAudioHandler {
     async setVolume(percent) {
         this.volume = Math.max(0, Math.min(1, percent))
         if (this.player) this.player.volume = this.volume
+    }
+
+    activate() { }
+
+    deactivate() {
+        this.pause()
     }
 
     async cleanup() {

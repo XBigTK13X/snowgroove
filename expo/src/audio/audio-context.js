@@ -1,5 +1,4 @@
 import React from 'react'
-import { VolumeManager } from 'react-native-volume-manager'
 import { useAppContext } from '../app-context'
 import { LocalAudioHandler } from './local-audio-handler'
 import { RemoteAudioHandler } from './remote-audio-handler'
@@ -26,22 +25,22 @@ export function AudioContextProvider({ children }) {
     const queueManager = useMusicQueue({
         apiClient,
         session: musicSession,
-        setSession: (next) => {
-            sessionRef.current = next
-            setMusicSession(next)
+        setSession: (nextSession) => {
+            sessionRef.current = nextSession
+            setMusicSession(nextSession)
         }
     })
 
-    const setPlaying = (val) => {
-        setIsPlaying(val)
-        isPlayingRef.current = val
+    const setPlaying = (value) => {
+        setIsPlaying(value)
+        isPlayingRef.current = value
     }
 
     const changeMusicSession = (updater) => {
-        const next = typeof updater === 'function' ? updater(sessionRef.current) : updater
-        sessionRef.current = next
-        setMusicSession(next)
-        return next
+        const nextSession = typeof updater === 'function' ? updater(sessionRef.current) : updater
+        sessionRef.current = nextSession
+        setMusicSession(nextSession)
+        return nextSession
     }
 
     async function fetchLatestSession() {
@@ -77,7 +76,7 @@ export function AudioContextProvider({ children }) {
         if (nextSong) {
             currentAudioFileRef.current = nextSong
             setCurrentAudioFile(nextSong)
-            await localHandlerRef.current.loadAndPlay(nextSong)
+            await activeHandlerRef.current.play(nextSong)
             setPlaying(true)
         }
     }, [queueManager])
@@ -110,6 +109,11 @@ export function AudioContextProvider({ children }) {
         }
     }, [])
 
+    const handleVolumeSync = React.useCallback((nextVolume) => {
+        volumeRef.current = nextVolume
+        setVolume(nextVolume)
+    }, [])
+
     const localHandlerRef = React.useRef(
         new LocalAudioHandler({
             onStatusUpdate: handleLocalStatusUpdate,
@@ -117,45 +121,49 @@ export function AudioContextProvider({ children }) {
         })
     )
 
-    React.useEffect(() => {
-        localHandlerRef.current.onStatusUpdate = handleLocalStatusUpdate
-        localHandlerRef.current.onFinished = handleSongFinished
-    }, [handleLocalStatusUpdate, handleSongFinished])
-
     const remoteHandlerRef = React.useRef(
         new RemoteAudioHandler({
             apiClient,
             targetPlayer,
-            onStateSync: handleRemoteStateSync
+            getSession: () => sessionRef.current,
+            onStateSync: handleRemoteStateSync,
+            onVolumeChange: handleVolumeSync
         })
     )
 
-    React.useEffect(() => {
-        remoteHandlerRef.current.updateConfig({ apiClient, targetPlayer })
-    }, [apiClient, targetPlayer])
-
     const activeHandler = isRemote ? remoteHandlerRef.current : localHandlerRef.current
+    const activeHandlerRef = React.useRef(activeHandler)
+    activeHandlerRef.current = activeHandler
 
-    const playAudioFile = React.useCallback(async (audioFile) => {
-        await queueManager.setQueueIndexBySongId(audioFile.id)
-        currentAudioFileRef.current = audioFile
-        setCurrentAudioFile(audioFile)
-        setPositionSeconds(0)
+    React.useEffect(() => {
+        localHandlerRef.current.updateConfig({
+            onStatusUpdate: handleLocalStatusUpdate,
+            onFinished: handleSongFinished
+        })
+    }, [handleLocalStatusUpdate, handleSongFinished])
 
-        if (isRemote) {
-            await activeHandler.play(sessionRef.current?.id)
-        } else {
-            await activeHandler.loadAndPlay(audioFile)
-        }
-        setPlaying(true)
-    }, [isRemote, queueManager, activeHandler])
+    React.useEffect(() => {
+        remoteHandlerRef.current.updateConfig({
+            apiClient,
+            targetPlayer,
+            getSession: () => sessionRef.current,
+            onStateSync: handleRemoteStateSync,
+            onVolumeChange: handleVolumeSync
+        })
+    }, [apiClient, targetPlayer, handleRemoteStateSync, handleVolumeSync])
 
     const prevTargetPlayerRef = React.useRef(targetPlayer)
     React.useEffect(() => {
-        const wasLocal = prevTargetPlayerRef.current?.id === undefined || prevTargetPlayerRef.current?.id === null
+        const wasRemote = prevTargetPlayerRef.current?.id !== undefined && prevTargetPlayerRef.current?.id !== null
 
-        if (isRemote && wasLocal) {
-            localHandlerRef.current.pause().then(() => setPlaying(false))
+        if (isRemote !== wasRemote) {
+            if (isRemote) {
+                localHandlerRef.current.deactivate()
+                remoteHandlerRef.current.activate()
+            } else {
+                remoteHandlerRef.current.deactivate()
+                localHandlerRef.current.activate()
+            }
         }
 
         if (prevTargetPlayerRef.current?.id !== targetPlayer?.id) {
@@ -165,7 +173,6 @@ export function AudioContextProvider({ children }) {
             setPositionSeconds(0)
             setMusicSession(null)
             sessionRef.current = null
-            remoteHandlerRef.current.stopPolling()
         }
 
         prevTargetPlayerRef.current = targetPlayer
@@ -197,40 +204,15 @@ export function AudioContextProvider({ children }) {
         }
     }, [])
 
-    React.useEffect(() => {
-        if (isRemote && targetPlayer?.id) {
-            remoteHandlerRef.current.startPolling()
-        }
-    }, [isRemote, targetPlayer?.id, musicSession?.id])
+    const playAudioFile = React.useCallback(async (audioFile) => {
+        await queueManager.setQueueIndexBySongId(audioFile.id)
+        currentAudioFileRef.current = audioFile
+        setCurrentAudioFile(audioFile)
+        setPositionSeconds(0)
 
-    React.useEffect(() => {
-        if (!isRemote) return
-
-        let lastVolumeLevel = null
-        VolumeManager.showNativeVolumeUI({ enabled: false })
-
-        const subscription = VolumeManager.addVolumeListener((event) => {
-            if (lastVolumeLevel === null) {
-                lastVolumeLevel = event.volume
-                return
-            }
-
-            const difference = event.volume - lastVolumeLevel
-            lastVolumeLevel = event.volume
-
-            if (Math.abs(difference) > 0.001) {
-                const targetVolume = Math.max(0, Math.min(1, volumeRef.current + difference))
-                volumeRef.current = targetVolume
-                setVolume(targetVolume)
-                remoteHandlerRef.current.setVolume(targetVolume, sessionRef.current?.id)
-            }
-        })
-
-        return () => {
-            subscription.remove()
-            VolumeManager.showNativeVolumeUI({ enabled: true })
-        }
-    }, [isRemote])
+        await activeHandlerRef.current.play(audioFile)
+        setPlaying(true)
+    }, [queueManager])
 
     async function handleAddAudioFileToQueue(audioFile, playNext) {
         let shouldPlayImmediately = !isPlayingRef.current
@@ -287,20 +269,16 @@ export function AudioContextProvider({ children }) {
     }
 
     async function stopAudio() {
-        await activeHandler.stop(sessionRef.current?.id)
+        await activeHandler.stop()
         setPlaying(false)
     }
 
     async function togglePlayback() {
         if (isPlaying) {
-            await activeHandler.pause(sessionRef.current?.id)
+            await activeHandler.pause()
             setPlaying(false)
         } else {
-            if (!isRemote && !localHandlerRef.current.player && currentAudioFileRef.current) {
-                await localHandlerRef.current.loadAndPlay(currentAudioFileRef.current)
-            } else {
-                await activeHandler.resume(sessionRef.current?.id)
-            }
+            await activeHandler.resume()
             setPlaying(true)
         }
     }
@@ -310,7 +288,7 @@ export function AudioContextProvider({ children }) {
         isSeekingRef.current = true
         setPositionSeconds(targetSeconds)
         try {
-            await activeHandler.seek(targetSeconds, sessionRef.current?.id)
+            await activeHandler.seek(targetSeconds)
         } finally {
             isSeekingRef.current = false
         }
@@ -322,11 +300,7 @@ export function AudioContextProvider({ children }) {
             currentAudioFileRef.current = nextSong
             setCurrentAudioFile(nextSong)
             setPositionSeconds(0)
-            if (isRemote) {
-                await activeHandler.play(sessionRef.current?.id)
-            } else {
-                await localHandlerRef.current.loadAndPlay(nextSong)
-            }
+            await activeHandler.play(nextSong)
             setPlaying(true)
         }
     }
@@ -335,7 +309,7 @@ export function AudioContextProvider({ children }) {
         const volumeValue = Math.max(0, Math.min(1, percent))
         setVolume(volumeValue)
         volumeRef.current = volumeValue
-        await activeHandler.setVolume(volumeValue, sessionRef.current?.id)
+        await activeHandler.setVolume(volumeValue)
     }
 
     let progressPercent = currentAudioFile && currentAudioFile.duration > 0
@@ -362,8 +336,6 @@ export function AudioContextProvider({ children }) {
         removeAudioFileFromQueue: handleRemoveAudioFileFromQueue,
         removeCrateFromQueue: (crateId, kind) => queueManager.removeCrateFromQueue(crateId, kind, sessionRef.current),
         shuffleMusicQueue: handleShuffleMusicQueue,
-        startRemotePolling: () => remoteHandlerRef.current.startPolling(),
-        stopRemotePolling: () => remoteHandlerRef.current.stopPolling(),
         stopAudio,
         volume
     }

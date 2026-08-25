@@ -1,48 +1,73 @@
+import { VolumeManager } from 'react-native-volume-manager'
+
 export class RemoteAudioHandler {
-    constructor({ apiClient, targetPlayer, onStateSync }) {
+    constructor({ apiClient, targetPlayer, getSession, onStateSync, onVolumeChange }) {
         this.apiClient = apiClient
         this.targetPlayer = targetPlayer
+        this.getSession = getSession
         this.onStateSync = onStateSync
+        this.onVolumeChange = onVolumeChange
         this.pollInterval = null
         this.pendingVolumeTimeout = null
+        this.volumeSubscription = null
+        this.currentVolume = 1.0
+        this.isActive = false
     }
 
-    updateConfig({ apiClient, targetPlayer }) {
+    updateConfig({ apiClient, targetPlayer, getSession, onStateSync, onVolumeChange }) {
         this.apiClient = apiClient
         this.targetPlayer = targetPlayer
+        if (getSession) this.getSession = getSession
+        if (onStateSync) this.onStateSync = onStateSync
+        if (onVolumeChange) this.onVolumeChange = onVolumeChange
+
+        if (this.isActive && this.targetPlayer?.id && !this.pollInterval) {
+            this.startPolling()
+        }
     }
 
-    async play(sessionId) {
+    getSessionId() {
+        return this.getSession?.()?.id
+    }
+
+    async play(audioFile) {
+        const sessionId = this.getSessionId()
         if (this.apiClient && sessionId) {
             await this.apiClient.musicSessionPlay(sessionId)
         }
     }
 
-    async pause(sessionId) {
+    async pause() {
+        const sessionId = this.getSessionId()
         if (this.apiClient && sessionId) {
             await this.apiClient.musicSessionPause(sessionId)
         }
     }
 
-    async resume(sessionId) {
+    async resume() {
+        const sessionId = this.getSessionId()
         if (this.apiClient && sessionId) {
             await this.apiClient.musicSessionPlay(sessionId)
         }
     }
 
-    async stop(sessionId) {
+    async stop() {
+        const sessionId = this.getSessionId()
         if (this.apiClient && sessionId) {
             await this.apiClient.musicSessionStop(sessionId)
         }
     }
 
-    async seek(seconds, sessionId) {
+    async seek(seconds) {
+        const sessionId = this.getSessionId()
         if (this.apiClient && sessionId) {
             await this.apiClient.musicSessionSeek(sessionId, seconds)
         }
     }
 
-    async setVolume(percent, sessionId) {
+    async setVolume(percent) {
+        const sessionId = this.getSessionId()
+        this.currentVolume = percent
         if (!this.apiClient || !sessionId) return
 
         if (this.pendingVolumeTimeout) {
@@ -88,7 +113,51 @@ export class RemoteAudioHandler {
         }
     }
 
-    cleanup() {
+    attachVolumeListener() {
+        if (this.volumeSubscription) return
+
+        let lastVolumeLevel = null
+        VolumeManager.showNativeVolumeUI({ enabled: false })
+
+        this.volumeSubscription = VolumeManager.addVolumeListener((event) => {
+            if (lastVolumeLevel === null) {
+                lastVolumeLevel = event.volume
+                return
+            }
+
+            const difference = event.volume - lastVolumeLevel
+            lastVolumeLevel = event.volume
+
+            if (Math.abs(difference) > 0.001) {
+                const targetVolume = Math.max(0, Math.min(1, this.currentVolume + difference))
+                this.currentVolume = targetVolume
+                this.onVolumeChange?.(targetVolume)
+                this.setVolume(targetVolume)
+            }
+        })
+    }
+
+    detachVolumeListener() {
+        if (this.volumeSubscription) {
+            this.volumeSubscription.remove()
+            this.volumeSubscription = null
+            VolumeManager.showNativeVolumeUI({ enabled: true })
+        }
+    }
+
+    activate() {
+        this.isActive = true
+        this.attachVolumeListener()
+        this.startPolling()
+    }
+
+    deactivate() {
+        this.isActive = false
         this.stopPolling()
+        this.detachVolumeListener()
+    }
+
+    cleanup() {
+        this.deactivate()
     }
 }
