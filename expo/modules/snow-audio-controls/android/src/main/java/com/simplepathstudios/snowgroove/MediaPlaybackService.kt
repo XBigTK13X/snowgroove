@@ -1,4 +1,4 @@
-package com.simplepathstudios.snowgroove
+package com.simplepathstudios.snowgroove.audiocontrols
 
 import android.app.Notification
 import android.app.NotificationChannel

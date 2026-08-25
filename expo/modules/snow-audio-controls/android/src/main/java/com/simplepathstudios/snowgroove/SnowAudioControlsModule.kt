@@ -1,4 +1,4 @@
-package com.simplepathstudios.snowgroove
+package com.simplepathstudios.snowgroove.audiocontrols
 
 import android.content.ComponentName
 import android.content.Context

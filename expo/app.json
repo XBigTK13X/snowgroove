@@ -41,6 +41,7 @@
           "ios": {}
         }
       ],
+      "expo-audio",
       [
         "@sentry/react-native/expo",
         {
