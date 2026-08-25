@@ -32,6 +32,10 @@ export function useMusicQueue({ apiClient, session, setSession }) {
     }, [])
 
     React.useEffect(() => {
+        sessionRef.current = session
+    }, [session])
+
+    React.useEffect(() => {
         const currentPlayerId = targetPlayer?.id ?? null
 
         if (prevTargetPlayerIdRef.current !== currentPlayerId) {

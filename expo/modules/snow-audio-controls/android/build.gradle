@@ -1,0 +1,19 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+android {
+    namespace "com.simplepathstudios.snowgroove"
+    compileSdkVersion 36
+
+    defaultConfig {
+        minSdkVersion 26
+        targetSdkVersion 36
+    }
+}
+
+dependencies {
+    implementation project(':expo-modules-core')
+    implementation "androidx.media:media:1.7.0"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0"
+}

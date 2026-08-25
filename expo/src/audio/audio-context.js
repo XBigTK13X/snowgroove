@@ -4,6 +4,8 @@ import { LocalAudioHandler } from './local-audio-handler'
 import { RemoteAudioHandler } from './remote-audio-handler'
 import { useMusicQueue } from './music-queue'
 
+import { SnowAudioControls } from '../../modules/snow-audio-controls'
+
 const AudioContext = React.createContext(null)
 
 export function AudioContextProvider({ children }) {
@@ -63,8 +65,14 @@ export function AudioContextProvider({ children }) {
     }
 
     const handleLocalStatusUpdate = React.useCallback((status) => {
-        if (!isSeekingRef.current) {
-            setPositionSeconds(status.positionMillis / 1000)
+        if (!isSeekingRef.current && status?.positionMillis !== undefined) {
+            const nextSeconds = Math.floor(status.positionMillis / 1000)
+            setPositionSeconds((prevSeconds) => {
+                if (Math.abs(prevSeconds - nextSeconds) >= 1) {
+                    return nextSeconds
+                }
+                return prevSeconds
+            })
         }
     }, [])
 
@@ -72,7 +80,7 @@ export function AudioContextProvider({ children }) {
         setPlaying(false)
         setPositionSeconds(0)
 
-        const nextSong = await queueManager.advanceQueueIndex(1, false)
+        const nextSong = await queueManager.advanceQueueIndex(1, true)
         if (nextSong) {
             currentAudioFileRef.current = nextSong
             setCurrentAudioFile(nextSong)
@@ -278,8 +286,12 @@ export function AudioContextProvider({ children }) {
             await activeHandler.pause()
             setPlaying(false)
         } else {
-            await activeHandler.resume()
-            setPlaying(true)
+            if (currentAudioFile && !isRemote && !localHandlerRef.current.player) {
+                await playAudioFile(currentAudioFile)
+            } else {
+                await activeHandler.resume()
+                setPlaying(true)
+            }
         }
     }
 
@@ -315,6 +327,39 @@ export function AudioContextProvider({ children }) {
     let progressPercent = currentAudioFile && currentAudioFile.duration > 0
         ? positionSeconds / currentAudioFile.duration
         : 0
+
+    React.useEffect(() => {
+        const playSub = SnowAudioControls.addListener('play', () => togglePlayback())
+        const pauseSub = SnowAudioControls.addListener('pause', () => togglePlayback())
+        const nextSub = SnowAudioControls.addListener('next', () => moveCurrentIndex(1))
+        const prevSub = SnowAudioControls.addListener('previous', () => moveCurrentIndex(-1))
+        const seekSub = SnowAudioControls.addListener('seek', (event) => {
+            if (event?.position !== undefined) {
+                seekToSeconds(event.position)
+            }
+        })
+
+        return () => {
+            playSub.remove()
+            pauseSub.remove()
+            nextSub.remove()
+            prevSub.remove()
+            seekSub.remove()
+        }
+    }, [togglePlayback, moveCurrentIndex, seekToSeconds])
+
+    React.useEffect(() => {
+        if (isRemote && currentAudioFile) {
+            SnowAudioControls.updateMetadata({
+                title: currentAudioFile.title || 'Unknown Title',
+                artist: currentAudioFile.artist || 'Unknown Artist',
+                album: currentAudioFile.album || 'Unknown Album',
+                artworkUrl: currentAudioFile.thumbnail_web_path || '',
+                duration: currentAudioFile.duration || 0,
+                isPlaying: isPlaying
+            })
+        }
+    }, [isRemote, currentAudioFile, isPlaying])
 
     let contextValue = {
         addAudioFileToQueue: handleAddAudioFileToQueue,

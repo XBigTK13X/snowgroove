@@ -1,8 +1,10 @@
-import { LogBox } from 'react-native'
-
-LogBox.ignoreLogs([
-    /VirtualizedLists should never be nested/
-])
+const originalLog = console.log
+console.log = (...args) => {
+    if (typeof args[0] === 'string' && args[0].includes('Native module loaded')) {
+        return
+    }
+    originalLog(...args)
+}
 
 const originalError = console.error
 console.error = (...args) => {
@@ -12,17 +14,11 @@ console.error = (...args) => {
     originalError(...args)
 }
 
+import { LogBox } from 'react-native'
 import PageLoader from "./src/page/page-loader"
-import { setAudioModeAsync } from 'expo-audio'
 
-setAudioModeAsync({
-    playsInSilentMode: true,
-    shouldPlayInBackground: true,
-    interruptionMode: 'duckOthers',
-    shouldRouteThroughEarpiece: false,
-    staysActiveInBackground: true
-}).catch((error) => {
-    console.error('Failed to set global audio mode:', error)
-})
+LogBox.ignoreLogs([
+    /VirtualizedLists should never be nested/
+])
 
 export default PageLoader

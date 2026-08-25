@@ -24,8 +24,6 @@ export default function LandingPage(props) {
         positionSeconds,
         progressPercent,
         seekToSeconds,
-        startRemotePolling,
-        stopRemotePolling,
         togglePlayback,
         volume
     } = useAudioContext()
@@ -36,14 +34,6 @@ export default function LandingPage(props) {
         apiClient.getShelfList().then((response) => {
             setShelves(response)
         })
-    }, [])
-
-    C.React.useEffect(() => {
-        startRemotePolling()
-
-        return () => {
-            stopRemotePolling()
-        }
     }, [])
 
     C.React.useEffect(() => {

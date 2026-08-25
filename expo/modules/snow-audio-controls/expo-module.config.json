@@ -1,0 +1,13 @@
+{
+    "name": "snow-audio-controls",
+    "platforms": [
+        "android",
+        "ios"
+    ],
+    "android": {
+        "package": "com.simplepathstudios.snowgroove",
+        "modules": [
+            "com.simplepathstudios.snowgroove.SnowAudioControlsModule"
+        ]
+    }
+}
