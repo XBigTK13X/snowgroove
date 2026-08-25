@@ -10,18 +10,22 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.media.AudioAttributes
-import android.media.MediaPlayer
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
-import android.os.PowerManager
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import androidx.core.app.NotificationCompat
 import androidx.media.app.NotificationCompat.MediaStyle
 import androidx.media.session.MediaButtonReceiver
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.ExoPlayer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -39,7 +43,7 @@ class MediaPlaybackService : Service() {
     private val notificationId = 9914
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
 
-    private var mediaPlayer: MediaPlayer? = null
+    private var exoPlayer: ExoPlayer? = null
     var mediaSession: MediaSessionCompat? = null
     var onCommand: ((String, Map<String, Any>?) -> Unit)? = null
     var onStatusUpdate: ((Map<String, Any>) -> Unit)? = null
@@ -98,30 +102,59 @@ class MediaPlaybackService : Service() {
         return START_STICKY
     }
 
-    private fun initMediaPlayer() {
-        if (mediaPlayer == null) {
-            mediaPlayer = MediaPlayer().apply {
-                setWakeMode(applicationContext, PowerManager.PARTIAL_WAKE_LOCK)
-                setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .build()
+    private fun initExoPlayer() {
+        if (exoPlayer == null) {
+            val loadControl = DefaultLoadControl.Builder()
+                .setBufferDurationsMs(
+                    30000,
+                    60000,
+                    2500,
+                    5000
                 )
-                setOnCompletionListener {
-                    updatePlaybackState(false)
-                    onFinished?.invoke()
+                .build()
+
+            val audioAttributes = AudioAttributes.Builder()
+                .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                .setUsage(C.USAGE_MEDIA)
+                .build()
+
+            exoPlayer = ExoPlayer.Builder(applicationContext)
+                .setLoadControl(loadControl)
+                .setAudioAttributes(audioAttributes, true)
+                .setHandleAudioBecomingNoisy(true)
+                .setWakeMode(C.WAKE_MODE_LOCAL)
+                .build()
+                .apply {
+                    volume = targetVolume
+                    addListener(object : Player.Listener {
+                        override fun onPlaybackStateChanged(playbackState: Int) {
+                            when (playbackState) {
+                                Player.STATE_ENDED -> {
+                                    updatePlaybackState(false)
+                                    onFinished?.invoke()
+                                }
+                                Player.STATE_READY -> {
+                                    updatePlaybackState(playWhenReady)
+                                }
+                                Player.STATE_BUFFERING -> {
+                                    updatePlaybackState(playWhenReady)
+                                }
+                                Player.STATE_IDLE -> {
+                                    updatePlaybackState(false)
+                                }
+                            }
+                        }
+
+                        override fun onIsPlayingChanged(isPlaying: Boolean) {
+                            updatePlaybackState(isPlaying)
+                            updateNotification(isPlaying, cachedArtworkBitmap)
+                        }
+
+                        override fun onPlayerError(error: PlaybackException) {
+                            updatePlaybackState(false)
+                        }
+                    })
                 }
-                setOnPreparedListener {
-                    setVolume(targetVolume, targetVolume)
-                    it.start()
-                    updatePlaybackState(true)
-                }
-                setOnErrorListener { _, _, _ ->
-                    updatePlaybackState(false)
-                    true
-                }
-            }
         }
     }
 
@@ -130,14 +163,13 @@ class MediaPlaybackService : Service() {
         currentArtist = artist
         currentAlbum = album
 
-        initMediaPlayer()
+        initExoPlayer()
 
-        try {
-            mediaPlayer?.reset()
-            mediaPlayer?.setDataSource(uri)
-            mediaPlayer?.prepareAsync()
-        } catch (error: Exception) {
-            return
+        exoPlayer?.let { player ->
+            val mediaItem = MediaItem.fromUri(uri)
+            player.setMediaItem(mediaItem)
+            player.prepare()
+            player.playWhenReady = true
         }
 
         serviceScope.launch {
@@ -175,32 +207,26 @@ class MediaPlaybackService : Service() {
     }
 
     fun play() {
-        mediaPlayer?.let {
-            if (!it.isPlaying) {
-                it.start()
-                updatePlaybackState(true)
-                updateNotification(true, cachedArtworkBitmap)
-            }
+        exoPlayer?.let { player ->
+            player.playWhenReady = true
+            updatePlaybackState(true)
+            updateNotification(true, cachedArtworkBitmap)
         }
     }
 
     fun pause() {
-        mediaPlayer?.let {
-            if (it.isPlaying) {
-                it.pause()
-                updatePlaybackState(false)
-                updateNotification(false, cachedArtworkBitmap)
-            }
+        exoPlayer?.let { player ->
+            player.playWhenReady = false
+            updatePlaybackState(false)
+            updateNotification(false, cachedArtworkBitmap)
         }
     }
 
     fun stop() {
-        mediaPlayer?.let {
+        exoPlayer?.let { player ->
             try {
-                if (it.isPlaying) {
-                    it.stop()
-                }
-                it.reset()
+                player.stop()
+                player.clearMediaItems()
             } catch (ignored: Exception) {}
         }
         updatePlaybackState(false)
@@ -208,19 +234,19 @@ class MediaPlaybackService : Service() {
     }
 
     fun seek(seconds: Double) {
-        val targetMillis = (seconds * 1000).toInt()
-        mediaPlayer?.seekTo(targetMillis)
-        updatePlaybackState(mediaPlayer?.isPlaying == true)
+        val targetMillis = (seconds * 1000).toLong()
+        exoPlayer?.seekTo(targetMillis)
+        updatePlaybackState(exoPlayer?.isPlaying == true)
     }
 
     fun setVolumeLevel(percent: Float) {
         targetVolume = percent.coerceIn(0.0f, 1.0f)
-        mediaPlayer?.setVolume(targetVolume, targetVolume)
+        exoPlayer?.volume = targetVolume
     }
 
     private fun updatePlaybackState(isPlaying: Boolean) {
         val session = mediaSession ?: return
-        val currentPosition = mediaPlayer?.currentPosition?.toLong() ?: 0L
+        val currentPosition = exoPlayer?.currentPosition ?: 0L
         val stateCode = if (isPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
         val actions = PlaybackStateCompat.ACTION_PLAY or
                 PlaybackStateCompat.ACTION_PAUSE or
@@ -241,20 +267,22 @@ class MediaPlaybackService : Service() {
         progressJob?.cancel()
         progressJob = serviceScope.launch(Dispatchers.Default) {
             while (isActive) {
-                val player = mediaPlayer
+                val player = exoPlayer
                 if (player != null) {
                     try {
-                        if (player.isPlaying) {
-                            val currentPosition = player.currentPosition
-                            val duration = player.duration
-                            onStatusUpdate?.invoke(
-                                mapOf(
-                                    "positionMillis" to currentPosition,
-                                    "durationMillis" to duration,
-                                    "isPlaying" to true,
-                                    "isLoaded" to true
+                        withContext(Dispatchers.Main) {
+                            if (player.isPlaying) {
+                                val currentPosition = player.currentPosition
+                                val duration = player.duration.coerceAtLeast(0L)
+                                onStatusUpdate?.invoke(
+                                    mapOf(
+                                        "positionMillis" to currentPosition,
+                                        "durationMillis" to duration,
+                                        "isPlaying" to true,
+                                        "isLoaded" to true
+                                    )
                                 )
-                            )
+                            }
                         }
                     } catch (ignored: Exception) {}
                 }
@@ -452,8 +480,8 @@ class MediaPlaybackService : Service() {
 
     override fun onDestroy() {
         progressJob?.cancel()
-        mediaPlayer?.release()
-        mediaPlayer = null
+        exoPlayer?.release()
+        exoPlayer = null
         mediaSession?.isActive = false
         mediaSession?.release()
         mediaSession = null
