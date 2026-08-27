@@ -235,3 +235,30 @@ def get_playlist_list(ticket: dbi.dm.Ticket, flatten: bool = False):
         for owner in owners:
             playlists[owner].sort(key=lambda xx: xx.name)
         return {'owners': owners, 'playlists': playlists}
+
+
+def add_song_to_playlist(playlist_id: int, audio_file_fingerprint: str):
+    if not playlist_id or not audio_file_fingerprint:
+        return None
+
+    with dbi.session() as db:
+        existing = (
+            db.query(dbi.dm.Playlist).filter(dbi.dm.Playlist.id == playlist_id).first()
+        )
+        if not existing:
+            return None
+
+        fingerprints = []
+        if existing.audio_file_fingerprints_json:
+            fingerprints = dbi.json.loads(existing.audio_file_fingerprints_json) or []
+
+        if audio_file_fingerprint in fingerprints:
+            return None
+
+        fingerprints.append(audio_file_fingerprint)
+
+        return update_playlist(
+            id=existing.id,
+            name=existing.name,
+            audio_file_fingerprints=fingerprints,
+        )

@@ -329,6 +329,9 @@ class Crate(BaseModel):
     shelf: orm.Mapped['Shelf'] = orm.relationship(back_populates='crates')
     directory = sa.Column(sa.Text)
     title = sa.Column(sa.Text)
+    year = sa.Column(sa.Integer)
+    year_order = sa.Column(sa.Integer)
+
     parent_crate_id: orm.Mapped[int] = orm.mapped_column(
         sa.ForeignKey('crate.id'), nullable=True
     )

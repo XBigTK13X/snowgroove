@@ -7,7 +7,7 @@ import SnowDraggableColumn from './snow-draggable-column'
 
 export function SnowSongList(props) {
     const { pushModal, popModal, navPush, SnowStyle } = Snow.useSnowContext(props)
-    const { routes } = useAppContext()
+    const { routes, apiClient } = useAppContext()
     const {
         addAudioFileToQueue,
         playAudioFile,
@@ -16,6 +16,16 @@ export function SnowSongList(props) {
         removeAudioFileFromQueue,
         removeCrateFromQueue
     } = useAudioContext()
+
+    const [playlistList, setPlaylistList] = React.useState([])
+    const playlistListRef = React.useRef([])
+
+    React.useEffect(() => {
+        apiClient.getPlaylistList(true).then((response) => {
+            setPlaylistList(response)
+            playlistListRef.current = response
+        })
+    }, [])
 
     let activeItemIndex = -1
     if (musicSession?.music_queue?.current_song_index > -1) {
@@ -56,9 +66,86 @@ export function SnowSongList(props) {
         }
     }
 
+    const showUpdatePlaylistModal = (audioFile) => {
+        popModal()
+        setTimeout(() => {
+            pushModal({
+                render: (modalProps) => {
+                    const currentPlaylists = playlistListRef.current
+                    return (
+                        <Snow.View>
+                            <Snow.Label center>Add {audioFile.title} to...</Snow.Label>
+                            <Snow.Grid
+                                parentPath={modalProps.parentPath}
+                                focusKey="add-to-playlist"
+                                items={currentPlaylists}
+                                renderItem={(playlist) => {
+                                    return (
+                                        <Snow.TextButton
+                                            title={playlist.name}
+                                            onPress={() => {
+                                                apiClient.addAudioFileToPlaylist(playlist.id, audioFile.fingerprint)
+                                                popModal()
+                                            }}
+                                        />
+                                    )
+                                }}
+                            />
+                        </Snow.View>
+                    )
+                },
+                props: {
+                    center: true,
+                    transparent: false,
+                    onRequestClose: popModal
+                }
+            })
+        }, 0)
+    }
+
+    const showSongActionModal = (audioFile) => {
+        const currentPlaylists = playlistListRef.current
+        pushModal({
+            render: (modalProps) => {
+                return (
+                    <Snow.View>
+                        <Snow.Label center>
+                            {audioFile.title}
+                        </Snow.Label>
+                        <Snow.Grid
+                            focusStart
+                            parentPath={modalProps.parentPath}
+                            focusKey="song-grid"
+                            itemsPerRow={2}
+                        >
+                            <Snow.TextButton title="Cancel" onPress={popModal} />
+                            <Snow.TextButton title="Play Now" onPress={() => { popModal(); playAudioFile(audioFile) }} />
+                            <Snow.TextButton title="Play Next" onPress={playNext(audioFile)} />
+                            <Snow.TextButton title="Add Song to Queue" onPress={() => { popModal(); addAudioFileToQueue(audioFile) }} />
+                            {currentPlaylists && (
+                                <Snow.TextButton title="Add Song to Playlist" onPress={() => { showUpdatePlaylistModal(audioFile) }} />
+                            )}
+                            <Snow.TextButton title="Goto Album" onPress={gotoCrate(audioFile.album_crate_id)} />
+                            <Snow.TextButton title="Goto Artist" onPress={gotoCrate(audioFile.artist_crate_id)} />
+                            <Snow.TextButton title="Remove Song from Queue" onPress={removeSong(audioFile)} />
+                            <Snow.TextButton title="Remove Album from Queue" onPress={removeCrate(audioFile.album_crate_id, 'album')} />
+                            <Snow.TextButton title="Remove Artist from Queue" onPress={removeCrate(audioFile.artist_crate_id, 'artist')} />
+                        </Snow.Grid>
+                    </Snow.View>
+                )
+            },
+            props: {
+                center: true,
+                transparent: false,
+                onRequestClose: popModal
+            }
+        })
+    }
+
     return (
         <SnowDraggableColumn
             {...props}
+            playlistRefresh={playlistList}
             title="Songs"
             activeIndex={props.activeQueue ? activeItemIndex : -1}
             disableDrag={props.disableDrag}
@@ -96,35 +183,7 @@ export function SnowSongList(props) {
                                 imageStyle={{ width: 50, height: 50 }}
                                 wrapperStyle={{ width: 60, height: 70, justifyContent: 'center' }}
                                 imageUrl={item.thumbnail_web_path}
-                                onPress={() => {
-                                    pushModal({
-                                        render: (modalProps) => {
-                                            return (
-                                                <Snow.Grid
-                                                    focusStart
-                                                    parentPath={modalProps.parentPath}
-                                                    focusKey="song-grid"
-                                                    itemsPerRow={2}
-                                                >
-                                                    <Snow.TextButton title="Cancel" onPress={popModal} />
-                                                    <Snow.TextButton title="Play Now" onPress={() => { popModal(); playAudioFile(item) }} />
-                                                    <Snow.TextButton title="Play Next" onPress={playNext(item)} />
-                                                    <Snow.TextButton title="Add Song to Queue" onPress={() => { popModal(); addAudioFileToQueue(item) }} />
-                                                    <Snow.TextButton title="Goto Album" onPress={gotoCrate(item.album_crate_id)} />
-                                                    <Snow.TextButton title="Goto Artist" onPress={gotoCrate(item.artist_crate_id)} />
-                                                    <Snow.TextButton title="Remove Song from Queue" onPress={removeSong(item)} />
-                                                    <Snow.TextButton title="Remove Album from Queue" onPress={removeCrate(item.album_crate_id, 'album')} />
-                                                    <Snow.TextButton title="Remove Artist from Queue" onPress={removeCrate(item.artist_crate_id, 'artist')} />
-                                                </Snow.Grid>
-                                            )
-                                        },
-                                        props: {
-                                            center: true,
-                                            obscure: true,
-                                            onRequestClose: popModal
-                                        }
-                                    })
-                                }}
+                                onPress={() => { showSongActionModal(item) }}
                             />
                             <View style={{ flex: 1, paddingLeft: 10, justifyContent: 'center' }}>
                                 <Snow.Text noSelect>{itemDisplay}</Snow.Text>

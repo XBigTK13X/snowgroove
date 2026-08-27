@@ -209,30 +209,6 @@ export class ApiClient {
         return this.get('/shelf', { shelf_id: shelfId })
     }
 
-    getMovieList = (shelfId, showPlaylisted) => {
-        return this.get('/movie/list', { shelf_id: shelfId, show_playlisted: showPlaylisted })
-    }
-
-    getMovie = (movieId, deviceProfile) => {
-        return this.get(`/movie?movie_id=${movieId}&device_profile=${deviceProfile}`)
-    }
-
-    getShowList = (shelfId, showPlaylisted) => {
-        return this.get('/show/list', { shelf_id: shelfId, show_playlisted: showPlaylisted })
-    }
-
-    getSeasonList = (showId) => {
-        return this.get('/show/season/list', { show_id: showId })
-    }
-
-    getEpisodeList = (shelfId, seasonId) => {
-        return this.get('/show/season/episode/list', { shelf_id: shelfId, show_season_id: seasonId })
-    }
-
-    getEpisode = (episodeId, deviceProfile) => {
-        return this.get(`/show/season/episode?episode_id=${episodeId}&device_profile=${deviceProfile}`)
-    }
-
     getUserList = (deviceName) => {
         return this.get(`/user/list?device_name=${deviceName}`)
     }
@@ -305,6 +281,13 @@ export class ApiClient {
             playlist_id: playlistId,
             name: playlistName,
             audio_file_fingerprints: audioFileFingerprints
+        })
+    }
+
+    addAudioFileToPlaylist = (playlistId, audioFileFingerprint) => {
+        return this.post('/playlist/song', {
+            playlist_id: playlistId,
+            audio_file_fingerprint: audioFileFingerprint
         })
     }
 

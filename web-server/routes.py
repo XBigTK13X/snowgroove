@@ -461,6 +461,16 @@ def playlist_routes(router):
     ):
         return db.op.get_playlist_list(ticket=auth_user.ticket, flatten=flatten)
 
+    @router.post('/playlist/song')
+    def add_song_to_playlist(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+        playlist_id: int = Body(embed=True),
+        audio_file_fingerprint: str = Body(embed=True),
+    ):
+        db.op.add_song_to_playlist(
+            playlist_id=playlist_id, audio_file_fingerprint=audio_file_fingerprint
+        )
+
 
 def auth_required(router):
     @router.get('/auth/check', tags=['User'])

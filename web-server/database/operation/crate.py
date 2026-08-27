@@ -1,5 +1,21 @@
+import re
+
 from database.operation.db_internal import dbi
 import database.operation.shelf as db_shelf
+
+YEAR_PATTERN = re.compile(r'\((\d{4})(?:\.(\d+))?\)')
+
+
+def parse_year_order(target_dir):
+    target_segment = dbi.os.path.basename(target_dir.rstrip('/'))
+    match_result = YEAR_PATTERN.search(target_segment)
+
+    if match_result:
+        year_value = match_result.group(1)
+        order_value = match_result.group(2)
+        return year_value, order_value
+
+    return None, None
 
 
 def create_crate(shelf_id: int, directory: str):
@@ -8,6 +24,8 @@ def create_crate(shelf_id: int, directory: str):
         relative_directory = directory.replace(shelf.local_path, '')
 
         path_parts = relative_directory.strip('/').split('/')
+
+        year, year_order = parse_year_order(directory)
 
         current_relative_path = ''
         parent_id = None
@@ -37,6 +55,8 @@ def create_crate(shelf_id: int, directory: str):
             dbm.shelf_id = shelf_id
             dbm.directory = current_relative_path
             dbm.title = part
+            dbm.year = year
+            dbm.year_order = year_order
 
             if parent_id is not None:
                 dbm.parent_crate_id = parent_id
@@ -198,7 +218,13 @@ def get_crate_by_id(ticket: dbi.dm.Ticket, crate_id: int):
         )
         if crate:
             crate = dbi.dm.set_primary_images(crate)
-            crate.children.sort(key=lambda xx: xx.title)
+            crate.children.sort(
+                key=lambda xx: (
+                    xx.year if xx.year is not None else 9999,
+                    xx.year_order if xx.year_order is not None else 9999,
+                    (xx.title or '').lower(),
+                )
+            )
             crate.kind = 'crate'
             for child in crate.children:
                 child = dbi.dm.set_primary_images(child)
@@ -214,7 +240,13 @@ def get_crate_by_id(ticket: dbi.dm.Ticket, crate_id: int):
                 audio_file.artist_crate_id = (
                     crate.parent_crate_id if crate.parent_crate_id else None
                 )
-            crate.audio_files.sort(key=lambda xx: (xx.disc or 0, xx.track or 0))
+            crate.audio_files.sort(
+                key=lambda xx: (
+                    xx.disc or 0,
+                    xx.track or 0,
+                    (xx.title or '').lower(),
+                )
+            )
         crate.active_tags = tags
         return crate
 
@@ -302,15 +334,30 @@ def get_crate_audio_file_list(crate_id: int, only_children: bool = False):
             .all()
         )
 
+        crates.sort(
+            key=lambda xx: (
+                xx.year if xx.year is not None else 9999,
+                xx.year_order if xx.year_order is not None else 9999,
+                (xx.title or '').lower(),
+            )
+        )
+
         flat_audio_files = []
 
         for crate in crates:
             crate = dbi.dm.set_primary_images(crate)
 
-            for audio_file in crate.audio_files:
+            sorted_audio_files = sorted(
+                crate.audio_files,
+                key=lambda xx: (xx.disc or 0, xx.track or 0, (xx.title or '').lower()),
+            )
+
+            for audio_file in sorted_audio_files:
                 if not audio_file.thumbnail_web_path:
                     audio_file.thumbnail_web_path = crate.album_cover_image_url
 
+                audio_file.crate_year = crate.year
+                audio_file.crate_year_order = crate.year_order
                 audio_file.crate_title = crate.title
                 audio_file.album_crate_id = crate.id
                 audio_file.artist_crate_id = (
@@ -319,10 +366,16 @@ def get_crate_audio_file_list(crate_id: int, only_children: bool = False):
                 flat_audio_files.append(audio_file)
 
         flat_audio_files.sort(
-            key=lambda xx: (xx.crate_title or '', xx.disc or 0, xx.track or 0)
+            key=lambda xx: (
+                xx.crate_year if xx.crate_year is not None else 9999,
+                xx.crate_year_order if xx.crate_year_order is not None else 9999,
+                (xx.crate_title or '').lower(),
+                xx.disc or 0,
+                xx.track or 0,
+            )
         )
 
-        return {'audio_files': flat_audio_files}
+        return {'audio_files': flat_audio_files, 'crates': crates}
 
 
 def get_crate_tag(crate_id: int, tag_id: int):
@@ -345,3 +398,22 @@ def create_crate_tag(crate_id: int, tag_id: int):
         db.add(dbm)
         db.commit()
         db.refresh(dbm)
+
+
+def update_crate_year(crate):
+    year, year_order = parse_year_order(crate.directory)
+    if crate.year == year and crate.year_order == year_order:
+        return crate
+    if not crate.id:
+        return crate
+    with dbi.session() as db:
+        statement = (
+            dbi.up(dbi.dm.Crate)
+            .where(dbi.dm.Crate.id == crate.id)
+            .values(year=year, year_order=year_order)
+        )
+        db.execute(statement)
+        db.commit()
+    crate.year = year
+    crate.year_order = year_order
+    return crate

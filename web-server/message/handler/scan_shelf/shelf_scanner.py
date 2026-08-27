@@ -115,6 +115,7 @@ class ShelfScanner:
                 )
                 if not crate:
                     crate = db.op.create_crate(self.shelf.id, crate_path)
+                crate = db.op.update_crate_year(crate=crate)
                 self.crate_lookup[crate_path] = crate.id
             except Exception as e:
                 db.op.update_job(
