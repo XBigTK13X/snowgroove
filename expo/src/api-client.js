@@ -319,8 +319,8 @@ export class ApiClient {
         return this.get(url)
     }
 
-    getCrateSongList = (crateId) => {
-        return this.get(`/crate/song/list?crate_id=${crateId}`)
+    getCrateSongList = (crateId, onlyChildren) => {
+        return this.get(`/crate/song/list?crate_id=${crateId}&only_children=${onlyChildren}`)
     }
 
     getRemotePlayerList = () => {

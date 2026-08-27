@@ -281,8 +281,11 @@ def shelf_routes(router):
     def get_crate_song_list(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
         crate_id: str = None,
+        only_children: bool = False,
     ):
-        return db.op.get_crate_audio_file_list(crate_id=crate_id)
+        return db.op.get_crate_audio_file_list(
+            crate_id=crate_id, only_children=only_children
+        )
 
 
 def music_session_routes(router):

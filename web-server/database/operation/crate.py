@@ -264,23 +264,38 @@ def get_crate_list(search_query: str):
         return {'directories': directories}
 
 
-def get_crate_audio_file_list(crate_id: int):
+def get_crate_audio_file_list(crate_id: int, only_children: bool = False):
     with dbi.session() as db:
-        crate_cte = (
-            dbi.sa.select(dbi.dm.Crate.id, dbi.dm.Crate.parent_crate_id)
+        initial_select = (
+            dbi.sa.select(
+                dbi.dm.Crate.id,
+                dbi.dm.Crate.parent_crate_id,
+                dbi.sa.literal(0).label('depth'),
+            )
             .filter(dbi.dm.Crate.id == crate_id)
             .cte(name='crate_tree', recursive=True)
         )
 
         recursive_select = dbi.sa.select(
-            dbi.dm.Crate.id, dbi.dm.Crate.parent_crate_id
-        ).join(crate_cte, dbi.dm.Crate.parent_crate_id == crate_cte.c.id)
+            dbi.dm.Crate.id,
+            dbi.dm.Crate.parent_crate_id,
+            (initial_select.c.depth + 1).label('depth'),
+        ).join(initial_select, dbi.dm.Crate.parent_crate_id == initial_select.c.id)
 
-        crate_cte = crate_cte.union_all(recursive_select)
+        crate_cte = initial_select.union_all(recursive_select)
+
+        if only_children:
+            filtered_crate_ids = dbi.sa.select(crate_cte.c.id).filter(
+                crate_cte.c.depth >= 2
+            )
+        else:
+            filtered_crate_ids = dbi.sa.select(crate_cte.c.id).filter(
+                crate_cte.c.depth <= 1
+            )
 
         crates = (
             db.query(dbi.dm.Crate)
-            .filter(dbi.dm.Crate.id.in_(dbi.sa.select(crate_cte.c.id)))
+            .filter(dbi.dm.Crate.id.in_(filtered_crate_ids))
             .options(dbi.orm.joinedload(dbi.dm.Crate.audio_files))
             .options(dbi.orm.joinedload(dbi.dm.Crate.image_files))
             .options(dbi.orm.joinedload(dbi.dm.Crate.tags))

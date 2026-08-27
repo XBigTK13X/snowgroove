@@ -123,8 +123,13 @@ export default function CrateDetailsPage(props) {
     let topButtons = []
     if (crateDetails && crateDetails?.kind !== 'crate' && crateDetails?.kind !== 'crate-list') {
         topButtons.push(
-            <C.SnowTextButton title={`Add ${crateDetails.title} to Queue`} onPress={() => {
-                addCrateToQueue(crateDetails.id)
+            <C.SnowTextButton title={`Add Albums to Queue`} onPress={() => {
+                addCrateToQueue(crateDetails.id, false)
+            }} />
+        )
+        topButtons.push(
+            <C.SnowTextButton title={`Add Crates to Queue`} onPress={() => {
+                addCrateToQueue(crateDetails.id, true)
             }} />
         )
     }

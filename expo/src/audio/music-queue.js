@@ -126,10 +126,10 @@ export function useMusicQueue({ apiClient, session, setSession }) {
         }, true)
     }, [updateMusicQueue])
 
-    const addCrateToQueue = React.useCallback(async (crateId) => {
+    const addCrateToQueue = React.useCallback(async (crateId, onlyChildren) => {
         const client = apiClientRef.current
         if (!client) return
-        let response = await client.getCrateSongList(crateId)
+        let response = await client.getCrateSongList(crateId, onlyChildren)
         await addAudioFileListToQueue(response?.audio_files)
     }, [addAudioFileListToQueue])
 
