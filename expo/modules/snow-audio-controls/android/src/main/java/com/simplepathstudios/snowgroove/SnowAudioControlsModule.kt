@@ -13,6 +13,14 @@ class SnowAudioControlsModule : Module() {
     private var playbackService: MediaPlaybackService? = null
     private var isBound = false
 
+    private fun safeSendEvent(name: String, body: Map<String, Any> = emptyMap()) {
+        try {
+            if (appContext.reactContext != null) {
+                sendEvent(name, body)
+            }
+        } catch (ignored: Exception) {}
+    }
+
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val binder = service as? MediaPlaybackService.LocalBinder
@@ -20,17 +28,18 @@ class SnowAudioControlsModule : Module() {
 
             playbackService?.onCommand = { command, data ->
                 when (command) {
-                    "seek" -> sendEvent("seek", data ?: emptyMap())
-                    else -> sendEvent(command)
+                    "seek" -> safeSendEvent("seek", data ?: emptyMap())
+                    "volumeAdjust" -> safeSendEvent("volumeAdjust", data ?: emptyMap())
+                    else -> safeSendEvent(command, data ?: emptyMap())
                 }
             }
 
             playbackService?.onStatusUpdate = { status ->
-                sendEvent("statusUpdate", status)
+                safeSendEvent("statusUpdate", status)
             }
 
             playbackService?.onFinished = {
-                sendEvent("finished")
+                safeSendEvent("finished", emptyMap())
             }
 
             isBound = true
@@ -47,6 +56,8 @@ class SnowAudioControlsModule : Module() {
 
     override fun definition() = ModuleDefinition {
         Name("SnowAudioControls")
+
+        Events("play", "pause", "next", "previous", "seek", "statusUpdate", "finished", "volumeAdjust")
 
         OnCreate {
             val context = appContext.reactContext ?: return@OnCreate
@@ -86,7 +97,13 @@ class SnowAudioControlsModule : Module() {
             playbackService?.setVolumeLevel(volume.toFloat())
         }
 
-        Events("play", "pause", "next", "previous", "seek", "statusUpdate", "finished")
+        Function("setRemoteControlMode") { enabled: Boolean, initialVolume: Double ->
+            playbackService?.setRemoteControlMode(enabled, initialVolume.toFloat())
+        }
+
+        Function("syncRemoteVolume") { volume: Double ->
+            playbackService?.syncRemoteVolume(volume.toFloat())
+        }
 
         Function("updateMetadata") { data: Map<String, Any> ->
             val title = data["title"] as? String ?: ""

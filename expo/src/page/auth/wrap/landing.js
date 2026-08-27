@@ -97,7 +97,9 @@ export default function LandingPage(props) {
                     <C.SnowRangeSlider
                         yy={2}
                         onValueChange={(seekPercent) => {
-                            seekToSeconds(seekPercent * currentAudioFile.duration)
+                            if (currentAudioFile.duration > 0) {
+                                seekToSeconds(seekPercent * currentAudioFile.duration)
+                            }
                         }}
                         percent={progressPercent}
                     />

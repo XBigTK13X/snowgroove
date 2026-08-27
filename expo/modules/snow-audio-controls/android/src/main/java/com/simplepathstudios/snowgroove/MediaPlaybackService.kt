@@ -13,10 +13,12 @@ import android.graphics.BitmapFactory
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
+import android.os.Looper
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import androidx.core.app.NotificationCompat
+import androidx.media.VolumeProviderCompat
 import androidx.media.app.NotificationCompat.MediaStyle
 import androidx.media.session.MediaButtonReceiver
 import androidx.media3.common.AudioAttributes
@@ -55,6 +57,8 @@ class MediaPlaybackService : Service() {
     private var currentArtworkUrl: String? = null
     private var cachedArtworkBitmap: Bitmap? = null
     private var targetVolume = 1.0f
+    private var remoteVolumeLevel = 100
+    private var hasFiredFinishedForCurrentItem = false
 
     private var progressJob: Job? = null
 
@@ -119,6 +123,7 @@ class MediaPlaybackService : Service() {
                 .build()
 
             exoPlayer = ExoPlayer.Builder(applicationContext)
+                .setLooper(Looper.getMainLooper())
                 .setLoadControl(loadControl)
                 .setAudioAttributes(audioAttributes, true)
                 .setHandleAudioBecomingNoisy(true)
@@ -131,7 +136,10 @@ class MediaPlaybackService : Service() {
                             when (playbackState) {
                                 Player.STATE_ENDED -> {
                                     updatePlaybackState(false)
-                                    onFinished?.invoke()
+                                    if (!hasFiredFinishedForCurrentItem) {
+                                        hasFiredFinishedForCurrentItem = true
+                                        onFinished?.invoke()
+                                    }
                                 }
                                 Player.STATE_READY -> {
                                     updatePlaybackState(playWhenReady)
@@ -158,21 +166,67 @@ class MediaPlaybackService : Service() {
         }
     }
 
+    fun setRemoteControlMode(enabled: Boolean, initialVolumePercent: Float) {
+        serviceScope.launch(Dispatchers.Main) {
+            val session = mediaSession ?: return@launch
+            if (enabled) {
+                remoteVolumeLevel = (initialVolumePercent.coerceIn(0.0f, 1.0f) * 100).toInt()
+                val volumeProvider = object : VolumeProviderCompat(
+                    VolumeProviderCompat.VOLUME_CONTROL_RELATIVE,
+                    100,
+                    remoteVolumeLevel
+                ) {
+                    override fun onAdjustVolume(direction: Int) {
+                        val delta = when (direction) {
+                            1 -> 5
+                            -1 -> -5
+                            else -> 0
+                        }
+                        if (delta != 0) {
+                            remoteVolumeLevel = (remoteVolumeLevel + delta).coerceIn(0, 100)
+                            currentVolume = remoteVolumeLevel
+                            onCommand?.invoke("volumeAdjust", mapOf("percent" to (remoteVolumeLevel / 100.0)))
+                        }
+                    }
+
+                    override fun onSetVolumeTo(volume: Int) {
+                        remoteVolumeLevel = volume.coerceIn(0, 100)
+                        currentVolume = remoteVolumeLevel
+                        onCommand?.invoke("volumeAdjust", mapOf("percent" to (remoteVolumeLevel / 100.0)))
+                    }
+                }
+                session.setPlaybackToRemote(volumeProvider)
+            } else {
+                session.setPlaybackToLocal(android.media.AudioManager.STREAM_MUSIC)
+            }
+        }
+    }
+
+    fun syncRemoteVolume(percent: Float) {
+        serviceScope.launch(Dispatchers.Main) {
+            remoteVolumeLevel = (percent.coerceIn(0.0f, 1.0f) * 100).toInt()
+        }
+    }
+
     fun loadAndPlay(uri: String, title: String, artist: String, album: String, artworkUrl: String?, duration: Long) {
         currentTitle = title
         currentArtist = artist
         currentAlbum = album
+        hasFiredFinishedForCurrentItem = false
 
-        initExoPlayer()
+        serviceScope.launch(Dispatchers.Main) {
+            setRemoteControlMode(false, targetVolume)
+            initExoPlayer()
 
-        exoPlayer?.let { player ->
-            val mediaItem = MediaItem.fromUri(uri)
-            player.setMediaItem(mediaItem)
-            player.prepare()
-            player.playWhenReady = true
-        }
+            exoPlayer?.let { player ->
+                player.stop()
+                player.clearMediaItems()
+                val mediaItem = MediaItem.fromUri(uri)
+                player.setMediaItem(mediaItem)
+                player.prepare()
+                player.playWhenReady = true
+            }
 
-        serviceScope.launch {
             val bitmap = if (!artworkUrl.isNullOrEmpty()) {
                 if (artworkUrl == currentArtworkUrl && cachedArtworkBitmap != null) {
                     cachedArtworkBitmap
@@ -202,46 +256,57 @@ class MediaPlaybackService : Service() {
                 .build()
 
             mediaSession?.setMetadata(metadata)
+            updatePlaybackState(true)
             updateNotification(true, bitmap)
         }
     }
 
     fun play() {
-        exoPlayer?.let { player ->
-            player.playWhenReady = true
-            updatePlaybackState(true)
-            updateNotification(true, cachedArtworkBitmap)
+        serviceScope.launch(Dispatchers.Main) {
+            exoPlayer?.let { player ->
+                player.playWhenReady = true
+                updatePlaybackState(true)
+                updateNotification(true, cachedArtworkBitmap)
+            }
         }
     }
 
     fun pause() {
-        exoPlayer?.let { player ->
-            player.playWhenReady = false
-            updatePlaybackState(false)
-            updateNotification(false, cachedArtworkBitmap)
+        serviceScope.launch(Dispatchers.Main) {
+            exoPlayer?.let { player ->
+                player.playWhenReady = false
+                updatePlaybackState(false)
+                updateNotification(false, cachedArtworkBitmap)
+            }
         }
     }
 
     fun stop() {
-        exoPlayer?.let { player ->
-            try {
-                player.stop()
-                player.clearMediaItems()
-            } catch (ignored: Exception) {}
+        serviceScope.launch(Dispatchers.Main) {
+            exoPlayer?.let { player ->
+                try {
+                    player.stop()
+                    player.clearMediaItems()
+                } catch (ignored: Exception) {}
+            }
+            updatePlaybackState(false)
+            stopForegroundNotification()
         }
-        updatePlaybackState(false)
-        stopForegroundNotification()
     }
 
     fun seek(seconds: Double) {
-        val targetMillis = (seconds * 1000).toLong()
-        exoPlayer?.seekTo(targetMillis)
-        updatePlaybackState(exoPlayer?.isPlaying == true)
+        serviceScope.launch(Dispatchers.Main) {
+            val targetMillis = (seconds * 1000).toLong()
+            exoPlayer?.seekTo(targetMillis)
+            updatePlaybackState(exoPlayer?.isPlaying == true)
+        }
     }
 
     fun setVolumeLevel(percent: Float) {
-        targetVolume = percent.coerceIn(0.0f, 1.0f)
-        exoPlayer?.volume = targetVolume
+        serviceScope.launch(Dispatchers.Main) {
+            targetVolume = percent.coerceIn(0.0f, 1.0f)
+            exoPlayer?.volume = targetVolume
+        }
     }
 
     private fun updatePlaybackState(isPlaying: Boolean) {
@@ -271,14 +336,14 @@ class MediaPlaybackService : Service() {
                 if (player != null) {
                     try {
                         withContext(Dispatchers.Main) {
-                            if (player.isPlaying) {
+                            if (player.playbackState == Player.STATE_READY || player.playbackState == Player.STATE_BUFFERING) {
                                 val currentPosition = player.currentPosition
                                 val duration = player.duration.coerceAtLeast(0L)
                                 onStatusUpdate?.invoke(
                                     mapOf(
                                         "positionMillis" to currentPosition,
                                         "durationMillis" to duration,
-                                        "isPlaying" to true,
+                                        "isPlaying" to player.isPlaying,
                                         "isLoaded" to true
                                     )
                                 )
@@ -296,21 +361,10 @@ class MediaPlaybackService : Service() {
         val notification = buildNotification(session, currentTitle, currentArtist, isPlaying, artwork)
 
         try {
-            if (isPlaying) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    startForeground(notificationId, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
-                } else {
-                    startForeground(notificationId, notification)
-                }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(notificationId, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
             } else {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    stopForeground(STOP_FOREGROUND_DETACH)
-                } else {
-                    @Suppress("DEPRECATION")
-                    stopForeground(false)
-                }
-                val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                manager.notify(notificationId, notification)
+                startForeground(notificationId, notification)
             }
         } catch (ignored: Exception) {}
     }
@@ -443,7 +497,7 @@ class MediaPlaybackService : Service() {
         currentArtist = artist
         currentAlbum = album
 
-        serviceScope.launch {
+        serviceScope.launch(Dispatchers.Main) {
             val bitmap = if (!artworkUrl.isNullOrEmpty()) {
                 if (artworkUrl == currentArtworkUrl && cachedArtworkBitmap != null) {
                     cachedArtworkBitmap
@@ -480,8 +534,10 @@ class MediaPlaybackService : Service() {
 
     override fun onDestroy() {
         progressJob?.cancel()
-        exoPlayer?.release()
-        exoPlayer = null
+        serviceScope.launch(Dispatchers.Main) {
+            exoPlayer?.release()
+            exoPlayer = null
+        }
         mediaSession?.isActive = false
         mediaSession?.release()
         mediaSession = null
