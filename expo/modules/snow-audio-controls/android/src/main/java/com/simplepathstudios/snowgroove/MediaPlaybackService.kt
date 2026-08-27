@@ -58,6 +58,7 @@ class MediaPlaybackService : Service() {
     private var cachedArtworkBitmap: Bitmap? = null
     private var targetVolume = 1.0f
     private var remoteVolumeLevel = 100
+    private var isRemoteMode = false
     private var hasFiredFinishedForCurrentItem = false
 
     private var progressJob: Job? = null
@@ -169,6 +170,7 @@ class MediaPlaybackService : Service() {
     fun setRemoteControlMode(enabled: Boolean, initialVolumePercent: Float) {
         serviceScope.launch(Dispatchers.Main) {
             val session = mediaSession ?: return@launch
+            isRemoteMode = enabled
             if (enabled) {
                 remoteVolumeLevel = (initialVolumePercent.coerceIn(0.0f, 1.0f) * 100).toInt()
                 val volumeProvider = object : VolumeProviderCompat(
@@ -311,7 +313,7 @@ class MediaPlaybackService : Service() {
 
     private fun updatePlaybackState(isPlaying: Boolean) {
         val session = mediaSession ?: return
-        val currentPosition = exoPlayer?.currentPosition ?: 0L
+        val currentPosition = if (isRemoteMode) 0L else (exoPlayer?.currentPosition ?: 0L)
         val stateCode = if (isPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
         val actions = PlaybackStateCompat.ACTION_PLAY or
                 PlaybackStateCompat.ACTION_PAUSE or
@@ -333,7 +335,7 @@ class MediaPlaybackService : Service() {
         progressJob = serviceScope.launch(Dispatchers.Default) {
             while (isActive) {
                 val player = exoPlayer
-                if (player != null) {
+                if (player != null && !isRemoteMode) {
                     try {
                         withContext(Dispatchers.Main) {
                             if (player.playbackState == Player.STATE_READY || player.playbackState == Player.STATE_BUFFERING) {

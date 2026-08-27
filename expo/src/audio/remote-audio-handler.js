@@ -1,5 +1,3 @@
-import { VolumeManager } from 'react-native-volume-manager'
-
 export class RemoteAudioHandler {
     constructor({ apiClient, targetPlayer, getSession, onStateSync, onVolumeChange }) {
         this.apiClient = apiClient
@@ -9,7 +7,6 @@ export class RemoteAudioHandler {
         this.onVolumeChange = onVolumeChange
         this.pollInterval = null
         this.pendingVolumeTimeout = null
-        this.volumeSubscription = null
         this.currentVolume = 1.0
         this.isActive = false
     }
@@ -80,7 +77,7 @@ export class RemoteAudioHandler {
             } catch (error) {
                 console.error('Failed to sync remote volume:', error)
             }
-        }, 150)
+        }, 100)
     }
 
     startPolling() {
@@ -113,48 +110,14 @@ export class RemoteAudioHandler {
         }
     }
 
-    attachVolumeListener() {
-        if (this.volumeSubscription) return
-
-        let lastVolumeLevel = null
-        VolumeManager.showNativeVolumeUI({ enabled: false })
-
-        this.volumeSubscription = VolumeManager.addVolumeListener((event) => {
-            if (lastVolumeLevel === null) {
-                lastVolumeLevel = event.volume
-                return
-            }
-
-            const difference = event.volume - lastVolumeLevel
-            lastVolumeLevel = event.volume
-
-            if (Math.abs(difference) > 0.001) {
-                const targetVolume = Math.max(0, Math.min(1, this.currentVolume + difference))
-                this.currentVolume = targetVolume
-                this.onVolumeChange?.(targetVolume)
-                this.setVolume(targetVolume)
-            }
-        })
-    }
-
-    detachVolumeListener() {
-        if (this.volumeSubscription) {
-            this.volumeSubscription.remove()
-            this.volumeSubscription = null
-            VolumeManager.showNativeVolumeUI({ enabled: true })
-        }
-    }
-
     activate() {
         this.isActive = true
-        this.attachVolumeListener()
         this.startPolling()
     }
 
     deactivate() {
         this.isActive = false
         this.stopPolling()
-        this.detachVolumeListener()
     }
 
     cleanup() {
