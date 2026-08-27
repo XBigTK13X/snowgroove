@@ -10,7 +10,7 @@ def create_playlist(
         dbm.name = name
         dbm.version = 1
         dbm.archived = False
-        dbm.audio_file_fingerprints_json = dbi.json.dumps(audio_file_fingerprints)
+        dbm.audio_file_fingerprints_json = dbi.json.dumps(audio_file_fingerprints or [])
 
         db.add(dbm)
         db.commit()
@@ -39,15 +39,20 @@ def update_playlist(id: int, name: str, audio_file_fingerprints: list[str]):
                 .update({'playlist_name': name}, synchronize_session=False)
             )
 
-        current_version = getattr(existing, 'version', 1) or 1
-        new_version = current_version + 1
+        target_name = name if old_name != name else existing.name
+
+        current_max_version = (
+            db.query(dbi.func.max(dbi.func.coalesce(dbi.dm.Playlist.version, 1)))
+            .filter(dbi.dm.Playlist.name == target_name)
+            .scalar()
+        ) or 1
 
         dbm = dbi.dm.Playlist()
         dbm.snowgroove_user_id = existing.snowgroove_user_id
-        dbm.name = name
-        dbm.version = new_version
+        dbm.name = target_name
+        dbm.version = current_max_version + 1
         dbm.archived = False
-        if audio_file_fingerprints != None:
+        if audio_file_fingerprints is not None:
             dbm.audio_file_fingerprints_json = dbi.json.dumps(audio_file_fingerprints)
         else:
             dbm.audio_file_fingerprints_json = existing.audio_file_fingerprints_json
@@ -64,14 +69,17 @@ def get_playlist_by_id(id: int):
         if not playlist:
             return None
 
-        latest_version = (
-            db.query(dbi.func.max(dbi.dm.Playlist.version))
+        latest_playlist = (
+            db.query(dbi.dm.Playlist)
             .filter(dbi.dm.Playlist.name == playlist.name)
-            .scalar()
+            .order_by(dbi.dm.Playlist.version.desc())
+            .first()
         )
 
-        if playlist.version != latest_version:
+        if not latest_playlist:
             return None
+
+        playlist = latest_playlist
 
         if not playlist.audio_file_fingerprints_json:
             return playlist
@@ -145,9 +153,13 @@ def upsert_playlist(
     snowgroove_user_id: int,
 ):
     with dbi.session() as db:
+        query_filters = [dbi.dm.Playlist.name == name]
+        if id:
+            query_filters.append(dbi.dm.Playlist.id == id)
+
         existing = (
             db.query(dbi.dm.Playlist)
-            .filter(dbi.or_(dbi.dm.Playlist.name == name, dbi.dm.Playlist.id == id))
+            .filter(dbi.or_(*query_filters))
             .order_by(dbi.dm.Playlist.version.desc())
             .first()
         )
@@ -171,7 +183,7 @@ def upsert_playlist(
                 audio_file_fingerprints=audio_file_fingerprints,
             )
 
-        if playlist.audio_file_fingerprints_json:
+        if playlist and playlist.audio_file_fingerprints_json:
             playlist.audio_file_fingerprints = dbi.json.loads(
                 playlist.audio_file_fingerprints_json
             )
@@ -181,31 +193,32 @@ def upsert_playlist(
 
 def get_playlist_list(ticket: dbi.dm.Ticket, flatten: bool = False):
     with dbi.session() as db:
-        playlist_alias = dbi.orm.aliased(dbi.dm.Playlist)
-
-        max_version_subquery = (
-            db.query(dbi.func.max(dbi.func.coalesce(playlist_alias.version, 1)))
-            .filter(playlist_alias.name == dbi.dm.Playlist.name)
-            .scalar_subquery()
-        )
-
-        results = (
+        all_playlists = (
             db.query(dbi.dm.Playlist, dbi.dm.User.username)
             .outerjoin(
                 dbi.dm.User,
                 dbi.dm.Playlist.snowgroove_user_id == dbi.dm.User.id,
             )
-            .filter(
-                dbi.func.coalesce(dbi.dm.Playlist.version, 1) == max_version_subquery
+            .order_by(
+                dbi.dm.Playlist.name,
+                dbi.dm.Playlist.version.desc(),
+                dbi.dm.Playlist.id.desc(),
             )
-            .order_by(dbi.dm.Playlist.name)
             .all()
         )
+
+        seen_names = set()
+        latest_results = []
+        for playlist, username in all_playlists:
+            if playlist.name in seen_names:
+                continue
+            seen_names.add(playlist.name)
+            latest_results.append((playlist, username))
 
         owners = []
         playlists = {}
         flattened = []
-        for playlist, username in results:
+        for playlist, username in latest_results:
             if ticket is not None:
                 if (
                     not ticket.is_admin
@@ -247,6 +260,15 @@ def add_song_to_playlist(playlist_id: int, audio_file_fingerprint: str):
         )
         if not existing:
             return None
+
+        latest_record = (
+            db.query(dbi.dm.Playlist)
+            .filter(dbi.dm.Playlist.name == existing.name)
+            .order_by(dbi.dm.Playlist.version.desc())
+            .first()
+        )
+        if latest_record:
+            existing = latest_record
 
         fingerprints = []
         if existing.audio_file_fingerprints_json:
