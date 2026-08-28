@@ -392,22 +392,29 @@ def get_status(remote_player):
         current_state = transport_info.get('current_transport_state', 'STOPPED')
         is_playing = current_state == 'PLAYING'
 
-        return {'position_seconds': position_seconds, 'is_playing': is_playing}
+        raw_volume = sonos_player.volume
+        normalized_volume = max(0.0, min(1.0, round(float(raw_volume) / 100.0, 4)))
+
+        return {
+            'position_seconds': position_seconds,
+            'is_playing': is_playing,
+            'volume': normalized_volume,
+        }
     except soco.exceptions.SoCoUPnPException as upnp_error:
         if (
             upnp_error.error_code == '711'
             or getattr(upnp_error, 'error_code', None) == 711
         ):
-            return {'position_seconds': 0, 'is_playing': False}
+            return {'position_seconds': 0, 'is_playing': False, 'volume': 0.0}
 
         log.error(f'UPnP error from Sonos device {remote_player.name}: {upnp_error}')
-        return {'position_seconds': 0, 'is_playing': False}
+        return {'position_seconds': 0, 'is_playing': False, 'volume': 0.0}
     except Exception as error_message:
         error_str = str(error_message)
         if '711' in error_str or 'Illegal seek target' in error_str:
-            return {'position_seconds': 0, 'is_playing': False}
+            return {'position_seconds': 0, 'is_playing': False, 'volume': 0.0}
 
         log.error(
             f'Failed to fetch status from Sonos device {remote_player.name}: {error_message}'
         )
-        return {'position_seconds': 0, 'is_playing': False}
+        return {'position_seconds': 0, 'is_playing': False, 'volume': 0.0}

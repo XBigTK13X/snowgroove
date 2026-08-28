@@ -4,8 +4,8 @@ import sys
 
 class Config:
     def __init__(self):
-        self.server_version = "1.2.4"
-        self.server_build_date = "August 27, 2026"
+        self.server_version = "1.2.5"
+        self.server_build_date = "August 28, 2026"
         self.server_build_dev_number = 1
         self.app_data_dir = '.snowgroove/'
         self.display_config = None

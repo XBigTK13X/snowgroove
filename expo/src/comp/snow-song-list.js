@@ -150,7 +150,7 @@ export function SnowSongList(props) {
             activeIndex={props.activeQueue ? activeItemIndex : -1}
             disableDrag={props.disableDrag}
             items={props.audioFiles}
-            rowHeight={100}
+            rowHeight={125}
             onReorder={reorderMusicQueue}
             renderItem={(item, itemIndex) => {
                 let itemDisplay = ''

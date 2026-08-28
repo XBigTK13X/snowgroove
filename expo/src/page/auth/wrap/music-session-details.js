@@ -16,7 +16,6 @@ export default function MusicSessionDetailsPage(props) {
         playerTarget = `${targetPlayer.name}`
         clearTarget = (
             <C.SnowTextButton
-                short
                 title="Stop Targeting"
                 onPress={() => { changeTargetPlayer(null, null) }}
             />
@@ -48,14 +47,18 @@ export default function MusicSessionDetailsPage(props) {
                         onPress={() => {
                             clearMusicQueue()
                         }}
-                        short
                     />
                 ) : null}
-                {hasSongs ? <C.SnowTextButton short title="Shuffle" onPress={shuffleMusicQueue} /> : null}
-                <C.SnowTextButton short title="Repeat Mode" />
+                {hasSongs ?
+                    <C.SnowTextButton
+                        title="Shuffle"
+                        onPress={shuffleMusicQueue}
+                    /> : null}
+                <C.SnowTextButton
+                    title="Repeat Mode"
+                />
                 {hasSongs ? (
                     <C.SnowTextButton
-                        short
                         title="Save as Playlist"
                         onPress={navPush({
                             path: routes.playlistUpdate

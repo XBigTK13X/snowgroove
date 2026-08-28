@@ -1,24 +1,30 @@
 package com.simplepathstudios.snowgroove.audiocontrols
 
+import androidx.media.VolumeProviderCompat
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.database.ContentObserver
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.media.AudioManager
 import android.os.Binder
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.PowerManager
+import android.provider.Settings
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import androidx.core.app.NotificationCompat
-import androidx.media.VolumeProviderCompat
 import androidx.media.app.NotificationCompat.MediaStyle
 import androidx.media.session.MediaButtonReceiver
 import androidx.media3.common.AudioAttributes
@@ -36,8 +42,10 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.InputStream
+import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
+import kotlin.concurrent.thread
 
 class MediaPlaybackService : Service() {
     private val binder = LocalBinder()
@@ -57,9 +65,20 @@ class MediaPlaybackService : Service() {
     private var currentArtworkUrl: String? = null
     private var cachedArtworkBitmap: Bitmap? = null
     private var targetVolume = 1.0f
-    private var remoteVolumeLevel = 100
+
+    private var remoteVolumePercent = 1.0
     private var isRemoteMode = false
     private var hasFiredFinishedForCurrentItem = false
+
+    private var remoteApiBaseUrl: String? = null
+    private var remoteAuthToken: String? = null
+    private var remoteSessionId: String? = null
+
+    private var audioManager: AudioManager? = null
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var volumeObserver: ContentObserver? = null
+    private var lastObservedStreamVolume = -1
+    private var isProgrammaticVolumeChange = false
 
     private var progressJob: Job? = null
 
@@ -73,12 +92,28 @@ class MediaPlaybackService : Service() {
         super.onCreate()
         createNotificationChannel()
 
-        mediaSession = MediaSessionCompat(this, "SnowgrooveSession").apply {
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "snowgroove:volume_wake_lock")
+
+        val mediaButtonReceiver = ComponentName(this, MediaButtonReceiver::class.java)
+        mediaSession = MediaSessionCompat(this, "SnowgrooveSession", mediaButtonReceiver, null).apply {
             setFlags(
                 MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
                 MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
             )
-            isActive = true
+
+            val mediaButtonIntent = Intent(Intent.ACTION_MEDIA_BUTTON).apply {
+                setClass(this@MediaPlaybackService, MediaButtonReceiver::class.java)
+            }
+            val pendingIntent = PendingIntent.getBroadcast(
+                this@MediaPlaybackService,
+                0,
+                mediaButtonIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            setMediaButtonReceiver(pendingIntent)
+
             setCallback(object : MediaSessionCompat.Callback() {
                 override fun onPlay() { onCommand?.invoke("play", null) }
                 override fun onPause() { onCommand?.invoke("pause", null) }
@@ -88,6 +123,8 @@ class MediaPlaybackService : Service() {
                     seek(pos / 1000.0)
                 }
             })
+            setPlaybackToLocal(AudioManager.STREAM_MUSIC)
+            isActive = true
         }
 
         val initialNotification = buildNotification(mediaSession!!, "Snowgroove", "Ready", false, null)
@@ -105,6 +142,50 @@ class MediaPlaybackService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         MediaButtonReceiver.handleIntent(mediaSession, intent)
         return START_STICKY
+    }
+
+    private fun registerVolumeObserver() {
+        if (volumeObserver != null) return
+
+        val manager = audioManager ?: return
+        lastObservedStreamVolume = manager.getStreamVolume(AudioManager.STREAM_MUSIC)
+
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                super.onChange(selfChange)
+                if (!isRemoteMode) return
+
+                if (isProgrammaticVolumeChange) {
+                    isProgrammaticVolumeChange = false
+                    return
+                }
+
+                val currentStreamVolume = manager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                val delta = currentStreamVolume - lastObservedStreamVolume
+                if (delta != 0) {
+                    val volumeStep = if (delta > 0) 0.05 else -0.05
+                    remoteVolumePercent = (remoteVolumePercent + volumeStep).coerceIn(0.0, 1.0)
+                    lastObservedStreamVolume = currentStreamVolume
+
+                    sendRemoteVolumeHttpRequest(remoteVolumePercent)
+                    onCommand?.invoke("volumeAdjust", mapOf("percent" to remoteVolumePercent))
+                }
+            }
+        }
+
+        volumeObserver = observer
+        contentResolver.registerContentObserver(
+            Settings.System.CONTENT_URI,
+            true,
+            observer
+        )
+    }
+
+    private fun unregisterVolumeObserver() {
+        volumeObserver?.let {
+            contentResolver.unregisterContentObserver(it)
+            volumeObserver = null
+        }
     }
 
     private fun initExoPlayer() {
@@ -134,6 +215,7 @@ class MediaPlaybackService : Service() {
                     volume = targetVolume
                     addListener(object : Player.Listener {
                         override fun onPlaybackStateChanged(playbackState: Int) {
+                            if (isRemoteMode) return
                             when (playbackState) {
                                 Player.STATE_ENDED -> {
                                     updatePlaybackState(false)
@@ -155,58 +237,109 @@ class MediaPlaybackService : Service() {
                         }
 
                         override fun onIsPlayingChanged(isPlaying: Boolean) {
-                            updatePlaybackState(isPlaying)
-                            updateNotification(isPlaying, cachedArtworkBitmap)
+                            if (!isRemoteMode) {
+                                updatePlaybackState(isPlaying)
+                                updateNotification(isPlaying, cachedArtworkBitmap)
+                            }
                         }
 
                         override fun onPlayerError(error: PlaybackException) {
-                            updatePlaybackState(false)
+                            if (!isRemoteMode) {
+                                updatePlaybackState(false)
+                            }
                         }
                     })
                 }
+        } else {
+            if (!isRemoteMode) {
+                exoPlayer?.volume = targetVolume
+            }
         }
     }
 
-    fun setRemoteControlMode(enabled: Boolean, initialVolumePercent: Float) {
+    fun setRemoteControlMode(
+        enabled: Boolean,
+        initialVolumePercent: Float,
+        baseUrl: String? = null,
+        authToken: String? = null,
+        sessionId: String? = null
+    ) {
         serviceScope.launch(Dispatchers.Main) {
             val session = mediaSession ?: return@launch
             isRemoteMode = enabled
-            if (enabled) {
-                remoteVolumeLevel = (initialVolumePercent.coerceIn(0.0f, 1.0f) * 100).toInt()
-                val volumeProvider = object : VolumeProviderCompat(
-                    VolumeProviderCompat.VOLUME_CONTROL_RELATIVE,
-                    100,
-                    remoteVolumeLevel
-                ) {
-                    override fun onAdjustVolume(direction: Int) {
-                        val delta = when (direction) {
-                            1 -> 5
-                            -1 -> -5
-                            else -> 0
-                        }
-                        if (delta != 0) {
-                            remoteVolumeLevel = (remoteVolumeLevel + delta).coerceIn(0, 100)
-                            currentVolume = remoteVolumeLevel
-                            onCommand?.invoke("volumeAdjust", mapOf("percent" to (remoteVolumeLevel / 100.0)))
-                        }
-                    }
+            remoteApiBaseUrl = baseUrl
+            remoteAuthToken = authToken
+            remoteSessionId = sessionId
+            remoteVolumePercent = initialVolumePercent.toDouble().coerceIn(0.0, 1.0)
 
-                    override fun onSetVolumeTo(volume: Int) {
-                        remoteVolumeLevel = volume.coerceIn(0, 100)
-                        currentVolume = remoteVolumeLevel
-                        onCommand?.invoke("volumeAdjust", mapOf("percent" to (remoteVolumeLevel / 100.0)))
-                    }
-                }
-                session.setPlaybackToRemote(volumeProvider)
+            session.setPlaybackToLocal(AudioManager.STREAM_MUSIC)
+
+            if (enabled) {
+                exoPlayer?.stop()
+                exoPlayer?.clearMediaItems()
+                registerVolumeObserver()
+                session.isActive = true
+                updatePlaybackState(true)
             } else {
-                session.setPlaybackToLocal(android.media.AudioManager.STREAM_MUSIC)
+                unregisterVolumeObserver()
+            }
+        }
+    }
+
+    fun adjustRemoteVolumeByDelta(delta: Double) {
+        serviceScope.launch(Dispatchers.Main) {
+            if (!isRemoteMode) return@launch
+            remoteVolumePercent = (remoteVolumePercent + delta).coerceIn(0.0, 1.0)
+            sendRemoteVolumeHttpRequest(remoteVolumePercent)
+            onCommand?.invoke("volumeAdjust", mapOf("percent" to remoteVolumePercent))
+        }
+    }
+
+    private fun sendRemoteVolumeHttpRequest(percent: Double) {
+        val baseUrl = remoteApiBaseUrl ?: return
+        val token = remoteAuthToken ?: return
+        val sessionId = remoteSessionId ?: return
+
+        thread(start = true) {
+            try {
+                wakeLock?.acquire(4000)
+            } catch (ignored: Exception) {}
+
+            var connection: HttpURLConnection? = null
+            try {
+                val cleanedBaseUrl = baseUrl.trimEnd('/')
+                val url = URL("$cleanedBaseUrl/music-session/volume")
+                connection = (url.openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    doOutput = true
+                    connectTimeout = 4000
+                    readTimeout = 4000
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Authorization", "Bearer $token")
+                }
+
+                val body = "{\"music_session_id\":\"$sessionId\",\"volume_percent\":$percent}"
+                OutputStreamWriter(connection.outputStream).use { writer ->
+                    writer.write(body)
+                    writer.flush()
+                }
+
+                connection.responseCode
+            } catch (ignored: Exception) {
+            } finally {
+                try { connection?.disconnect() } catch (ignored: Exception) {}
+                try {
+                    if (wakeLock?.isHeld == true) {
+                        wakeLock?.release()
+                    }
+                } catch (ignored: Exception) {}
             }
         }
     }
 
     fun syncRemoteVolume(percent: Float) {
         serviceScope.launch(Dispatchers.Main) {
-            remoteVolumeLevel = (percent.coerceIn(0.0f, 1.0f) * 100).toInt()
+            remoteVolumePercent = percent.toDouble().coerceIn(0.0, 1.0)
         }
     }
 
@@ -221,6 +354,8 @@ class MediaPlaybackService : Service() {
             initExoPlayer()
 
             exoPlayer?.let { player ->
+                player.repeatMode = Player.REPEAT_MODE_OFF
+                player.volume = targetVolume
                 player.stop()
                 player.clearMediaItems()
                 val mediaItem = MediaItem.fromUri(uri)
@@ -265,20 +400,31 @@ class MediaPlaybackService : Service() {
 
     fun play() {
         serviceScope.launch(Dispatchers.Main) {
-            exoPlayer?.let { player ->
-                player.playWhenReady = true
+            if (isRemoteMode) {
                 updatePlaybackState(true)
                 updateNotification(true, cachedArtworkBitmap)
+            } else {
+                exoPlayer?.let { player ->
+                    player.volume = targetVolume
+                    player.playWhenReady = true
+                    updatePlaybackState(true)
+                    updateNotification(true, cachedArtworkBitmap)
+                }
             }
         }
     }
 
     fun pause() {
         serviceScope.launch(Dispatchers.Main) {
-            exoPlayer?.let { player ->
-                player.playWhenReady = false
+            if (isRemoteMode) {
                 updatePlaybackState(false)
                 updateNotification(false, cachedArtworkBitmap)
+            } else {
+                exoPlayer?.let { player ->
+                    player.playWhenReady = false
+                    updatePlaybackState(false)
+                    updateNotification(false, cachedArtworkBitmap)
+                }
             }
         }
     }
@@ -299,15 +445,34 @@ class MediaPlaybackService : Service() {
     fun seek(seconds: Double) {
         serviceScope.launch(Dispatchers.Main) {
             val targetMillis = (seconds * 1000).toLong()
-            exoPlayer?.seekTo(targetMillis)
-            updatePlaybackState(exoPlayer?.isPlaying == true)
+            if (!isRemoteMode) {
+                exoPlayer?.seekTo(targetMillis)
+            }
+            val session = mediaSession ?: return@launch
+            val isPlaying = if (isRemoteMode) true else (exoPlayer?.isPlaying == true)
+            val stateCode = if (isPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
+            val actions = PlaybackStateCompat.ACTION_PLAY or
+                    PlaybackStateCompat.ACTION_PAUSE or
+                    PlaybackStateCompat.ACTION_PLAY_PAUSE or
+                    PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
+                    PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
+                    PlaybackStateCompat.ACTION_SEEK_TO
+
+            val playbackState = PlaybackStateCompat.Builder()
+                .setState(stateCode, targetMillis, 1.0f)
+                .setActions(actions)
+                .build()
+
+            session.setPlaybackState(playbackState)
         }
     }
 
     fun setVolumeLevel(percent: Float) {
         serviceScope.launch(Dispatchers.Main) {
             targetVolume = percent.coerceIn(0.0f, 1.0f)
-            exoPlayer?.volume = targetVolume
+            if (!isRemoteMode) {
+                exoPlayer?.volume = targetVolume
+            }
         }
     }
 
@@ -536,6 +701,12 @@ class MediaPlaybackService : Service() {
 
     override fun onDestroy() {
         progressJob?.cancel()
+        unregisterVolumeObserver()
+        try {
+            if (wakeLock?.isHeld == true) {
+                wakeLock?.release()
+            }
+        } catch (ignored: Exception) {}
         serviceScope.launch(Dispatchers.Main) {
             exoPlayer?.release()
             exoPlayer = null

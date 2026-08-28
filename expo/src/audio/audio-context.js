@@ -60,6 +60,12 @@ export function AudioContextProvider({ children }) {
                 setCurrentAudioFile(currentAudio)
                 currentAudioFileRef.current = currentAudio
             }
+            if (response.status?.volume !== undefined && response.status?.volume !== null) {
+                const initialRemoteVolume = Math.max(0, Math.min(1, parseFloat(response.status.volume)))
+                setVolume(initialRemoteVolume)
+                volumeRef.current = initialRemoteVolume
+                SnowAudioControls.syncRemoteVolume(initialRemoteVolume)
+            }
         }
         return response
     }
@@ -119,8 +125,8 @@ export function AudioContextProvider({ children }) {
         if (response.status?.isPlaying !== undefined) {
             setPlaying(response.status.isPlaying)
         }
-        if (response.status?.volume !== undefined) {
-            const normalizedVolume = response.status.volume / 100
+        if (response.status?.volume !== undefined && response.status?.volume !== null) {
+            const normalizedVolume = Math.max(0, Math.min(1, parseFloat(response.status.volume)))
             setVolume(normalizedVolume)
             volumeRef.current = normalizedVolume
             SnowAudioControls.syncRemoteVolume(normalizedVolume)
@@ -128,15 +134,17 @@ export function AudioContextProvider({ children }) {
     }, [])
 
     const handleVolumeSync = React.useCallback((nextVolume) => {
-        volumeRef.current = nextVolume
-        setVolume(nextVolume)
-        SnowAudioControls.syncRemoteVolume(nextVolume)
+        const normalized = Math.max(0, Math.min(1, nextVolume))
+        volumeRef.current = normalized
+        setVolume(normalized)
+        SnowAudioControls.syncRemoteVolume(normalized)
     }, [])
 
     const localHandlerRef = React.useRef(
         new LocalAudioHandler({
             onStatusUpdate: handleLocalStatusUpdate,
-            onFinished: handleSongFinished
+            onFinished: handleSongFinished,
+            initialVolume: volumeRef.current
         })
     )
 
@@ -157,7 +165,8 @@ export function AudioContextProvider({ children }) {
     React.useEffect(() => {
         localHandlerRef.current.updateConfig({
             onStatusUpdate: handleLocalStatusUpdate,
-            onFinished: handleSongFinished
+            onFinished: handleSongFinished,
+            volume: volumeRef.current
         })
     }, [handleLocalStatusUpdate, handleSongFinished])
 
@@ -171,6 +180,17 @@ export function AudioContextProvider({ children }) {
         })
     }, [apiClient, targetPlayer, handleRemoteStateSync, handleVolumeSync])
 
+    const configureRemoteControlMode = React.useCallback((enabled) => {
+        const resolvedSessionId = sessionRef.current?.id || musicSession?.id || ''
+        SnowAudioControls.setRemoteControlMode(
+            enabled,
+            volumeRef.current,
+            apiClient?.baseURL || '',
+            apiClient?.authToken || '',
+            resolvedSessionId
+        )
+    }, [apiClient, musicSession?.id])
+
     const prevTargetPlayerRef = React.useRef(targetPlayer)
     React.useEffect(() => {
         const wasRemote = prevTargetPlayerRef.current?.id !== undefined && prevTargetPlayerRef.current?.id !== null
@@ -179,11 +199,11 @@ export function AudioContextProvider({ children }) {
             if (isRemote) {
                 localHandlerRef.current.deactivate()
                 remoteHandlerRef.current.activate()
-                SnowAudioControls.setRemoteControlMode(true, volumeRef.current)
+                configureRemoteControlMode(true)
             } else {
                 remoteHandlerRef.current.deactivate()
                 localHandlerRef.current.activate()
-                SnowAudioControls.setRemoteControlMode(false, volumeRef.current)
+                configureRemoteControlMode(false)
             }
         }
 
@@ -197,14 +217,13 @@ export function AudioContextProvider({ children }) {
         }
 
         prevTargetPlayerRef.current = targetPlayer
-    }, [targetPlayer, isRemote])
+    }, [targetPlayer, isRemote, configureRemoteControlMode])
 
     React.useEffect(() => {
-        if (isRemote) {
-            remoteHandlerRef.current.activate()
-            SnowAudioControls.setRemoteControlMode(true, volumeRef.current)
+        if (isRemote && (sessionRef.current?.id || musicSession?.id)) {
+            configureRemoteControlMode(true)
         }
-    }, [isRemote])
+    }, [isRemote, musicSession?.id, configureRemoteControlMode])
 
     React.useEffect(() => {
         if (!apiClient || !apiClient.isAuthenticated()) {
@@ -386,7 +405,9 @@ export function AudioContextProvider({ children }) {
         })
         const volumeSub = SnowAudioControls.addListener('volumeAdjust', (event) => {
             if (event?.percent !== undefined) {
-                changeVolume(event.percent)
+                const normalized = Math.max(0, Math.min(1, event.percent))
+                setVolume(normalized)
+                volumeRef.current = normalized
             }
         })
 

@@ -3,8 +3,8 @@ import { createAudioPlayer } from 'expo-audio'
 import { SnowAudioControls } from '../../modules/snow-audio-controls'
 
 export class LocalAudioHandler {
-    constructor({ onStatusUpdate, onFinished }) {
-        this.volume = 1.0
+    constructor({ onStatusUpdate, onFinished, initialVolume = 1.0 }) {
+        this.volume = initialVolume
         this.onStatusUpdate = onStatusUpdate
         this.onFinished = onFinished
         this.subscriptions = []
@@ -18,9 +18,10 @@ export class LocalAudioHandler {
         }
     }
 
-    updateConfig({ onStatusUpdate, onFinished }) {
+    updateConfig({ onStatusUpdate, onFinished, volume }) {
         if (onStatusUpdate) this.onStatusUpdate = onStatusUpdate
         if (onFinished) this.onFinished = onFinished
+        if (volume !== undefined) this.volume = volume
     }
 
     attachListeners() {
@@ -86,6 +87,7 @@ export class LocalAudioHandler {
             this.setupWebPlayer(formattedUri)
             this.player.play()
         } else {
+            SnowAudioControls.setVolume(this.volume)
             SnowAudioControls.play({
                 uri: formattedUri,
                 title: audioFile.title || 'Unknown Title',

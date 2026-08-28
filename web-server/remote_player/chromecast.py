@@ -367,7 +367,12 @@ def get_status(remote_player):
         connection_info = json.loads(remote_player.connection_info_json)
         cast_device = _get_cached_cast(connection_info)
         if not cast_device:
-            return {'position_seconds': 0, 'is_playing': False}
+            return {'position_seconds': 0, 'is_playing': False, 'volume': 0.0}
+
+        try:
+            cast_device.socket_client.receiver_controller.update_status()
+        except Exception:
+            pass
 
         media_controller = cast_device.media_controller
 
@@ -386,7 +391,21 @@ def get_status(remote_player):
         )
         is_playing = player_state == 'PLAYING'
 
-        return {'position_seconds': position_seconds, 'is_playing': is_playing}
+        device_status = cast_device.status
+        raw_volume = (
+            float(device_status.volume_level)
+            if device_status and device_status.volume_level is not None
+            else 0.0
+        )
+
+        unscaled_volume = raw_volume / 0.7
+        normalized_volume = max(0.0, min(1.0, round(unscaled_volume, 4)))
+
+        return {
+            'position_seconds': position_seconds,
+            'is_playing': is_playing,
+            'volume': normalized_volume,
+        }
     except Exception as error_message:
         player_uuid = connection_info.get('uuid')
         if player_uuid:
@@ -396,4 +415,4 @@ def get_status(remote_player):
         log.error(
             f'Failed to fetch status from Chromecast device {remote_player.name}: {error_message}'
         )
-        return {'position_seconds': 0, 'is_playing': False}
+        return {'position_seconds': 0, 'is_playing': False, 'volume': 0.0}

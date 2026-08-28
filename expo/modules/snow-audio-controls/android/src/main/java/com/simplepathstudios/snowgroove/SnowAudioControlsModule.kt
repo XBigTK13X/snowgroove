@@ -97,8 +97,14 @@ class SnowAudioControlsModule : Module() {
             playbackService?.setVolumeLevel(volume.toFloat())
         }
 
-        Function("setRemoteControlMode") { enabled: Boolean, initialVolume: Double ->
-            playbackService?.setRemoteControlMode(enabled, initialVolume.toFloat())
+        Function("setRemoteControlMode") { data: Map<String, Any> ->
+            val enabled = data["enabled"] as? Boolean ?: false
+            val initialVolume = (data["initialVolume"] as? Number)?.toFloat() ?: 1.0f
+            val baseUrl = data["baseUrl"] as? String
+            val authToken = data["authToken"] as? String
+            val sessionId = data["sessionId"] as? String
+
+            playbackService?.setRemoteControlMode(enabled, initialVolume, baseUrl, authToken, sessionId)
         }
 
         Function("syncRemoteVolume") { volume: Double ->

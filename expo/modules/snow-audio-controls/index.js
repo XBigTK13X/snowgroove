@@ -37,8 +37,15 @@ export class SnowAudioControls {
         if (NativeAudio) NativeAudio.setVolume(volume)
     }
 
-    static setRemoteControlMode(enabled, initialVolume = 1.0) {
-        if (NativeAudio) NativeAudio.setRemoteControlMode(enabled, initialVolume)
+    static setRemoteControlMode(enabled, initialVolume = 1.0, baseUrl = '', authToken = '', sessionId = '') {
+        if (!NativeAudio) return
+        NativeAudio.setRemoteControlMode({
+            enabled: enabled,
+            initialVolume: initialVolume,
+            baseUrl: baseUrl,
+            authToken: authToken,
+            sessionId: String(sessionId || '')
+        })
     }
 
     static syncRemoteVolume(volume) {
