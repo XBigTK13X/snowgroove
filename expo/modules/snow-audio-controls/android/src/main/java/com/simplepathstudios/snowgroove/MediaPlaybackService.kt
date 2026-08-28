@@ -1,6 +1,5 @@
 package com.simplepathstudios.snowgroove.audiocontrols
 
-import androidx.media.VolumeProviderCompat
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -148,7 +147,12 @@ class MediaPlaybackService : Service() {
         if (volumeObserver != null) return
 
         val manager = audioManager ?: return
-        lastObservedStreamVolume = manager.getStreamVolume(AudioManager.STREAM_MUSIC)
+        val maxVolume = manager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        val centerVolume = maxVolume / 2
+
+        isProgrammaticVolumeChange = true
+        manager.setStreamVolume(AudioManager.STREAM_MUSIC, centerVolume, 0)
+        lastObservedStreamVolume = centerVolume
 
         val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
             override fun onChange(selfChange: Boolean) {
@@ -165,7 +169,10 @@ class MediaPlaybackService : Service() {
                 if (delta != 0) {
                     val volumeStep = if (delta > 0) 0.05 else -0.05
                     remoteVolumePercent = (remoteVolumePercent + volumeStep).coerceIn(0.0, 1.0)
-                    lastObservedStreamVolume = currentStreamVolume
+
+                    isProgrammaticVolumeChange = true
+                    manager.setStreamVolume(AudioManager.STREAM_MUSIC, centerVolume, 0)
+                    lastObservedStreamVolume = centerVolume
 
                     sendRemoteVolumeHttpRequest(remoteVolumePercent)
                     onCommand?.invoke("volumeAdjust", mapOf("percent" to remoteVolumePercent))
@@ -447,7 +454,10 @@ class MediaPlaybackService : Service() {
             val targetMillis = (seconds * 1000).toLong()
             if (!isRemoteMode) {
                 exoPlayer?.seekTo(targetMillis)
+            } else {
+                onCommand?.invoke("seek", mapOf("position" to seconds))
             }
+
             val session = mediaSession ?: return@launch
             val isPlaying = if (isRemoteMode) true else (exoPlayer?.isPlaying == true)
             val stateCode = if (isPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
@@ -459,7 +469,7 @@ class MediaPlaybackService : Service() {
                     PlaybackStateCompat.ACTION_SEEK_TO
 
             val playbackState = PlaybackStateCompat.Builder()
-                .setState(stateCode, targetMillis, 1.0f)
+                .setState(stateCode, targetMillis, if (isPlaying) 1.0f else 0.0f)
                 .setActions(actions)
                 .build()
 
@@ -476,9 +486,9 @@ class MediaPlaybackService : Service() {
         }
     }
 
-    private fun updatePlaybackState(isPlaying: Boolean) {
+    private fun updatePlaybackState(isPlaying: Boolean, positionMillis: Long? = null) {
         val session = mediaSession ?: return
-        val currentPosition = if (isRemoteMode) 0L else (exoPlayer?.currentPosition ?: 0L)
+        val currentPosition = positionMillis ?: if (isRemoteMode) (session.controller.playbackState?.position ?: 0L) else (exoPlayer?.currentPosition ?: 0L)
         val stateCode = if (isPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
         val actions = PlaybackStateCompat.ACTION_PLAY or
                 PlaybackStateCompat.ACTION_PAUSE or
@@ -488,7 +498,7 @@ class MediaPlaybackService : Service() {
                 PlaybackStateCompat.ACTION_SEEK_TO
 
         val playbackState = PlaybackStateCompat.Builder()
-            .setState(stateCode, currentPosition, 1.0f)
+            .setState(stateCode, currentPosition, if (isPlaying) 1.0f else 0.0f)
             .setActions(actions)
             .build()
 
