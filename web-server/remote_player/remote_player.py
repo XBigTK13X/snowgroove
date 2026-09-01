@@ -42,6 +42,13 @@ class RemotePlayers:
             log.info(f'[RemotePlayers-DEBUG] {message}')
 
     def recover_active_sessions(self):
+        recovery_thread = threading.Thread(
+            target=self._recover_sessions_worker,
+            daemon=True,
+        )
+        recovery_thread.start()
+
+    def _recover_sessions_worker(self):
         self._log_debug('Starting recovery of active remote music sessions...')
         active_sessions = db.op.get_remote_music_session_list()
         self._log_debug(
@@ -52,50 +59,57 @@ class RemotePlayers:
                 ticket=None, id=music_session.remote_player_id
             )
             if remote_player:
-                with self.registry_lock:
-                    if remote_player.id not in self.active_connections:
-                        message_queue = queue.Queue()
+                player_recovery_thread = threading.Thread(
+                    target=self._recover_single_player,
+                    args=(remote_player,),
+                    daemon=True,
+                )
+                player_recovery_thread.start()
 
-                        def handle_track_finished():
-                            self._log_debug(
-                                f'Track finished callback received for {remote_player.name}. Injecting "next" action.'
-                            )
-                            message_queue.put('next')
+    def _recover_single_player(self, remote_player):
+        status = self.get_status(remote_player)
+        with self.registry_lock:
+            if remote_player.id in self.active_connections:
+                self._log_debug(
+                    f'Worker for player {remote_player.id} already exists. Skipping recovery.'
+                )
+                return
 
-                        status = self.get_status(remote_player)
-                        if status.get('is_playing'):
-                            connection_info = json.loads(
-                                remote_player.connection_info_json
-                            )
-                            if remote_player.kind == 'sonos':
-                                sonos.attach_listener(
-                                    device_ip=connection_info['host'],
-                                    on_track_finished=handle_track_finished,
-                                    device_uid=connection_info.get('uid'),
-                                )
-                            elif remote_player.kind == 'chromecast':
-                                chromecast.attach_listener(
-                                    connection_info=connection_info,
-                                    on_track_finished=handle_track_finished,
-                                )
+            message_queue = queue.Queue()
 
-                        worker_thread = threading.Thread(
-                            target=self._device_worker,
-                            args=(remote_player, None, message_queue),
-                            daemon=True,
-                        )
-                        self.active_connections[remote_player.id] = (
-                            worker_thread,
-                            message_queue,
-                        )
-                        worker_thread.start()
-                        log.info(
-                            f'Recovered remote player connection for {remote_player.name} on startup'
-                        )
-                    else:
-                        self._log_debug(
-                            f'Worker for player {remote_player.id} already exists. Skipping recovery.'
-                        )
+            def handle_track_finished():
+                self._log_debug(
+                    f'Track finished callback received for {remote_player.name}. Injecting "next" action.'
+                )
+                message_queue.put('next')
+
+            if status.get('is_playing'):
+                connection_info = json.loads(remote_player.connection_info_json)
+                if remote_player.kind == 'sonos':
+                    sonos.attach_listener(
+                        device_ip=connection_info['host'],
+                        on_track_finished=handle_track_finished,
+                        device_uid=connection_info.get('uid'),
+                    )
+                elif remote_player.kind == 'chromecast':
+                    chromecast.attach_listener(
+                        connection_info=connection_info,
+                        on_track_finished=handle_track_finished,
+                    )
+
+            worker_thread = threading.Thread(
+                target=self._device_worker,
+                args=(remote_player, None, message_queue),
+                daemon=True,
+            )
+            self.active_connections[remote_player.id] = (
+                worker_thread,
+                message_queue,
+            )
+            worker_thread.start()
+            log.info(
+                f'Recovered remote player connection for {remote_player.name} on startup'
+            )
 
     def _device_worker(self, remote_player, initial_action, message_queue):
         self._log_debug(
@@ -335,9 +349,9 @@ class RemotePlayers:
             else:
                 log.warning(f'Unhandled status lookup for kind [{remote_player.kind}]')
                 return {'position_seconds': 0, 'is_playing': False}
-        except Exception as ee:
+        except Exception as hardware_error:
             log.error(
-                f'Failed to fetch hardware status for player {remote_player.id}: {ee}'
+                f'Failed to fetch hardware status for player {remote_player.id}: {hardware_error}'
             )
             return {'position_seconds': 0, 'is_playing': False}
 
@@ -366,3 +380,6 @@ class RemotePlayers:
                 log.error(
                     f'Failed to stop playback for player {remote_player.id}: {dispatch_error}'
                 )
+
+
+remote_player = RemotePlayers()

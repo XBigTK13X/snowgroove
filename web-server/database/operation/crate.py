@@ -35,7 +35,11 @@ def create_crate(shelf_id: int, directory: str):
             if not part:
                 continue
 
-            current_relative_path = dbi.os.path.join(current_relative_path, part)
+            current_relative_path = (
+                part
+                if not current_relative_path
+                else dbi.os.path.join(current_relative_path, part)
+            )
 
             existing_crate = (
                 db.query(dbi.dm.Crate)
@@ -75,8 +79,16 @@ def get_crate_by_shelf_and_directory(
     shelf_id: int, directory: str, load_files: bool = True
 ):
     with dbi.session() as db:
+        shelf = db_shelf.get_shelf_by_id(shelf_id=shelf_id)
+        target_directories = [directory]
+        if shelf and directory.startswith(shelf.local_path):
+            relative_dir = directory.replace(shelf.local_path, '').strip('/')
+            if relative_dir and relative_dir not in target_directories:
+                target_directories.append(relative_dir)
+
         query = db.query(dbi.dm.Crate).filter(
-            dbi.dm.Crate.shelf_id == shelf_id, dbi.dm.Crate.directory == directory
+            dbi.dm.Crate.shelf_id == shelf_id,
+            dbi.dm.Crate.directory.in_(target_directories),
         )
         if load_files:
             query = (
@@ -278,14 +290,14 @@ def get_tags_for_crate(crate_id: int):
 
 def get_crate_list(search_query: str):
     with dbi.session() as db:
-        u = dbi.func.unaccent
-        uq = u(f'%{search_query}%')
+        unaccent_func = dbi.func.unaccent
+        unaccent_query = unaccent_func(f'%{search_query}%')
 
         directories = (
             db.query(dbi.dm.Crate)
             .options(dbi.orm.joinedload(dbi.dm.Crate.shelf))
             .options(dbi.orm.joinedload(dbi.dm.Crate.tags))
-            .filter(u(dbi.dm.Crate.directory).ilike(uq))
+            .filter(unaccent_func(dbi.dm.Crate.directory).ilike(unaccent_query))
             .all()
         )
 

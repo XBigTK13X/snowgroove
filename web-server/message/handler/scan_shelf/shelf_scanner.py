@@ -65,6 +65,36 @@ class ShelfScanner:
         self.file_info_parser = parser
         self.target_directory = target_directory
 
+    def get_or_create_crate_id(self, crate_dir: str):
+        if crate_dir in self.crate_lookup:
+            return self.crate_lookup[crate_dir]
+
+        if crate_dir == self.shelf.local_path:
+            return None
+
+        try:
+            crate = db.op.get_crate_by_shelf_and_directory(
+                self.shelf.id, crate_dir, load_files=False
+            )
+            if not crate:
+                crate = db.op.create_crate(self.shelf.id, crate_dir)
+            if crate:
+                crate = db.op.update_crate_year(crate=crate)
+                self.crate_lookup[crate_dir] = crate.id
+                return crate.id
+        except Exception as error:
+            db.op.update_job(
+                job_id=self.scope.job_id,
+                message=f'An error occurred while getting or creating crate for [{crate_dir}]',
+            )
+            import traceback
+
+            db.op.update_job(
+                job_id=self.scope.job_id, message=f'{traceback.format_exc()}'
+            )
+
+        return None
+
     def get_files_in_directory(self):
         scan_directory = (
             self.shelf.local_path
@@ -77,12 +107,18 @@ class ShelfScanner:
         file_count = 0
         dir_count = 0
         for root, dirs, files in os.walk(scan_directory, followlinks=True):
+            if root != self.shelf.local_path and '.snowgloo' not in root:
+                if root not in self.crate_paths:
+                    dir_count += 1
+                    self.crate_paths.append(root)
+
             for crate_dir in dirs:
                 crate_path = os.path.join(root, crate_dir)
                 if '.snowgloo' in crate_path:
                     continue
-                dir_count += 1
-                self.crate_paths.append(crate_path)
+                if crate_path not in self.crate_paths:
+                    dir_count += 1
+                    self.crate_paths.append(crate_path)
 
             for shelf_file in files:
                 file_path = os.path.join(root, shelf_file)
@@ -109,24 +145,8 @@ class ShelfScanner:
                     job_id=self.scope.job_id,
                     message=f'Ingesting item {progress_count} out of {len(self.crate_paths)}',
                 )
-            try:
-                crate = db.op.get_crate_by_shelf_and_directory(
-                    self.shelf.id, crate_path, load_files=False
-                )
-                if not crate:
-                    crate = db.op.create_crate(self.shelf.id, crate_path)
-                crate = db.op.update_crate_year(crate=crate)
-                self.crate_lookup[crate_path] = crate.id
-            except Exception as e:
-                db.op.update_job(
-                    job_id=self.scope.job_id,
-                    message=f'An error occurred while mapping dir to crate [{crate_path}]',
-                )
-                import traceback
+            self.get_or_create_crate_id(crate_path)
 
-                db.op.update_job(
-                    job_id=self.scope.job_id, message=f'{traceback.format_exc()}'
-                )
         db.op.update_job(
             job_id=self.scope.job_id, message=f'Mapped directories to crates'
         )
@@ -148,7 +168,7 @@ class ShelfScanner:
                 )
                 media_info['file_path'] = media_path
                 parsed_files.append(media_info)
-            except Exception as e:
+            except Exception as error:
                 db.op.update_job(
                     job_id=self.scope.job_id,
                     message=f'An error occurred while processing {kind} [{media_path}]',
@@ -162,7 +182,7 @@ class ShelfScanner:
             job_id=self.scope.job_id,
             message=f'Ingested info for ({len(parsed_files)}/{len(self.file_lookup[kind])}) parsed {kind} file paths',
         )
-        parsed_files = sorted(parsed_files, key=lambda x: x['file_path'])
+        parsed_files = sorted(parsed_files, key=lambda xx: xx['file_path'])
         return parsed_files
 
     def ingest_content(self, kind):
@@ -177,19 +197,26 @@ class ShelfScanner:
                 )
             local_path = info['file_path']
             crate_dir = os.path.dirname(local_path)
-            if kind == 'audio':
-                dbm = db.op.get_or_create_audio_file(
-                    crate_id=self.crate_lookup[crate_dir], file_info=info
+            crate_id = self.get_or_create_crate_id(crate_dir)
+
+            if not crate_id:
+                db.op.update_job(
+                    job_id=self.scope.job_id,
+                    message=f'Unable to map crate for [{local_path}]',
                 )
+                return False
+
+            if kind == 'audio':
+                dbm = db.op.get_or_create_audio_file(crate_id=crate_id, file_info=info)
             if kind == 'image':
                 dbm = db.op.get_or_create_image_file(
-                    crate_id=self.crate_lookup[crate_dir],
+                    crate_id=crate_id,
                     kind=info['kind'],
                     local_path=local_path,
                 )
             if kind == 'metadata':
                 dbm = db.op.get_or_create_metadata_file(
-                    crate_id=self.crate_lookup[crate_dir],
+                    crate_id=crate_id,
                     kind=info['kind'],
                     local_path=local_path,
                 )
@@ -206,12 +233,12 @@ class ShelfScanner:
                                 tag = db.op.create_tag(name=tag_name)
                             self.tag_lookup[tag_name] = tag.id
                         crate_tag = db.op.get_crate_tag(
-                            crate_id=self.crate_lookup[crate_dir],
+                            crate_id=crate_id,
                             tag_id=self.tag_lookup[tag_name],
                         )
                         if not crate_tag:
                             db.op.create_crate_tag(
-                                crate_id=self.crate_lookup[crate_dir],
+                                crate_id=crate_id,
                                 tag_id=self.tag_lookup[tag_name],
                             )
 
