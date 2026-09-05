@@ -92,7 +92,12 @@ export class RemoteAudioHandler {
                         this.onStateSync?.(response)
                     }
                 })
-                .catch(() => { })
+                .catch((error) => {
+                    const statusCode = error?.status || error?.response?.status
+                    if (statusCode === 401) {
+                        this.stopPolling()
+                    }
+                })
         }
 
         pollRemotePlaybackProgress()

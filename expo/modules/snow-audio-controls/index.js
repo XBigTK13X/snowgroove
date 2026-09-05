@@ -68,4 +68,15 @@ export class SnowAudioControls {
             isPlaying: params.isPlaying || false
         })
     }
+
+    static requestQueueSync() {
+        if (NativeAudio) NativeAudio.requestQueueSync()
+    }
+
+    static configureApi(baseUrl, token, sessionId) {
+        if (NativeAudio) {
+            const resolvedSessionId = sessionId != null ? String(sessionId) : null
+            NativeAudio.configureApi(baseUrl, token, resolvedSessionId)
+        }
+    }
 }

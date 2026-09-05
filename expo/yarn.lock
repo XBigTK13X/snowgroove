@@ -2222,10 +2222,10 @@ expo-server@^57.0.3:
   resolved "https://registry.yarnpkg.com/expo-server/-/expo-server-57.0.3.tgz#02e038a85453f1f4eb00024256b4b3cab949cace"
   integrity sha512-aK+LdKzauHSGmsOStZtyxdzv0zWssCkxTw3m4QuOhfDSJsZaMRTd9O41d8ixU/QfELTbaJ0oRNcF7JFV/7O9YQ==
 
-expo-snowui@^1.8.8:
-  version "1.8.9"
-  resolved "https://registry.yarnpkg.com/expo-snowui/-/expo-snowui-1.8.9.tgz#00bd844835c4af3639c6e9aa21112cad72b71473"
-  integrity sha512-4rLLg6fpVDoRDhv+FG0EYN2zatT/N0h+jWUX9IIBg7OJysAsacSV+XXj60aMy/Rhg4zfuJ3CeWNggZDESv2tHg==
+expo-snowui@^1.8.11:
+  version "1.8.11"
+  resolved "https://registry.yarnpkg.com/expo-snowui/-/expo-snowui-1.8.11.tgz#909e73315cfdb23fe62fcc01c0c3fa68f6c21a0e"
+  integrity sha512-t0krjUls+njEYQM88OcBx9a/3aCcgbg6rlLBHOv8gkuHbvXULBMOzcj8EVcLlPX5d9e7j+uNr8s7bow0oObw6g==
   dependencies:
     "@sentry/react-native" "^7.11.0"
     expo "57.0.11"
@@ -3451,11 +3451,6 @@ react-native-uuid@2.0.4, react-native-uuid@^2.0.4:
   version "2.0.4"
   resolved "https://registry.yarnpkg.com/react-native-uuid/-/react-native-uuid-2.0.4.tgz#0c4f345523c5feac0282d3a51fe19887727df988"
   integrity sha512-LSJNeh559qC17fgVPBsWuTSW/OygFp2dwTcf94IQBLYft5FzIQS9pCsuT36OPvyvDOMb6yiGr6TafaJDnz9PPQ==
-
-react-native-volume-manager@^2.0.8:
-  version "2.0.8"
-  resolved "https://registry.yarnpkg.com/react-native-volume-manager/-/react-native-volume-manager-2.0.8.tgz#4217c00e975043cdc10f908c8aba2c77a05d2b46"
-  integrity sha512-aZM47/mYkdQ4CbXpKYO6Ajiczv7fxbQXZ9c0H8gRuQUaS3OCz/MZABer6o9aDWq0KMNsQ7q7GVFLRPnSSeeMmw==
 
 react-native-web@0.21.2:
   version "0.21.2"

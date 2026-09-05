@@ -11,7 +11,7 @@
         "expo-keep-awake": "57.0.1",
         "expo-linking": "57.0.5",
         "expo-secure-store": "^57.0.1",
-        "expo-snowui": "^1.8.8",
+        "expo-snowui": "^1.8.11",
         "expo-splash-screen": "^57.0.6",
         "react": "19.2.8",
         "react-dom": "19.2.8",

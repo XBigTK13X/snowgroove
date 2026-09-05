@@ -1,4 +1,5 @@
 import React from 'react'
+import { AppState } from 'react-native'
 import { useAppContext } from '../app-context'
 import { LocalAudioHandler } from './local-audio-handler'
 import { RemoteAudioHandler } from './remote-audio-handler'
@@ -23,6 +24,21 @@ export function AudioContextProvider({ children }) {
     const sessionRef = React.useRef(null)
 
     const isRemote = targetPlayer?.id !== undefined && targetPlayer?.id !== null
+
+    const fetchLatestSessionRef = React.useRef(fetchLatestSession)
+    fetchLatestSessionRef.current = fetchLatestSession
+
+    React.useEffect(() => {
+        const appStateSubscription = AppState.addEventListener('change', (nextAppState) => {
+            if (nextAppState === 'active') {
+                fetchLatestSessionRef.current?.()
+            }
+        })
+
+        return () => {
+            appStateSubscription.remove()
+        }
+    }, [])
 
     const queueManager = useMusicQueue({
         apiClient,
@@ -83,26 +99,30 @@ export function AudioContextProvider({ children }) {
     }, [])
 
     const handleSongFinished = React.useCallback(async () => {
-        if (isAdvancingTrackRef.current) return
-        isAdvancingTrackRef.current = true
+        if (isRemote) {
+            if (isAdvancingTrackRef.current) return
+            isAdvancingTrackRef.current = true
 
-        try {
-            setPositionSeconds(0)
-            const nextSong = await queueManager.advanceQueueIndex(1, true)
-            if (nextSong) {
-                currentAudioFileRef.current = nextSong
-                setCurrentAudioFile(nextSong)
-                await activeHandlerRef.current.play(nextSong)
-                setPlaying(true)
-            } else {
-                setPlaying(false)
+            try {
+                setPositionSeconds(0)
+                const nextSong = await queueManager.advanceQueueIndex(1, true)
+                if (nextSong) {
+                    currentAudioFileRef.current = nextSong
+                    setCurrentAudioFile(nextSong)
+                    await activeHandlerRef.current.play(nextSong)
+                    setPlaying(true)
+                } else {
+                    setPlaying(false)
+                }
+            } finally {
+                setTimeout(() => {
+                    isAdvancingTrackRef.current = false
+                }, 500)
             }
-        } finally {
-            setTimeout(() => {
-                isAdvancingTrackRef.current = false
-            }, 500)
+        } else {
+            await fetchLatestSessionRef.current?.()
         }
-    }, [queueManager])
+    }, [isRemote, queueManager])
 
     const handleRemoteStateSync = React.useCallback((response) => {
         if (response.music_queue?.songs?.length) {
@@ -392,6 +412,52 @@ export function AudioContextProvider({ children }) {
     let progressPercent = currentAudioFile && currentAudioFile.duration > 0
         ? Math.min(1, Math.max(0, positionSeconds / currentAudioFile.duration))
         : 0
+
+    React.useEffect(() => {
+        const queueStaleSub = SnowAudioControls.addListener('queueStale', () => {
+            fetchLatestSessionRef.current?.()
+        })
+
+        return () => {
+            queueStaleSub.remove()
+        }
+    }, [])
+
+    React.useEffect(() => {
+        if (apiClient?.baseURL && apiClient?.authToken) {
+            SnowAudioControls.configureApi(
+                apiClient.baseURL,
+                apiClient.authToken,
+                sessionRef.current?.id || null
+            )
+        }
+    }, [apiClient?.baseURL, apiClient?.authToken, sessionRef.current?.id])
+
+    React.useEffect(() => {
+        if (musicSession?.music_queue) {
+            SnowAudioControls.requestQueueSync()
+        }
+    }, [musicSession])
+
+    React.useEffect(() => {
+        const trackSub = SnowAudioControls.addListener('trackChanged', (event) => {
+            if (event?.songId && musicSession?.music_queue?.songs) {
+                const songs = musicSession.music_queue.songs
+                const nextIndex = songs.findIndex((song) => song.id === event.songId)
+                if (nextIndex !== -1) {
+                    const nextSong = songs[nextIndex]
+                    currentAudioFileRef.current = nextSong
+                    setCurrentAudioFile(nextSong)
+                    setPositionSeconds(0)
+                    setPlaying(true)
+                }
+            }
+        })
+
+        return () => {
+            trackSub.remove()
+        }
+    }, [musicSession])
 
     React.useEffect(() => {
         const playSub = SnowAudioControls.addListener('play', () => togglePlayback())

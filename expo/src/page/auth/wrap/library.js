@@ -26,9 +26,8 @@ export default function LibraryPage(props) {
     }, [])
 
     let destinations = [
-        <C.SnowTextButton title="Search" onPress={navPush({ path: routes.search })} />,
         <C.SnowTextButton title="Playlists" onPress={navPush({ path: routes.playlistList })} />,
-        <C.SnowTextButton title="Devices" onPress={navPush({ path: routes.deviceList })} />,
+        <C.SnowTextButton title="Search" onPress={navPush({ path: routes.search })} />,
     ]
 
     if (shelves) {
@@ -43,13 +42,16 @@ export default function LibraryPage(props) {
     }
     if (shelves !== null) {
         return (
-            <C.SnowGrid
-                yy={4}
-                focusStart
-                focusKey="destinations"
-                itemsPerRow={2}>
-                {destinations}
-            </C.SnowGrid>
+            <C.SnowView {...props}>
+                <C.SnowLabel center>Library</C.SnowLabel>
+                <C.SnowGrid
+                    yy={4}
+                    focusStart
+                    focusKey="destinations"
+                    itemsPerRow={2}>
+                    {destinations}
+                </C.SnowGrid>
+            </C.SnowView>
         )
     }
 

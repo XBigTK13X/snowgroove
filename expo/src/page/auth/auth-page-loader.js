@@ -36,8 +36,16 @@ function HeaderNav(props) {
                     onPress={navPop(true)} />
             </SnowGrid>
             <SnowGrid
-                itemsPerRow={3}
+                itemsPerRow={2}
                 focusKey="header-action" >
+                <SnowTextButton
+                    title="Library"
+                    onPress={navPush({ path: routes.library })}
+                />
+                <C.SnowTextButton
+                    title="Devices"
+                    onPress={navPush({ path: routes.deviceList })}
+                />
                 <SnowTextButton
                     title="Playing"
                     onPress={navPush({ path: routes.landing })}
@@ -45,10 +53,6 @@ function HeaderNav(props) {
                 <SnowTextButton
                     title={targetPlayer?.name ?? "Queue"}
                     onPress={navPush({ path: routes.musicSessionDetails })}
-                />
-                <SnowTextButton
-                    title="Library"
-                    onPress={navPush({ path: routes.library })}
                 />
             </SnowGrid>
             <SnowBreak />
