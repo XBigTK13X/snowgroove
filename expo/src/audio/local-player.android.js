@@ -1,21 +1,17 @@
-import { Platform, AppState } from 'react-native'
-import { createAudioPlayer } from 'expo-audio'
+import { AppState } from 'react-native'
 import { SnowAudioControls } from '../../modules/snow-audio-controls'
 
-export class LocalAudioHandler {
+export class LocalPlayer {
     constructor({ apiClient, onStateChange, onTrackFinished, initialVolume = 1.0 }) {
         this.apiClient = apiClient
         this.onStateChange = onStateChange
         this.onTrackFinished = onTrackFinished
         this.volume = initialVolume
-        this.isWeb = Platform.OS === 'web'
 
         this.subscriptions = []
         this.appStateSubscription = null
         this.seekLockTimeout = null
 
-        this.player = null
-        this.playerListener = null
         this.currentAudioFile = null
         this.positionSeconds = 0
     }
@@ -27,10 +23,7 @@ export class LocalAudioHandler {
 
     activate() {
         SnowAudioControls.setRemoteControlMode(false, this.volume, '', '', '')
-
-        if (!this.isWeb) {
-            this.attachNativeListeners()
-        }
+        this.attachNativeListeners()
 
         this.appStateSubscription = AppState.addEventListener('change', (nextAppState) => {
             if (nextAppState === 'active') {
@@ -84,37 +77,6 @@ export class LocalAudioHandler {
         this.subscriptions = []
     }
 
-    setupWebPlayer(uri) {
-        if (this.playerListener) {
-            this.playerListener.remove()
-            this.playerListener = null
-        }
-
-        if (this.player) {
-            this.player.release()
-            this.player = null
-        }
-
-        this.player = createAudioPlayer(uri)
-        this.player.volume = this.volume
-
-        this.playerListener = this.player.addListener('playbackStatusUpdate', (status) => {
-            if (!status.isLoaded) return
-
-            if (!this.seekLockTimeout && status.currentTime !== undefined) {
-                this.positionSeconds = status.currentTime
-                this.onStateChange?.({
-                    positionSeconds: status.currentTime,
-                    isPlaying: status.playing
-                })
-            }
-
-            if (status.playbackState === 'ended') {
-                this.handleSongEnded()
-            }
-        })
-    }
-
     async handleSongEnded() {
         if (this.onTrackFinished) {
             await this.onTrackFinished()
@@ -161,61 +123,31 @@ export class LocalAudioHandler {
         const rawUri = audioFile.web_path
         const formattedUri = rawUri.includes('%') ? rawUri : encodeURI(rawUri)
 
-        if (this.isWeb) {
-            this.setupWebPlayer(formattedUri)
-            this.player.play()
-        } else {
-            SnowAudioControls.setVolume(this.volume)
-            SnowAudioControls.play({
-                uri: formattedUri,
-                title: audioFile.title || 'Unknown Title',
-                artist: audioFile.artist || 'Unknown Artist',
-                album: audioFile.album || 'Unknown Album',
-                artworkUrl: audioFile.thumbnail_web_path || '',
-                duration: audioFile.duration || 0
-            })
-        }
+        SnowAudioControls.setVolume(this.volume)
+        SnowAudioControls.play({
+            uri: formattedUri,
+            title: audioFile.title || 'Unknown Title',
+            artist: audioFile.artist || 'Unknown Artist',
+            album: audioFile.album || 'Unknown Album',
+            artworkUrl: audioFile.thumbnail_web_path || '',
+            duration: audioFile.duration || 0
+        })
     }
 
     async pause() {
-        if (this.isWeb) {
-            this.player?.pause()
-        } else {
-            SnowAudioControls.pause()
-        }
+        SnowAudioControls.pause()
         this.onStateChange?.({ isPlaying: false })
     }
 
     async resume() {
         if (!this.currentAudioFile) return
 
-        if (this.isWeb) {
-            if (!this.player) {
-                await this.play(this.currentAudioFile)
-            } else {
-                this.player.play()
-                this.onStateChange?.({ isPlaying: true })
-            }
-        } else {
-            SnowAudioControls.resume()
-            this.onStateChange?.({ isPlaying: true })
-        }
+        SnowAudioControls.resume()
+        this.onStateChange?.({ isPlaying: true })
     }
 
     async stop() {
-        if (this.isWeb) {
-            if (this.playerListener) {
-                this.playerListener.remove()
-                this.playerListener = null
-            }
-            if (this.player) {
-                this.player.pause()
-                this.player.release()
-                this.player = null
-            }
-        } else {
-            SnowAudioControls.stop()
-        }
+        SnowAudioControls.stop()
         this.onStateChange?.({ isPlaying: false })
     }
 
@@ -230,21 +162,12 @@ export class LocalAudioHandler {
             this.seekLockTimeout = null
         }, 1200)
 
-        if (this.isWeb) {
-            if (this.player) await this.player.seekTo(targetSeconds)
-        } else {
-            SnowAudioControls.seek(targetSeconds)
-        }
+        SnowAudioControls.seek(targetSeconds)
     }
 
     async setVolume(percent) {
         this.volume = Math.max(0, Math.min(1, percent))
         this.onStateChange?.({ volume: this.volume })
-
-        if (this.isWeb) {
-            if (this.player) this.player.volume = this.volume
-        } else {
-            SnowAudioControls.setVolume(this.volume)
-        }
+        SnowAudioControls.setVolume(this.volume)
     }
 }

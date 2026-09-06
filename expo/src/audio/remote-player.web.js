@@ -1,7 +1,6 @@
 import { AppState } from 'react-native'
-import { SnowAudioControls } from '../../modules/snow-audio-controls'
 
-export class RemoteAudioHandler {
+export class RemotePlayer {
     constructor({ apiClient, onStateChange, initialVolume = 1.0 }) {
         this.apiClient = apiClient
         this.onStateChange = onStateChange
@@ -32,14 +31,6 @@ export class RemoteAudioHandler {
                 musicSession: null
             })
         }
-
-        SnowAudioControls.setRemoteControlMode(
-            true,
-            this.volume,
-            this.apiClient?.baseURL || '',
-            this.apiClient?.authToken || '',
-            this.currentSession?.id || ''
-        )
 
         this.startPolling()
 
@@ -103,9 +94,8 @@ export class RemoteAudioHandler {
 
         const patch = { musicSession: response }
 
-        let currentSong = null
         if (response.music_queue?.songs?.length) {
-            currentSong = response.music_queue.songs[response.music_queue.current_song_index]
+            const currentSong = response.music_queue.songs[response.music_queue.current_song_index]
             patch.currentAudioFile = currentSong
         }
 
@@ -120,21 +110,9 @@ export class RemoteAudioHandler {
         if (response.status?.volume !== undefined && response.status?.volume !== null) {
             this.volume = Math.max(0, Math.min(1, parseFloat(response.status.volume)))
             patch.volume = this.volume
-            SnowAudioControls.syncRemoteVolume(this.volume)
         }
 
         this.onStateChange?.(patch)
-
-        if (currentSong) {
-            SnowAudioControls.updateMetadata({
-                title: currentSong.title || 'Unknown Title',
-                artist: currentSong.artist || 'Unknown Artist',
-                album: currentSong.album || 'Unknown Album',
-                artworkUrl: currentSong.thumbnail_web_path || '',
-                duration: currentSong.duration || 0,
-                isPlaying: response.status?.isPlaying ?? false
-            })
-        }
     }
 
     async refreshSession() {
@@ -189,7 +167,6 @@ export class RemoteAudioHandler {
     async setVolume(percent) {
         this.volume = Math.max(0, Math.min(1, percent))
         this.onStateChange?.({ volume: this.volume })
-        SnowAudioControls.syncRemoteVolume(this.volume)
 
         const sessionId = this.getSessionId()
         if (!this.apiClient || !sessionId) return

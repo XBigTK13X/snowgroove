@@ -1,13 +1,12 @@
 import React from 'react'
 import { useAppContext } from '../app-context'
 import { useMusicQueue } from './music-queue'
-import { LocalAudioHandler } from './local-audio-handler'
-import { RemoteAudioHandler } from './remote-audio-handler'
-import { SnowAudioControls } from '../../modules/snow-audio-controls'
+import { LocalPlayer } from './local-player'
+import { RemotePlayer } from './remote-player'
 
-const AudioContext = React.createContext(null)
+export const AudioContext = React.createContext(null)
 
-export function AudioContextProvider({ children }) {
+export function useAudioContextBase() {
     const { targetPlayer, apiClient } = useAppContext()
     const [playbackState, setPlaybackState] = React.useState({
         isPlaying: false,
@@ -27,7 +26,7 @@ export function AudioContextProvider({ children }) {
     if (!handlersRef.current) {
         const onStateChange = (patch) => setPlaybackState((prev) => ({ ...prev, ...patch }))
         handlersRef.current = {
-            local: new LocalAudioHandler({
+            local: new LocalPlayer({
                 apiClient,
                 onStateChange,
                 onTrackFinished: async () => {
@@ -36,7 +35,7 @@ export function AudioContextProvider({ children }) {
                     }
                 }
             }),
-            remote: new RemoteAudioHandler({ apiClient, onStateChange })
+            remote: new RemotePlayer({ apiClient, onStateChange })
         }
     }
 
@@ -50,14 +49,6 @@ export function AudioContextProvider({ children }) {
             }
         })
         handlersRef.current.remote.updateConfig({ apiClient, targetPlayer })
-
-        if (apiClient?.baseURL && apiClient?.authToken) {
-            SnowAudioControls.configureApi(
-                apiClient.baseURL,
-                apiClient.authToken,
-                sessionRef.current?.id || null
-            )
-        }
 
         if (apiClient?.isAuthenticated()) {
             const active = (targetPlayer?.id !== undefined && targetPlayer?.id !== null)
@@ -87,12 +78,6 @@ export function AudioContextProvider({ children }) {
         handler.activate({ targetPlayer })
         return () => handler.deactivate()
     }, [handler, targetPlayer])
-
-    React.useEffect(() => {
-        if (playbackState.musicSession?.music_queue) {
-            SnowAudioControls.requestQueueSync()
-        }
-    }, [playbackState.musicSession])
 
     React.useEffect(() => {
         return () => {
@@ -142,42 +127,6 @@ export function AudioContextProvider({ children }) {
             await handler.resume()
         }
     }, [handler, playbackState.isPlaying])
-
-    React.useEffect(() => {
-        const subs = [
-            SnowAudioControls.addListener('play', togglePlayback),
-            SnowAudioControls.addListener('pause', togglePlayback),
-            SnowAudioControls.addListener('next', () => moveCurrentIndex(1)),
-            SnowAudioControls.addListener('previous', () => moveCurrentIndex(-1)),
-            SnowAudioControls.addListener('seek', (event) => {
-                if (event?.position !== undefined) handler.seek(event.position)
-            }),
-            SnowAudioControls.addListener('volumeAdjust', (event) => {
-                if (event?.percent !== undefined) handler.setVolume(event.percent)
-            }),
-            SnowAudioControls.addListener('queueStale', () => handler.refreshSession()),
-            SnowAudioControls.addListener('trackChanged', (event) => {
-                const songs = sessionRef.current?.music_queue?.songs
-                if (event?.songId && songs) {
-                    const songIndex = songs.findIndex((song) => song.id === event.songId)
-                    if (songIndex !== -1) {
-                        setPlaybackState((prev) => ({
-                            ...prev,
-                            currentAudioFile: songs[songIndex],
-                            positionSeconds: 0,
-                            isPlaying: true
-                        }))
-                    }
-                }
-            })
-        ]
-
-        return () => {
-            for (let ii = 0; ii < subs.length; ii++) {
-                subs[ii].remove()
-            }
-        }
-    }, [handler, togglePlayback, moveCurrentIndex])
 
     const duration = playbackState.currentAudioFile?.duration || 0
     const progressPercent = duration > 0
@@ -230,11 +179,16 @@ export function AudioContextProvider({ children }) {
         removeCrateFromQueue: (crateId, kind) => queueManager.removeCrateFromQueue(crateId, kind, playbackState.musicSession)
     }
 
-    return (
-        <AudioContext.Provider value={contextValue}>
-            {children}
-        </AudioContext.Provider>
-    )
+    return {
+        apiClient,
+        playbackState,
+        setPlaybackState,
+        sessionRef,
+        handler,
+        moveCurrentIndex,
+        togglePlayback,
+        contextValue
+    }
 }
 
 export function useAudioContext() {
