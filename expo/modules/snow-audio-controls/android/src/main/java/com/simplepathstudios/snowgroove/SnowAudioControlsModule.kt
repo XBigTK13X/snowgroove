@@ -67,18 +67,23 @@ class SnowAudioControlsModule : Module() {
             Name("SnowAudioControls")
 
             Events(
-                "play",
-                "pause",
+                "finished",
+                "log",
                 "next",
+                "pause",
+                "play",
                 "previous",
                 "seek",
                 "statusUpdate",
-                "finished",
-                "volumeAdjust",
-                "trackChanged"
+                "trackChanged",
+                "volumeAdjust"
             )
 
             OnCreate {
+                SnowEvents.setEventEmitter { eventName, payload ->
+                    safeSendEvent(eventName, payload)
+                }
+
                 val context = appContext.reactContext ?: return@OnCreate
                 val intent = Intent(context, MediaPlaybackService::class.java)
                 ContextCompat.startForegroundService(context, intent)
@@ -150,6 +155,8 @@ class SnowAudioControlsModule : Module() {
             }
 
             OnDestroy {
+                SnowEvents.setEventEmitter(null)
+
                 val context = appContext.reactContext
                 if (context != null && isBound) {
                     try {

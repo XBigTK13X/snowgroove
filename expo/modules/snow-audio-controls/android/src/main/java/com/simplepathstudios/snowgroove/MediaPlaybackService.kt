@@ -47,12 +47,19 @@ class MediaPlaybackService : Service() {
     override fun onCreate() {
         super.onCreate()
 
+        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            SnowEvents.log("MediaPlaybackService->onCreate", "Initializing service")
+        }
+
         notificationManager = PlaybackNotificationManager(this)
 
         queueManager =
             QueueManager(
                 apiClient = apiClient,
                 onQueueStale = {
+                    if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+                        SnowEvents.log("MediaPlaybackService->onQueueStale", "Queue stale callback triggered")
+                    }
                     onCommand?.invoke("queueStale", null)
                 },
             )
@@ -61,6 +68,9 @@ class MediaPlaybackService : Service() {
             AudioPlaybackManager(
                 context = this,
                 onPlaybackStateChange = { isPlaying ->
+                    if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+                        SnowEvents.log("MediaPlaybackService->onPlaybackStateChange", "isPlaying: $isPlaying")
+                    }
                     notificationManager.updateNotification(
                         audioPlaybackManager.mediaSession!!,
                         currentTitle,
@@ -70,6 +80,9 @@ class MediaPlaybackService : Service() {
                     )
                 },
                 onItemFinished = {
+                    if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+                        SnowEvents.log("MediaPlaybackService->onItemFinished", "Current track finished")
+                    }
                     val nextSong = queueManager.advanceSong(1)
                     if (nextSong != null) {
                         loadAndPlay(
@@ -80,12 +93,15 @@ class MediaPlaybackService : Service() {
                             artworkUrl = nextSong.artworkUrl,
                             duration = nextSong.duration,
                         )
-                        onCommand?.invoke("trackChanged", mapOf("songId" to nextSong.id))
+                        onCommand?.invoke("trackChanged", mapOf("songFingerprint" to nextSong.fingerprint))
                     } else {
                         onFinished?.invoke()
                     }
                 },
                 onCommandAction = { action, payload ->
+                    if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+                        SnowEvents.log("MediaPlaybackService->onCommandAction", "action: $action, isRemoteMode: $isRemoteMode")
+                    }
                     if (!isRemoteMode && (action == "next" || action == "previous")) {
                         val step = if (action == "next") 1 else -1
                         val nextSong = queueManager.advanceSong(step)
@@ -104,6 +120,9 @@ class MediaPlaybackService : Service() {
                     onCommand?.invoke(action, payload)
                 },
                 onSeekAction = { seconds ->
+                    if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+                        SnowEvents.log("MediaPlaybackService->onSeekAction", "seconds: $seconds")
+                    }
                     seek(seconds)
                 },
             )
@@ -113,6 +132,9 @@ class MediaPlaybackService : Service() {
                 context = this,
                 apiClient = apiClient,
                 onVolumeAdjusted = { percent ->
+                    if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+                        SnowEvents.log("MediaPlaybackService->onVolumeAdjusted", "percent: $percent")
+                    }
                     onCommand?.invoke("volumeAdjust", mapOf("percent" to percent))
                 },
             )
@@ -135,8 +157,34 @@ class MediaPlaybackService : Service() {
         flags: Int,
         startId: Int,
     ): Int {
+        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            SnowEvents.log("MediaPlaybackService->onStartCommand", "action: ${intent?.action ?: "[null]"}")
+        }
         MediaButtonReceiver.handleIntent(audioPlaybackManager.mediaSession, intent)
         return START_STICKY
+    }
+
+    fun requestQueueSync() {
+        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            SnowEvents.log("MediaPlaybackService->requestQueueSync", "Requesting sync")
+        }
+        serviceScope.launch(Dispatchers.Main) {
+            queueManager.loadSession(null)
+        }
+    }
+
+    fun configureApi(
+        baseUrl: String,
+        token: String,
+        sessionId: String? = null,
+    ) {
+        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            SnowEvents.log("MediaPlaybackService->configureApi", "baseUrl: $baseUrl, sessionId: ${sessionId ?: "[none]"}")
+        }
+        queueManager.configureCredentials(baseUrl, token, sessionId)
+        volumeManager.remoteApiBaseUrl = baseUrl
+        volumeManager.remoteAuthToken = token
+        volumeManager.remoteSessionId = sessionId
     }
 
     fun setRemoteControlMode(
@@ -146,6 +194,9 @@ class MediaPlaybackService : Service() {
         authToken: String? = null,
         sessionId: String? = null,
     ) {
+        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            SnowEvents.log("MediaPlaybackService->setRemoteControlMode", "enabled: $enabled, volume: $initialVolumePercent")
+        }
         serviceScope.launch(Dispatchers.Main) {
             val session = audioPlaybackManager.mediaSession ?: return@launch
             isRemoteMode = enabled
@@ -167,6 +218,9 @@ class MediaPlaybackService : Service() {
     }
 
     fun adjustRemoteVolumeByDelta(delta: Double) {
+        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            SnowEvents.log("MediaPlaybackService->adjustRemoteVolumeByDelta", "delta: $delta, isRemoteMode: $isRemoteMode")
+        }
         serviceScope.launch(Dispatchers.Main) {
             if (!isRemoteMode) return@launch
             volumeManager.adjustRemoteVolumeByDelta(delta)
@@ -174,6 +228,9 @@ class MediaPlaybackService : Service() {
     }
 
     fun syncRemoteVolume(percent: Float) {
+        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            SnowEvents.log("MediaPlaybackService->syncRemoteVolume", "percent: $percent")
+        }
         serviceScope.launch(Dispatchers.Main) {
             volumeManager.syncRemoteVolume(percent)
         }
@@ -192,6 +249,9 @@ class MediaPlaybackService : Service() {
         currentAlbum = album
 
         serviceScope.launch(Dispatchers.Main) {
+            if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+                SnowEvents.log("MediaPlaybackService->loadAndPlay", artworkUrl ?: "[empty]")
+            }
             setRemoteControlMode(false, volumeManager.targetVolume)
             audioPlaybackManager.loadAndPlay(uri, volumeManager.targetVolume)
 
@@ -205,6 +265,9 @@ class MediaPlaybackService : Service() {
     }
 
     fun play() {
+        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            SnowEvents.log("MediaPlaybackService->play", "isRemoteMode: $isRemoteMode")
+        }
         serviceScope.launch(Dispatchers.Main) {
             if (!isRemoteMode) {
                 audioPlaybackManager.play(volumeManager.targetVolume)
@@ -217,6 +280,9 @@ class MediaPlaybackService : Service() {
     }
 
     fun pause() {
+        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            SnowEvents.log("MediaPlaybackService->pause", "isRemoteMode: $isRemoteMode")
+        }
         serviceScope.launch(Dispatchers.Main) {
             if (!isRemoteMode) {
                 audioPlaybackManager.pause()
@@ -229,6 +295,9 @@ class MediaPlaybackService : Service() {
     }
 
     fun stop() {
+        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            SnowEvents.log("MediaPlaybackService->stop", "Stopping playback")
+        }
         serviceScope.launch(Dispatchers.Main) {
             audioPlaybackManager.stop()
             audioPlaybackManager.syncSessionPlaybackState(false)
@@ -237,6 +306,9 @@ class MediaPlaybackService : Service() {
     }
 
     fun seek(seconds: Double) {
+        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            SnowEvents.log("MediaPlaybackService->seek", "seconds: $seconds, isRemoteMode: $isRemoteMode")
+        }
         serviceScope.launch(Dispatchers.Main) {
             val targetMillis = (seconds * 1000).toLong()
             if (!isRemoteMode) {
@@ -251,6 +323,9 @@ class MediaPlaybackService : Service() {
     }
 
     fun setVolumeLevel(percent: Float) {
+        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            SnowEvents.log("MediaPlaybackService->setVolumeLevel", "percent: $percent, isRemoteMode: $isRemoteMode")
+        }
         serviceScope.launch(Dispatchers.Main) {
             volumeManager.setLocalVolumeLevel(percent)
             if (!isRemoteMode) {
@@ -289,12 +364,21 @@ class MediaPlaybackService : Service() {
 
     private suspend fun resolveArtworkBitmap(artworkUrl: String?): Bitmap? {
         if (artworkUrl.isNullOrEmpty()) {
+            if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+                SnowEvents.log("MediaPlaybackService->resolveArtworkBitmap", "Artwork URL null or empty")
+            }
             currentArtworkUrl = null
             cachedArtworkBitmap = null
             return null
         }
         if (artworkUrl == currentArtworkUrl && cachedArtworkBitmap != null) {
+            if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+                SnowEvents.log("MediaPlaybackService->resolveArtworkBitmap", "Returning cached bitmap")
+            }
             return cachedArtworkBitmap
+        }
+        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            SnowEvents.log("MediaPlaybackService->resolveArtworkBitmap", "Fetching bitmap: $artworkUrl")
         }
         val downloaded = apiClient.fetchBitmap(artworkUrl)
         currentArtworkUrl = artworkUrl
@@ -315,6 +399,9 @@ class MediaPlaybackService : Service() {
         currentAlbum = album
 
         serviceScope.launch(Dispatchers.Main) {
+            if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+                SnowEvents.log("MediaPlaybackService->updateRemoteMetadata", "$title by $artist (isPlaying: $isPlaying)")
+            }
             val bitmap = resolveArtworkBitmap(artworkUrl)
             audioPlaybackManager.updateMetadata(currentTitle, currentArtist, currentAlbum, duration, bitmap)
             audioPlaybackManager.syncSessionPlaybackState(isPlaying)
@@ -324,24 +411,10 @@ class MediaPlaybackService : Service() {
         }
     }
 
-    fun requestQueueSync() {
-        serviceScope.launch(Dispatchers.Main) {
-            queueManager.loadSession(null)
-        }
-    }
-
-    fun configureApi(
-        baseUrl: String,
-        token: String,
-        sessionId: String? = null,
-    ) {
-        queueManager.configureCredentials(baseUrl, token, sessionId)
-        volumeManager.remoteApiBaseUrl = baseUrl
-        volumeManager.remoteAuthToken = token
-        volumeManager.remoteSessionId = sessionId
-    }
-
     override fun onDestroy() {
+        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            SnowEvents.log("MediaPlaybackService->onDestroy", "Destroying service")
+        }
         progressJob?.cancel()
         volumeManager.release()
         serviceScope.launch(Dispatchers.Main) {

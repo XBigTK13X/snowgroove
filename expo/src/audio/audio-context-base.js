@@ -142,11 +142,21 @@ export function useAudioContextBase() {
         progressPercent,
         playAudioFile,
         togglePlayback,
-        stopAudio: () => handler.stop(),
-        seekToSeconds: (seconds) => handler.seek(seconds),
-        changeVolume: (volumeLevel) => handler.setVolume(volumeLevel),
-        playNextSong: () => moveCurrentIndex(1),
-        playPreviousSong: () => moveCurrentIndex(-1),
+        stopAudio: () => {
+            handler.stop()
+        },
+        seekToSeconds: (seconds) => {
+            handler.seek(seconds)
+        },
+        changeVolume: (volumeLevel) => {
+            handler.setVolume(volumeLevel)
+        },
+        playNextSong: () => {
+            moveCurrentIndex(1)
+        },
+        playPreviousSong: () => {
+            moveCurrentIndex(-1)
+        },
         addAudioFileToQueue: async (audioFile, playNext) => {
             const shouldPlayImmediately = !playbackStateRef.current.isPlaying
             await queueManager.addAudioFileToQueue(audioFile, playNext)

@@ -11,6 +11,7 @@ class Config {
         this.debounceMilliseconds = 700
         this.progressMinDeltaSeconds = 5
         this.debugSnowui = false
+        this.debugAndroidAudio = true
     }
 }
 

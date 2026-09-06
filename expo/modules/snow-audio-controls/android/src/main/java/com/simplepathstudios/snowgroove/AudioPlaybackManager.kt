@@ -41,6 +41,9 @@ class AudioPlaybackManager(
     }
 
     private fun initMediaSession() {
+        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            SnowEvents.log("AudioPlaybackManager->initMediaSession", "Initializing MediaSessionCompat")
+        }
         val mediaButtonReceiver = ComponentName(context, MediaButtonReceiver::class.java)
         mediaSession =
             MediaSessionCompat(context, "SnowgrooveSession", mediaButtonReceiver, null).apply {
@@ -65,22 +68,37 @@ class AudioPlaybackManager(
                 setCallback(
                     object : MediaSessionCompat.Callback() {
                         override fun onPlay() {
+                            if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+                                SnowEvents.log("AudioPlaybackManager->MediaSessionCompat.Callback", "onPlay")
+                            }
                             onCommandAction("play", null)
                         }
 
                         override fun onPause() {
+                            if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+                                SnowEvents.log("AudioPlaybackManager->MediaSessionCompat.Callback", "onPause")
+                            }
                             onCommandAction("pause", null)
                         }
 
                         override fun onSkipToNext() {
+                            if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+                                SnowEvents.log("AudioPlaybackManager->MediaSessionCompat.Callback", "onSkipToNext")
+                            }
                             onCommandAction("next", null)
                         }
 
                         override fun onSkipToPrevious() {
+                            if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+                                SnowEvents.log("AudioPlaybackManager->MediaSessionCompat.Callback", "onSkipToPrevious")
+                            }
                             onCommandAction("previous", null)
                         }
 
                         override fun onSeekTo(pos: Long) {
+                            if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+                                SnowEvents.log("AudioPlaybackManager->MediaSessionCompat.Callback", "onSeekTo: $pos")
+                            }
                             onSeekAction(pos / 1000.0)
                         }
                     },
@@ -91,6 +109,9 @@ class AudioPlaybackManager(
     }
 
     fun setMode(isRemoteMode: Boolean) {
+        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            SnowEvents.log("AudioPlaybackManager->setMode", "isRemoteMode: $isRemoteMode")
+        }
         if (isRemoteMode) {
             if (activePlayer === localPlayer) {
                 localPlayer.pause()
@@ -102,6 +123,9 @@ class AudioPlaybackManager(
     }
 
     fun ensurePlayer(targetVolume: Float) {
+        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            SnowEvents.log("AudioPlaybackManager->ensurePlayer", "targetVolume: $targetVolume")
+        }
         activePlayer.prepare(targetVolume)
     }
 
@@ -109,26 +133,44 @@ class AudioPlaybackManager(
         uri: String,
         targetVolume: Float,
     ) {
+        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            SnowEvents.log("AudioPlaybackManager->loadAndPlay", "uri: $uri, targetVolume: $targetVolume")
+        }
         activePlayer.loadAndPlay(uri, targetVolume)
     }
 
     fun play(targetVolume: Float) {
+        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            SnowEvents.log("AudioPlaybackManager->play", "targetVolume: $targetVolume")
+        }
         activePlayer.play(targetVolume)
     }
 
     fun pause() {
+        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            SnowEvents.log("AudioPlaybackManager->pause", "Pausing active player")
+        }
         activePlayer.pause()
     }
 
     fun stop() {
+        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            SnowEvents.log("AudioPlaybackManager->stop", "Stopping active player")
+        }
         activePlayer.stop()
     }
 
     fun seek(targetMillis: Long) {
+        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            SnowEvents.log("AudioPlaybackManager->seek", "targetMillis: $targetMillis")
+        }
         activePlayer.seek(targetMillis)
     }
 
     fun setVolume(volume: Float) {
+        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            SnowEvents.log("AudioPlaybackManager->setVolume", "volume: $volume")
+        }
         activePlayer.setVolume(volume)
     }
 
@@ -141,6 +183,12 @@ class AudioPlaybackManager(
         positionMillis: Long,
         durationMillis: Long = 0L,
     ) {
+        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            SnowEvents.log(
+                "AudioPlaybackManager->syncRemotePlayback",
+                "isPlaying: $isPlaying, positionMillis: $positionMillis, durationMillis: $durationMillis",
+            )
+        }
         remotePlayer.syncRemoteState(isPlaying, positionMillis, durationMillis)
         if (activePlayer === remotePlayer) {
             syncSessionPlaybackState(isPlaying, positionMillis)
@@ -154,6 +202,12 @@ class AudioPlaybackManager(
         durationSeconds: Long,
         artwork: Bitmap?,
     ) {
+        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            SnowEvents.log(
+                "AudioPlaybackManager->updateMetadata",
+                "$title by $artist ($album), duration: ${durationSeconds}s, artwork: ${if (artwork != null) "present" else "null"}",
+            )
+        }
         val metadata =
             MediaMetadataCompat
                 .Builder()
@@ -178,6 +232,13 @@ class AudioPlaybackManager(
         val session = mediaSession ?: return
         val currentPosition = explicitPositionMillis ?: activePlayer.currentPositionMillis
 
+        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            SnowEvents.log(
+                "AudioPlaybackManager->syncSessionPlaybackState",
+                "isPlaying: $isPlaying, position: $currentPosition",
+            )
+        }
+
         val stateCode = if (isPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
         val actions =
             PlaybackStateCompat.ACTION_PLAY or
@@ -198,6 +259,9 @@ class AudioPlaybackManager(
     }
 
     fun release() {
+        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            SnowEvents.log("AudioPlaybackManager->release", "Releasing players and media session")
+        }
         localPlayer.release()
         remotePlayer.release()
         mediaSession?.isActive = false
