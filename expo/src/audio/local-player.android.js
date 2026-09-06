@@ -14,6 +14,7 @@ export class LocalPlayer {
 
         this.currentAudioFile = null
         this.positionSeconds = 0
+        this.isNativeLoaded = false
     }
 
     updateConfig({ apiClient, onTrackFinished }) {
@@ -44,12 +45,8 @@ export class LocalPlayer {
             clearTimeout(this.seekLockTimeout)
             this.seekLockTimeout = null
         }
+        this.isNativeLoaded = false
         this.pause()
-    }
-
-    cleanup() {
-        this.deactivate()
-        this.stop()
     }
 
     attachNativeListeners() {
@@ -78,6 +75,7 @@ export class LocalPlayer {
     }
 
     async handleSongEnded() {
+        this.isNativeLoaded = false
         if (this.onTrackFinished) {
             await this.onTrackFinished()
         } else {
@@ -95,6 +93,9 @@ export class LocalPlayer {
             const patch = { musicSession: response }
             if (response.music_queue?.songs?.length) {
                 const song = response.music_queue.songs[response.music_queue.current_song_index]
+                if (this.currentAudioFile?.id !== song?.id) {
+                    this.isNativeLoaded = false
+                }
                 this.currentAudioFile = song
                 patch.currentAudioFile = song
             }
@@ -104,19 +105,26 @@ export class LocalPlayer {
                 patch.volume = initialVolume
                 SnowAudioControls.syncRemoteVolume(initialVolume)
             }
+            if (response.status?.position !== undefined && response.status?.position !== null) {
+                const initialPosition = parseFloat(response.status.position)
+                if (!this.isNativeLoaded) {
+                    this.positionSeconds = initialPosition
+                    patch.positionSeconds = initialPosition
+                }
+            }
             this.onStateChange?.(patch)
         }
         return response
     }
 
-    async play(audioFile) {
+    async play(audioFile, startingPosition = 0) {
         if (!audioFile) return
         this.currentAudioFile = audioFile
-        this.positionSeconds = 0
+        this.positionSeconds = startingPosition
 
         this.onStateChange?.({
             currentAudioFile: audioFile,
-            positionSeconds: 0,
+            positionSeconds: startingPosition,
             isPlaying: true
         })
 
@@ -132,6 +140,12 @@ export class LocalPlayer {
             artworkUrl: audioFile.thumbnail_web_path || '',
             duration: audioFile.duration || 0
         })
+
+        this.isNativeLoaded = true
+
+        if (startingPosition > 0) {
+            SnowAudioControls.seek(startingPosition)
+        }
     }
 
     async pause() {
@@ -142,11 +156,17 @@ export class LocalPlayer {
     async resume() {
         if (!this.currentAudioFile) return
 
+        if (!this.isNativeLoaded) {
+            await this.play(this.currentAudioFile, this.positionSeconds)
+            return
+        }
+
         SnowAudioControls.resume()
         this.onStateChange?.({ isPlaying: true })
     }
 
     async stop() {
+        this.isNativeLoaded = false
         SnowAudioControls.stop()
         this.onStateChange?.({ isPlaying: false })
     }
@@ -161,6 +181,11 @@ export class LocalPlayer {
         this.seekLockTimeout = setTimeout(() => {
             this.seekLockTimeout = null
         }, 1200)
+
+        if (!this.isNativeLoaded && this.currentAudioFile) {
+            await this.play(this.currentAudioFile, targetSeconds)
+            return
+        }
 
         SnowAudioControls.seek(targetSeconds)
     }

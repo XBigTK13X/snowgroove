@@ -16,6 +16,9 @@ export function useAudioContextBase() {
         musicSession: null
     })
 
+    const playbackStateRef = React.useRef(playbackState)
+    playbackStateRef.current = playbackState
+
     const isAdvancingTrackRef = React.useRef(false)
     const sessionRef = React.useRef(null)
     sessionRef.current = playbackState.musicSession
@@ -81,8 +84,8 @@ export function useAudioContextBase() {
 
     React.useEffect(() => {
         return () => {
-            handlersRef.current.local.cleanup()
-            handlersRef.current.remote.cleanup()
+            handlersRef.current.local.deactivate()
+            handlersRef.current.remote.deactivate()
         }
     }, [])
 
@@ -121,12 +124,13 @@ export function useAudioContextBase() {
     moveCurrentIndexRef.current = moveCurrentIndex
 
     const togglePlayback = React.useCallback(async () => {
-        if (playbackState.isPlaying) {
+        const currentState = playbackStateRef.current
+        if (currentState.isPlaying) {
             await handler.pause()
         } else {
             await handler.resume()
         }
-    }, [handler, playbackState.isPlaying])
+    }, [handler])
 
     const duration = playbackState.currentAudioFile?.duration || 0
     const progressPercent = duration > 0
@@ -144,13 +148,13 @@ export function useAudioContextBase() {
         playNextSong: () => moveCurrentIndex(1),
         playPreviousSong: () => moveCurrentIndex(-1),
         addAudioFileToQueue: async (audioFile, playNext) => {
-            const shouldPlayImmediately = !playbackState.isPlaying
+            const shouldPlayImmediately = !playbackStateRef.current.isPlaying
             await queueManager.addAudioFileToQueue(audioFile, playNext)
             if (shouldPlayImmediately) await playAudioFile(audioFile)
         },
         addAudioFileListToQueue: async (audioFiles) => {
             if (!audioFiles?.length) return
-            const shouldPlayImmediately = !playbackState.isPlaying
+            const shouldPlayImmediately = !playbackStateRef.current.isPlaying
             await queueManager.addAudioFileListToQueue(audioFiles)
             if (shouldPlayImmediately) await playAudioFile(audioFiles[0])
         },
@@ -175,13 +179,14 @@ export function useAudioContextBase() {
             if (firstSong) await playAudioFile(firstSong)
         },
         addCrateToQueue: queueManager.addCrateToQueue,
-        reorderMusicQueue: (list) => queueManager.reorderMusicQueue(list, playbackState.currentAudioFile?.id),
-        removeCrateFromQueue: (crateId, kind) => queueManager.removeCrateFromQueue(crateId, kind, playbackState.musicSession)
+        reorderMusicQueue: (list) => queueManager.reorderMusicQueue(list, playbackStateRef.current.currentAudioFile?.id),
+        removeCrateFromQueue: (crateId, kind) => queueManager.removeCrateFromQueue(crateId, kind, playbackStateRef.current.musicSession)
     }
 
     return {
         apiClient,
         playbackState,
+        playbackStateRef,
         setPlaybackState,
         sessionRef,
         handler,

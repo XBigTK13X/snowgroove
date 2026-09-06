@@ -51,10 +51,6 @@ export class RemotePlayer {
         }
     }
 
-    cleanup() {
-        this.deactivate()
-    }
-
     startPolling() {
         if (!this.apiClient || !this.targetPlayer?.id || this.pollInterval) return
 

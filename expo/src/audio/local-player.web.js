@@ -44,11 +44,6 @@ export class LocalPlayer {
         this.pause()
     }
 
-    cleanup() {
-        this.deactivate()
-        this.stop()
-    }
-
     setupWebPlayer(uri) {
         if (this.playerListener) {
             this.playerListener.remove()
