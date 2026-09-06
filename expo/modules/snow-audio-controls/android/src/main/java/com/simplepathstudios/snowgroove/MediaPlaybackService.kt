@@ -78,7 +78,7 @@ class MediaPlaybackService : Service() {
                             artist = nextSong.artist,
                             album = nextSong.album,
                             artworkUrl = nextSong.artworkUrl,
-                            duration = nextSong.duration
+                            duration = nextSong.duration,
                         )
                         onCommand?.invoke("trackChanged", mapOf("songId" to nextSong.id))
                     } else {
@@ -149,6 +149,7 @@ class MediaPlaybackService : Service() {
         serviceScope.launch(Dispatchers.Main) {
             val session = audioPlaybackManager.mediaSession ?: return@launch
             isRemoteMode = enabled
+            audioPlaybackManager.setMode(enabled)
             volumeManager.configureRemoteSettings(initialVolumePercent, baseUrl, authToken, sessionId)
             queueManager.configureCredentials(baseUrl, authToken)
 
@@ -158,7 +159,7 @@ class MediaPlaybackService : Service() {
                 audioPlaybackManager.stop()
                 volumeManager.registerObserver()
                 session.isActive = true
-                audioPlaybackManager.updatePlaybackState(true, isRemoteMode)
+                audioPlaybackManager.syncSessionPlaybackState(true)
             } else {
                 volumeManager.unregisterObserver()
             }
@@ -196,7 +197,7 @@ class MediaPlaybackService : Service() {
 
             val bitmap = resolveArtworkBitmap(artworkUrl)
             audioPlaybackManager.updateMetadata(currentTitle, currentArtist, currentAlbum, duration, bitmap)
-            audioPlaybackManager.updatePlaybackState(true, isRemoteMode)
+            audioPlaybackManager.syncSessionPlaybackState(true)
             audioPlaybackManager.mediaSession?.let { session ->
                 notificationManager.updateNotification(session, currentTitle, currentArtist, true, bitmap)
             }
@@ -208,7 +209,7 @@ class MediaPlaybackService : Service() {
             if (!isRemoteMode) {
                 audioPlaybackManager.play(volumeManager.targetVolume)
             }
-            audioPlaybackManager.updatePlaybackState(true, isRemoteMode)
+            audioPlaybackManager.syncSessionPlaybackState(true)
             audioPlaybackManager.mediaSession?.let { session ->
                 notificationManager.updateNotification(session, currentTitle, currentArtist, true, cachedArtworkBitmap)
             }
@@ -220,7 +221,7 @@ class MediaPlaybackService : Service() {
             if (!isRemoteMode) {
                 audioPlaybackManager.pause()
             }
-            audioPlaybackManager.updatePlaybackState(false, isRemoteMode)
+            audioPlaybackManager.syncSessionPlaybackState(false)
             audioPlaybackManager.mediaSession?.let { session ->
                 notificationManager.updateNotification(session, currentTitle, currentArtist, false, cachedArtworkBitmap)
             }
@@ -230,7 +231,7 @@ class MediaPlaybackService : Service() {
     fun stop() {
         serviceScope.launch(Dispatchers.Main) {
             audioPlaybackManager.stop()
-            audioPlaybackManager.updatePlaybackState(false, isRemoteMode)
+            audioPlaybackManager.syncSessionPlaybackState(false)
             notificationManager.stopForegroundNotification()
         }
     }
@@ -239,13 +240,13 @@ class MediaPlaybackService : Service() {
         serviceScope.launch(Dispatchers.Main) {
             val targetMillis = (seconds * 1000).toLong()
             if (!isRemoteMode) {
-                audioPlaybackManager.seekLocal(targetMillis)
+                audioPlaybackManager.seek(targetMillis)
             } else {
                 onCommand?.invoke("seek", mapOf("position" to seconds))
             }
 
-            val isPlaying = if (isRemoteMode) true else audioPlaybackManager.isLocalPlaying()
-            audioPlaybackManager.updatePlaybackState(isPlaying, isRemoteMode, targetMillis)
+            val isPlaying = if (isRemoteMode) true else audioPlaybackManager.isPlaying()
+            audioPlaybackManager.syncSessionPlaybackState(isPlaying, targetMillis)
         }
     }
 
@@ -253,7 +254,7 @@ class MediaPlaybackService : Service() {
         serviceScope.launch(Dispatchers.Main) {
             volumeManager.setLocalVolumeLevel(percent)
             if (!isRemoteMode) {
-                audioPlaybackManager.setLocalVolume(volumeManager.targetVolume)
+                audioPlaybackManager.setVolume(volumeManager.targetVolume)
             }
         }
     }
@@ -272,7 +273,7 @@ class MediaPlaybackService : Service() {
                                         mapOf(
                                             "positionMillis" to progress.first,
                                             "durationMillis" to progress.second,
-                                            "isPlaying" to audioPlaybackManager.isLocalPlaying(),
+                                            "isPlaying" to audioPlaybackManager.isPlaying(),
                                             "isLoaded" to true,
                                         ),
                                     )
@@ -316,7 +317,7 @@ class MediaPlaybackService : Service() {
         serviceScope.launch(Dispatchers.Main) {
             val bitmap = resolveArtworkBitmap(artworkUrl)
             audioPlaybackManager.updateMetadata(currentTitle, currentArtist, currentAlbum, duration, bitmap)
-            audioPlaybackManager.updatePlaybackState(isPlaying, isRemoteMode)
+            audioPlaybackManager.syncSessionPlaybackState(isPlaying)
             audioPlaybackManager.mediaSession?.let { session ->
                 notificationManager.updateNotification(session, currentTitle, currentArtist, isPlaying, bitmap)
             }
