@@ -76,30 +76,11 @@ class RemotePlayers:
                 return
 
             message_queue = queue.Queue()
-
-            def handle_track_finished():
-                self._log_debug(
-                    f'Track finished callback received for {remote_player.name}. Injecting "next" action.'
-                )
-                message_queue.put('next')
-
-            if status.get('is_playing'):
-                connection_info = json.loads(remote_player.connection_info_json)
-                if remote_player.kind == 'sonos':
-                    sonos.attach_listener(
-                        device_ip=connection_info['host'],
-                        on_track_finished=handle_track_finished,
-                        device_uid=connection_info.get('uid'),
-                    )
-                elif remote_player.kind == 'chromecast':
-                    chromecast.attach_listener(
-                        connection_info=connection_info,
-                        on_track_finished=handle_track_finished,
-                    )
+            initial_playing = bool(status.get('is_playing'))
 
             worker_thread = threading.Thread(
                 target=self._device_worker,
-                args=(remote_player, None, message_queue),
+                args=(remote_player, None, message_queue, initial_playing),
                 daemon=True,
             )
             self.active_connections[remote_player.id] = (
@@ -107,23 +88,48 @@ class RemotePlayers:
                 message_queue,
             )
             worker_thread.start()
+
+            if initial_playing:
+                connection_info = json.loads(remote_player.connection_info_json)
+                if remote_player.kind == 'sonos':
+                    sonos.attach_listener(
+                        device_ip=connection_info['host'],
+                        on_track_finished=lambda: message_queue.put('track_finished'),
+                        device_uid=connection_info.get('uid'),
+                    )
+                elif remote_player.kind == 'chromecast':
+                    chromecast.attach_listener(
+                        connection_info=connection_info,
+                        on_track_finished=lambda: message_queue.put('track_finished'),
+                    )
+
             log.info(
                 f'Recovered remote player connection for {remote_player.name} on startup'
             )
 
-    def _device_worker(self, remote_player, initial_action, message_queue):
+    def _device_worker(
+        self, remote_player, initial_action, message_queue, initial_playing=False
+    ):
         self._log_debug(
             f'Worker thread spawned for [{remote_player.name}] (ID: {remote_player.id}). Kind: {remote_player.kind}'
         )
         pending_seek = None
         seek_execution_time = 0.0
         debounce_wait = 0.35
+        is_playing_intent = initial_playing
 
         def handle_track_finished():
             self._log_debug(
-                f'Track finished callback received for {remote_player.name}. Injecting "next" action.'
+                f'Track finished callback received for {remote_player.name}. Pushing event.'
             )
-            message_queue.put('next')
+            message_queue.put('track_finished')
+
+        def update_playback_intent(action_name):
+            nonlocal is_playing_intent
+            if action_name in ['play', 'next', 'previous']:
+                is_playing_intent = True
+            elif action_name in ['pause', 'stop']:
+                is_playing_intent = False
 
         if initial_action:
             self._log_debug(
@@ -133,6 +139,7 @@ class RemotePlayers:
                 pending_seek = initial_action
                 seek_execution_time = time.time() + debounce_wait
             else:
+                update_playback_intent(initial_action)
                 try:
                     self._execute_action(
                         remote_player=remote_player,
@@ -165,6 +172,15 @@ class RemotePlayers:
                         f'Worker unblocked! Process action: "{remote_action}"'
                     )
 
+                    if remote_action == 'track_finished':
+                        if not is_playing_intent:
+                            self._log_debug(
+                                f'Ignoring track_finished callback for {remote_player.name} because playback intent is paused/stopped.'
+                            )
+                            message_queue.task_done()
+                            continue
+                        remote_action = 'next'
+
                     if remote_action.startswith('seek--'):
                         pending_seek = remote_action
                         seek_execution_time = time.time() + debounce_wait
@@ -185,6 +201,7 @@ class RemotePlayers:
                                 )
                             pending_seek = None
 
+                        update_playback_intent(remote_action)
                         try:
                             self._execute_action(
                                 remote_player=remote_player,
@@ -326,9 +343,10 @@ class RemotePlayers:
             )
             message_queue = queue.Queue()
             message_queue.put(remote_action)
+            initial_playing = remote_action in ['play', 'next', 'previous']
             worker_thread = threading.Thread(
                 target=self._device_worker,
-                args=(remote_player, None, message_queue),
+                args=(remote_player, None, message_queue, initial_playing),
                 daemon=True,
             )
             self.active_connections[remote_player.id] = (worker_thread, message_queue)
