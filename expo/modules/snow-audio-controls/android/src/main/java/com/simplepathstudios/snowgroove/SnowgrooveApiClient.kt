@@ -3,18 +3,74 @@ package com.simplepathstudios.snowgroove.audiocontrols
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.PowerManager
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
+import okhttp3.ResponseBody
 import org.json.JSONObject
-import java.io.BufferedReader
-import java.io.InputStream
-import java.io.InputStreamReader
-import java.io.OutputStreamWriter
-import java.net.HttpURLConnection
-import java.net.URL
-import kotlin.concurrent.thread
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.scalars.ScalarsConverterFactory
+import retrofit2.http.Body
+import retrofit2.http.GET
+import retrofit2.http.Header
+import retrofit2.http.Headers
+import retrofit2.http.POST
+import retrofit2.http.Path
+import retrofit2.http.Query
+import retrofit2.http.Url
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
+
+interface SnowgrooveService {
+    @POST("music-session/volume")
+    suspend fun sendVolume(
+        @Header("Authorization") token: String,
+        @Body payload: String,
+    ): Response<Unit>
+
+    @GET("music-session")
+    suspend fun getMusicSession(
+        @Header("Authorization") token: String,
+        @Query("player_id") playerId: String?,
+    ): Response<String>
+
+    @POST("music-session/{sessionId}/queue")
+    suspend fun updateQueue(
+        @Header("Authorization") token: String,
+        @Path("sessionId") sessionId: String,
+        @Body queueJson: String,
+    ): Response<Unit>
+
+    @GET
+    @Headers("User-Agent: Snowgroove/1.0")
+    suspend fun fetchBitmapStream(
+        @Url url: String,
+    ): Response<ResponseBody>
+}
 
 class SnowgrooveApiClient {
+    private val httpClient: OkHttpClient =
+        OkHttpClient.Builder()
+            .connectTimeout(5, TimeUnit.SECONDS)
+            .readTimeout(5, TimeUnit.SECONDS)
+            .build()
+
+    private val services = ConcurrentHashMap<String, SnowgrooveService>()
+
+    private fun getService(baseUrl: String): SnowgrooveService {
+        val sanitizedBaseUrl = baseUrl.trimEnd('/') + "/"
+        return services.computeIfAbsent(sanitizedBaseUrl) { url ->
+            Retrofit.Builder()
+                .baseUrl(url)
+                .client(httpClient)
+                .addConverterFactory(ScalarsConverterFactory.create())
+                .build()
+                .create(SnowgrooveService::class.java)
+        }
+    }
+
     fun sendRemoteVolume(
         baseUrl: String,
         token: String,
@@ -22,39 +78,13 @@ class SnowgrooveApiClient {
         percent: Double,
         wakeLock: PowerManager.WakeLock?,
     ) {
-        thread(start = true) {
+        CoroutineScope(Dispatchers.IO).launch {
             try {
                 wakeLock?.acquire(4000)
-            } catch (ignored: Exception) {
-            }
-
-            var connection: HttpURLConnection? = null
-            try {
-                val cleanedBaseUrl = baseUrl.trimEnd('/')
-                val targetUrl = URL("$cleanedBaseUrl/music-session/volume")
-                connection =
-                    (targetUrl.openConnection() as HttpURLConnection).apply {
-                        requestMethod = "POST"
-                        doOutput = true
-                        connectTimeout = 4000
-                        readTimeout = 4000
-                        setRequestProperty("Content-Type", "application/json")
-                        setRequestProperty("Authorization", "Bearer $token")
-                    }
-
                 val payload = "{\"music_session_id\":\"$sessionId\",\"volume_percent\":$percent}"
-                OutputStreamWriter(connection.outputStream).use { writer ->
-                    writer.write(payload)
-                    writer.flush()
-                }
-
-                connection.responseCode
+                getService(baseUrl).sendVolume("Bearer $token", payload)
             } catch (ignored: Exception) {
             } finally {
-                try {
-                    connection?.disconnect()
-                } catch (ignored: Exception) {
-                }
                 try {
                     if (wakeLock?.isHeld == true) {
                         wakeLock?.release()
@@ -69,112 +99,42 @@ class SnowgrooveApiClient {
         baseUrl: String,
         token: String,
         playerId: String?,
-    ): JSONObject? =
-        withContext(Dispatchers.IO) {
-            var connection: HttpURLConnection? = null
-            try {
-                val cleanedBaseUrl = baseUrl.trimEnd('/')
-                val endpoint =
-                    if (!playerId.isNullOrEmpty()) {
-                        "$cleanedBaseUrl/music-session?player_id=$playerId"
-                    } else {
-                        "$cleanedBaseUrl/music-session"
-                    }
-                val targetUrl = URL(endpoint)
-                connection =
-                    (targetUrl.openConnection() as HttpURLConnection).apply {
-                        requestMethod = "GET"
-                        connectTimeout = 5000
-                        readTimeout = 5000
-                        setRequestProperty("Content-Type", "application/json")
-                        setRequestProperty("Authorization", "Bearer $token")
-                    }
-
-                if (connection.responseCode in 200..299) {
-                    val responseText = connection.inputStream.bufferedReader().use(BufferedReader::readText)
-                    JSONObject(responseText)
-                } else {
-                    null
-                }
-            } catch (ignored: Exception) {
+    ): JSONObject? {
+        return try {
+            val response = getService(baseUrl).getMusicSession("Bearer $token", playerId)
+            if (response.isSuccessful) {
+                response.body()?.let { JSONObject(it) }
+            } else {
                 null
-            } finally {
-                try {
-                    connection?.disconnect()
-                } catch (ignored: Exception) {
-                }
             }
+        } catch (ignored: Exception) {
+            null
         }
+    }
 
     suspend fun updateMusicSessionQueue(
         baseUrl: String,
         token: String,
         sessionId: String,
         queueJson: JSONObject,
-    ): Boolean =
-        withContext(Dispatchers.IO) {
-            var connection: HttpURLConnection? = null
-            try {
-                val cleanedBaseUrl = baseUrl.trimEnd('/')
-                val targetUrl = URL("$cleanedBaseUrl/music-session/$sessionId/queue")
-                connection =
-                    (targetUrl.openConnection() as HttpURLConnection).apply {
-                        requestMethod = "POST"
-                        doOutput = true
-                        connectTimeout = 5000
-                        readTimeout = 5000
-                        setRequestProperty("Content-Type", "application/json")
-                        setRequestProperty("Authorization", "Bearer $token")
-                    }
-
-                OutputStreamWriter(connection.outputStream).use { writer ->
-                    writer.write(queueJson.toString())
-                    writer.flush()
-                }
-
-                connection.responseCode in 200..299
-            } catch (ignored: Exception) {
-                false
-            } finally {
-                try {
-                    connection?.disconnect()
-                } catch (ignored: Exception) {
-                }
-            }
+    ): Boolean {
+        return try {
+            val response = getService(baseUrl).updateQueue("Bearer $token", sessionId, queueJson.toString())
+            response.isSuccessful
+        } catch (ignored: Exception) {
+            false
         }
+    }
 
-    suspend fun fetchBitmap(src: String): Bitmap? =
-        withContext(Dispatchers.IO) {
-            var connection: HttpURLConnection? = null
-            var inputStream: InputStream? = null
-            try {
-                val targetUrl = URL(src)
-                connection =
-                    (targetUrl.openConnection() as HttpURLConnection).apply {
-                        doInput = true
-                        connectTimeout = 8000
-                        readTimeout = 8000
-                        instanceFollowRedirects = true
-                        setRequestProperty("User-Agent", "Snowgroove/1.0")
-                        connect()
-                    }
-                if (connection.responseCode == HttpURLConnection.HTTP_OK) {
-                    inputStream = connection.inputStream
-                    BitmapFactory.decodeStream(inputStream)
-                } else {
-                    null
-                }
-            } catch (ignored: Exception) {
-                null
-            } finally {
-                try {
-                    inputStream?.close()
-                } catch (ignored: Exception) {
-                }
-                try {
-                    connection?.disconnect()
-                } catch (ignored: Exception) {
-                }
+    suspend fun fetchBitmap(src: String): Bitmap? {
+        return try {
+            val defaultBaseUrl = "https://localhost/"
+            val response = getService(defaultBaseUrl).fetchBitmapStream(src)
+            response.body()?.byteStream()?.use { stream ->
+                BitmapFactory.decodeStream(stream)
             }
+        } catch (ignored: Exception) {
+            null
         }
+    }
 }
