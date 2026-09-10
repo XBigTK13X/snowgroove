@@ -76,7 +76,7 @@ class SnowAudioControlsModule : Module() {
                 "seek",
                 "statusUpdate",
                 "trackChanged",
-                "volumeAdjust"
+                "volumeAdjust",
             )
 
             OnCreate {
@@ -90,15 +90,13 @@ class SnowAudioControlsModule : Module() {
                 context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
             }
 
-            Function("play") { data: Map<String, Any> ->
-                val uri = data["uri"] as? String ?: return@Function
-                val title = data["title"] as? String ?: ""
-                val artist = data["artist"] as? String ?: ""
-                val album = data["album"] as? String ?: ""
-                val artworkUrl = data["artworkUrl"] as? String
-                val duration = (data["duration"] as? Number)?.toLong() ?: 0L
+            Function("configureApi") { baseUrl: String, token: String ->
+                ApiClient.configure(baseUrl, token)
+                SnowEvents.send("apiConfigured")
+            }
 
-                playbackService?.loadAndPlay(uri, title, artist, album, artworkUrl, duration)
+            Function("play") { data: Map<String, Any> ->
+                playbackService?.play()
             }
 
             Function("resume") {
@@ -122,13 +120,7 @@ class SnowAudioControlsModule : Module() {
             }
 
             Function("setRemoteControlMode") { data: Map<String, Any> ->
-                val enabled = data["enabled"] as? Boolean ?: false
-                val initialVolume = (data["initialVolume"] as? Number)?.toFloat() ?: 1.0f
-                val baseUrl = data["baseUrl"] as? String
-                val authToken = data["authToken"] as? String
-                val sessionId = data["sessionId"] as? String
-
-                playbackService?.setRemoteControlMode(enabled, initialVolume, baseUrl, authToken, sessionId)
+                playbackService?.setRemoteControlMode()
             }
 
             Function("syncRemoteVolume") { volume: Double ->
@@ -136,27 +128,15 @@ class SnowAudioControlsModule : Module() {
             }
 
             Function("updateMetadata") { data: Map<String, Any> ->
-                val title = data["title"] as? String ?: ""
-                val artist = data["artist"] as? String ?: ""
-                val album = data["album"] as? String ?: ""
-                val artworkUrl = data["artworkUrl"] as? String
-                val duration = (data["duration"] as? Number)?.toLong() ?: 0L
-                val isPlaying = data["isPlaying"] as? Boolean ?: false
-
-                playbackService?.updateRemoteMetadata(title, artist, album, artworkUrl, duration, isPlaying)
+                playbackService?.updateRemoteMetadata()
             }
 
             Function("requestQueueSync") {
                 playbackService?.requestQueueSync()
             }
 
-            Function("configureApi") { baseUrl: String, token: String, sessionId: String? ->
-                playbackService?.configureApi(baseUrl, token, sessionId)
-            }
-
             OnDestroy {
                 SnowEvents.setEventEmitter(null)
-
                 val context = appContext.reactContext
                 if (context != null && isBound) {
                     try {

@@ -6,11 +6,21 @@ interface ISnowPlayer {
     val currentPositionMillis: Long
 
     fun prepare(targetVolume: Float)
-    fun loadAndPlay(uri: String, targetVolume: Float)
+
+    fun loadAndPlay(
+        uri: String,
+        targetVolume: Float,
+    )
+
     fun play(targetVolume: Float)
+
     fun pause()
+
     fun stop()
+
     fun seek(targetMillis: Long)
+
     fun setVolume(volume: Float)
-    fun release()
+
+    fun cleanup()
 }

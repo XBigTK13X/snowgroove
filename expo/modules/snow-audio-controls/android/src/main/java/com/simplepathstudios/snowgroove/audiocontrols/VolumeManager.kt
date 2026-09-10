@@ -10,7 +10,7 @@ import android.provider.Settings
 
 class VolumeManager(
     private val context: Context,
-    private val apiClient: SnowgrooveApiClient,
+    private val apiClient: ApiClient,
     private val onVolumeAdjusted: (Double) -> Unit,
 ) {
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -116,10 +116,10 @@ class VolumeManager(
         val baseUrl = remoteApiBaseUrl ?: return
         val token = remoteAuthToken ?: return
         val sessionId = remoteSessionId ?: return
-        apiClient.sendRemoteVolume(baseUrl, token, sessionId, remoteVolumePercent, wakeLock)
+        ApiClient.sendRemoteVolume(sessionId, remoteVolumePercent, wakeLock)
     }
 
-    fun release() {
+    fun cleanup() {
         unregisterObserver()
         try {
             if (wakeLock.isHeld) {

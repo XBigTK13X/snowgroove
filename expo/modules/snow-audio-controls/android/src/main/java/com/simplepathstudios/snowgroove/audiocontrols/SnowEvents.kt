@@ -8,11 +8,21 @@ object SnowEvents {
         eventEmitter = emitter
     }
 
-    fun log(nativeOwner: String, message: String) {
+    fun log(
+        nativeOwner: String,
+        message: String,
+    ) {
         send("log", mapOf("nativeOwner" to nativeOwner, "message" to message))
     }
 
-    fun send(eventName: String, payload: Map<String, Any> = emptyMap()) {
-        eventEmitter?.invoke(eventName, payload)
+    fun send(kind: String) {
+        send(kind, emptyMap())
+    }
+
+    fun send(
+        kind: String,
+        payload: Map<String, Any> = emptyMap(),
+    ) {
+        eventEmitter?.invoke(kind, payload)
     }
 }

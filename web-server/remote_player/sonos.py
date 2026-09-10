@@ -119,7 +119,7 @@ class SonosTrackCompletionListener:
         _log_debug(f'Sonos event listener thread started for {self.sonos_player.uid}')
         while self._running and self.subscription:
             try:
-                event = self.subscription.events.get(timeout=0.5)
+                event = self.subscription.SnowEvents.get(timeout=0.5)
                 transport_state = event.variables.get('current_transport_state')
                 _log_debug(
                     f'Inbound UPnP AVTransport event received -> State: {transport_state}. Was playing flag: {self._was_playing}'

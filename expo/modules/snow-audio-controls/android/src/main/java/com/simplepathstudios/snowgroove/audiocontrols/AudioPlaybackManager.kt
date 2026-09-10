@@ -258,12 +258,12 @@ class AudioPlaybackManager(
         session.setPlaybackState(playbackState)
     }
 
-    fun release() {
+    fun cleanup() {
         if (SnowEvents.DEBUG_ANDROID_AUDIO) {
             SnowEvents.log("AudioPlaybackManager->release", "Releasing players and media session")
         }
-        localPlayer.release()
-        remotePlayer.release()
+        localPlayer.cleanup()
+        remotePlayer.cleanup()
         mediaSession?.isActive = false
         mediaSession?.release()
         mediaSession = null

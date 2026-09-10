@@ -24,7 +24,10 @@ class RemotePlayer : ISnowPlayer {
 
     override fun prepare(targetVolume: Float) {}
 
-    override fun loadAndPlay(uri: String, targetVolume: Float) {
+    override fun loadAndPlay(
+        uri: String,
+        targetVolume: Float,
+    ) {
         isPlaying = true
     }
 
@@ -47,7 +50,7 @@ class RemotePlayer : ISnowPlayer {
 
     override fun setVolume(volume: Float) {}
 
-    override fun release() {
+    override fun cleanup() {
         isPlaying = false
         currentPositionMillis = 0L
     }

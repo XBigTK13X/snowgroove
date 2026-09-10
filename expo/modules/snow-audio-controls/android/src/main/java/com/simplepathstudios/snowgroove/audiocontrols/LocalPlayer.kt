@@ -10,7 +10,6 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 
-
 class LocalPlayer(
     private val context: Context,
     private val onPlaybackStateChange: (isPlaying: Boolean) -> Unit,
@@ -111,7 +110,10 @@ class LocalPlayer(
                 }
     }
 
-    override fun loadAndPlay(uri: String, targetVolume: Float) {
+    override fun loadAndPlay(
+        uri: String,
+        targetVolume: Float,
+    ) {
         hasFiredFinishedForCurrentItem = false
         prepare(targetVolume)
         exoPlayer?.let { player ->
@@ -155,7 +157,7 @@ class LocalPlayer(
         exoPlayer?.volume = volume
     }
 
-    override fun release() {
+    override fun cleanup() {
         exoPlayer?.release()
         exoPlayer = null
     }

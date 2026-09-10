@@ -18,7 +18,6 @@ import kotlinx.coroutines.withContext
 class MediaPlaybackService : Service() {
     private val binder = LocalBinder()
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
-    private val apiClient = SnowgrooveApiClient()
 
     private lateinit var notificationManager: PlaybackNotificationManager
     private lateinit var audioPlaybackManager: AudioPlaybackManager
@@ -55,7 +54,6 @@ class MediaPlaybackService : Service() {
 
         queueManager =
             QueueManager(
-                apiClient = apiClient,
                 onQueueStale = {
                     if (SnowEvents.DEBUG_ANDROID_AUDIO) {
                         SnowEvents.log("MediaPlaybackService->onQueueStale", "Queue stale callback triggered")
@@ -130,7 +128,6 @@ class MediaPlaybackService : Service() {
         volumeManager =
             VolumeManager(
                 context = this,
-                apiClient = apiClient,
                 onVolumeAdjusted = { percent ->
                     if (SnowEvents.DEBUG_ANDROID_AUDIO) {
                         SnowEvents.log("MediaPlaybackService->onVolumeAdjusted", "percent: $percent")
@@ -173,20 +170,6 @@ class MediaPlaybackService : Service() {
         }
     }
 
-    fun configureApi(
-        baseUrl: String,
-        token: String,
-        sessionId: String? = null,
-    ) {
-        if (SnowEvents.DEBUG_ANDROID_AUDIO) {
-            SnowEvents.log("MediaPlaybackService->configureApi", "baseUrl: $baseUrl, sessionId: ${sessionId ?: "[none]"}")
-        }
-        queueManager.configureCredentials(baseUrl, token, sessionId)
-        volumeManager.remoteApiBaseUrl = baseUrl
-        volumeManager.remoteAuthToken = token
-        volumeManager.remoteSessionId = sessionId
-    }
-
     fun setRemoteControlMode(
         enabled: Boolean,
         initialVolumePercent: Float,
@@ -202,7 +185,6 @@ class MediaPlaybackService : Service() {
             isRemoteMode = enabled
             audioPlaybackManager.setMode(enabled)
             volumeManager.configureRemoteSettings(initialVolumePercent, baseUrl, authToken, sessionId)
-            queueManager.configureCredentials(baseUrl, authToken)
 
             session.setPlaybackToLocal(AudioManager.STREAM_MUSIC)
 
@@ -357,7 +339,7 @@ class MediaPlaybackService : Service() {
                         } catch (ignored: Exception) {
                         }
                     }
-                    delay(1000)
+                    delay(SnowConfig.REMOTE_POLLING_DELAY_MILLISECONDS)
                 }
             }
     }
@@ -380,20 +362,13 @@ class MediaPlaybackService : Service() {
         if (SnowEvents.DEBUG_ANDROID_AUDIO) {
             SnowEvents.log("MediaPlaybackService->resolveArtworkBitmap", "Fetching bitmap: $artworkUrl")
         }
-        val downloaded = apiClient.fetchBitmap(artworkUrl)
+        val downloaded = ApiClient.fetchBitmap(artworkUrl)
         currentArtworkUrl = artworkUrl
         cachedArtworkBitmap = downloaded
         return downloaded
     }
 
-    fun updateRemoteMetadata(
-        title: String,
-        artist: String,
-        album: String,
-        artworkUrl: String?,
-        duration: Long,
-        isPlaying: Boolean,
-    ) {
+    fun updateRemoteMetadata() {
         currentTitle = title
         currentArtist = artist
         currentAlbum = album
@@ -416,10 +391,11 @@ class MediaPlaybackService : Service() {
             SnowEvents.log("MediaPlaybackService->onDestroy", "Destroying service")
         }
         progressJob?.cancel()
-        volumeManager.release()
+        volumeManager.cleanup()
         serviceScope.launch(Dispatchers.Main) {
-            audioPlaybackManager.release()
+            audioPlaybackManager.cleanup()
         }
+        ApiClient.cleanup()
         cachedArtworkBitmap = null
         super.onDestroy()
     }

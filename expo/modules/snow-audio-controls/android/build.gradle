@@ -1,5 +1,15 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-serialization:$kotlinVersion"
+    }
+}
+
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
+apply plugin: 'kotlinx-serialization'
 apply plugin: 'expo-module-gradle-plugin'
 
 android {
@@ -20,4 +30,8 @@ dependencies {
     implementation "androidx.media:media:1.7.0"
     implementation "com.squareup.retrofit2:retrofit:2.11.0"
     implementation "com.squareup.retrofit2:converter-scalars:2.11.0"
+    implementation "com.squareup.retrofit2:converter-kotlinx-serialization:2.11.0"
+    implementation "com.squareup.okhttp3:okhttp:4.12.0"
+
+    implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3"
 }
