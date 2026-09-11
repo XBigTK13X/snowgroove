@@ -19,6 +19,9 @@ class MediaPlaybackService : Service() {
     private val binder = LocalBinder()
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
 
+    private var targetPlayerId: Integer? = null
+    private var targetPlayerName: String? = null
+
     private lateinit var notificationManager: PlaybackNotificationManager
     private lateinit var audioPlaybackManager: AudioPlaybackManager
     private lateinit var volumeManager: VolumeManager
@@ -128,6 +131,14 @@ class MediaPlaybackService : Service() {
         }
         MediaButtonReceiver.handleIntent(audioPlaybackManager.mediaSession, intent)
         return START_STICKY
+    }
+
+    fun changeTargetPlayer(
+        id: Integer,
+        name: String,
+    ) {
+        targetPlayerId = id
+        targetPlayerName = name
     }
 
     fun requestQueueSync() {

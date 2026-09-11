@@ -1,78 +1,181 @@
 import { requireNativeModule, EventEmitter } from 'expo-modules-core'
 import { Platform } from 'react-native'
 
-const NativeAudio = Platform.OS === 'android' ? requireNativeModule('SnowAudioControls') : null
-const emitter = NativeAudio ? new EventEmitter(NativeAudio) : null
+const createCrossControls = () => {
+    const CrossAudio = require('./audio-controls.js')()
 
-export class SnowAudioControls {
-    static play(params) {
-        if (!NativeAudio) return
-        NativeAudio.play({
-            uri: params.uri || '',
-            title: params.title || '',
-            artist: params.artist || '',
-            album: params.album || '',
-            artworkUrl: params.artworkUrl || '',
-            duration: params.duration || 0
-        })
+    class SimpleEventEmitter {
+        listeners = new Map()
+
+        addListener(eventName, listener) {
+            if (!this.listeners.has(eventName)) {
+                this.listeners.set(eventName, new Set())
+            }
+
+            const listenersForEvent = this.listeners.get(eventName)
+            listenersForEvent.add(listener)
+
+            return {
+                remove: () => {
+                    listenersForEvent.delete(listener)
+                    if (listenersForEvent.size === 0) {
+                        this.listeners.delete(eventName)
+                    }
+                }
+            }
+        }
+
+        emit(eventName, ...args) {
+            const listenersForEvent = this.listeners.get(eventName)
+            if (!listenersForEvent) return
+            for (const listener of listenersForEvent) {
+                listener(...args)
+            }
+        }
+
+        removeAllListeners(eventName) {
+            if (eventName) {
+                this.listeners.delete(eventName)
+            } else {
+                this.listeners.clear()
+            }
+        }
     }
 
-    static resume() {
-        if (NativeAudio) NativeAudio.resume()
-    }
+    const crossEmitter = new SimpleEventEmitter()
 
-    static pause() {
-        if (NativeAudio) NativeAudio.pause()
-    }
+    return class CrossPlatformAudioControls {
+        static emitter = crossEmitter
 
-    static stop() {
-        if (NativeAudio) NativeAudio.stop()
-    }
+        static addListener(eventName, listener) {
+            return crossEmitter.addListener(eventName, listener)
+        }
 
-    static seek(seconds) {
-        if (NativeAudio) NativeAudio.seek(seconds)
-    }
+        static configureApi(baseUrl, token) {
+            CrossAudio.configureApi(baseUrl, token)
+        }
 
-    static setVolume(volume) {
-        if (NativeAudio) NativeAudio.setVolume(volume)
-    }
+        static changeTargetPlayer(name, id) {
+            CrossAudio.changeTargetPlayer(name, id)
+        }
 
-    static setRemoteControlMode(enabled, initialVolume = 1.0) {
-        if (!NativeAudio) return
-        NativeAudio.setRemoteControlMode({
-            enabled: enabled,
-            initialVolume: initialVolume
-        })
-    }
+        static loadMusicSession(remoteDeviceId) {
+            CrossAudio.loadMusicSession(remoteDeviceId)
+        }
 
-    static syncRemoteVolume(volume) {
-        if (NativeAudio) NativeAudio.syncRemoteVolume(volume)
-    }
+        static play() {
+            CrossAudio.play()
+        }
 
-    static addListener(eventName, listener) {
-        if (!emitter) return { remove: () => { } }
-        return emitter.addListener(eventName, listener)
-    }
+        static resume() {
+            CrossAudio.resume()
+        }
 
-    static updateMetadata(params) {
-        if (!NativeAudio) return
-        NativeAudio.updateMetadata({
-            title: params.title || '',
-            artist: params.artist || '',
-            album: params.album || '',
-            artworkUrl: params.artworkUrl || '',
-            duration: params.duration || 0,
-            isPlaying: params.isPlaying || false
-        })
-    }
+        static pause() {
+            CrossAudio.pause()
+        }
 
-    static requestQueueSync() {
-        if (NativeAudio) NativeAudio.requestQueueSync()
-    }
+        static stop() {
+            CrossAudio.stop()
+        }
 
-    static configureApi(baseUrl, token) {
-        if (NativeAudio) {
-            NativeAudio.configureApi(baseUrl, token)
+        static seek(seconds) {
+            CrossAudio.seek(seconds)
+        }
+
+        static setVolume(volume) {
+            CrossAudio.setVolume(volume)
+        }
+
+        static setRemoteControlMode(enabled, initialVolume = 1.0) {
+            CrossAudio.setRemoteControlMode({
+                enabled: enabled,
+                initialVolume: initialVolume
+            })
+        }
+
+        static syncRemoteVolume(volume) {
+            CrossAudio.syncRemoteVolume(volume)
+        }
+
+        static updateMetadata() {
+            CrossAudio.updateMetadata()
+        }
+
+        static requestQueueSync() {
+            CrossAudio.requestQueueSync()
         }
     }
 }
+
+const createAndroidControls = () => {
+    const nativeAudio = requireNativeModule('SnowAudioControls')
+    const nativeEmitter = new EventEmitter(nativeAudio)
+
+    return class SnowAudioControlsAndroid {
+        static emitter = nativeEmitter
+
+        static addListener(eventName, listener) {
+            return nativeEmitter.addListener(eventName, listener)
+        }
+
+        static configureApi(baseUrl, token) {
+            nativeAudio.configureApi(baseUrl, token)
+        }
+
+        static changeTargetPlayer(id, name) {
+            nativeAudio.changeTargetPlayer(id, name)
+        }
+
+        static loadMusicSession(remoteDeviceId) {
+            nativeAudio.loadMusicSession(remoteDeviceId)
+        }
+
+        static play() {
+            nativeAudio.play()
+        }
+
+        static resume() {
+            nativeAudio.resume()
+        }
+
+        static pause() {
+            nativeAudio.pause()
+        }
+
+        static stop() {
+            nativeAudio.stop()
+        }
+
+        static seek(seconds) {
+            nativeAudio.seek(seconds)
+        }
+
+        static setVolume(volume) {
+            nativeAudio.setVolume(volume)
+        }
+
+        static setRemoteControlMode(enabled, initialVolume = 1.0) {
+            nativeAudio.setRemoteControlMode({
+                enabled: enabled,
+                initialVolume: initialVolume
+            })
+        }
+
+        static syncRemoteVolume(volume) {
+            nativeAudio.syncRemoteVolume(volume)
+        }
+
+        static updateMetadata() {
+            nativeAudio.updateMetadata()
+        }
+
+        static requestQueueSync() {
+            nativeAudio.requestQueueSync()
+        }
+    }
+}
+
+export const SnowAudioControls = Platform.OS === 'android'
+    ? createAndroidControls()
+    : createCrossControls()
