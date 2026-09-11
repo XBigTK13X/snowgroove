@@ -10,8 +10,6 @@ import android.provider.Settings
 
 class VolumeManager(
     private val context: Context,
-    private val apiClient: ApiClient,
-    private val onVolumeAdjusted: (Double) -> Unit,
 ) {
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -86,7 +84,7 @@ class VolumeManager(
                         lastObservedStreamVolume = centerVolume
 
                         sendRemoteVolume()
-                        onVolumeAdjusted(remoteVolumePercent)
+                        SnowEvents.send("volumeChanged", mapOf("percent" to remoteVolumePercent))
                     }
                 }
             }
@@ -109,7 +107,7 @@ class VolumeManager(
     fun adjustRemoteVolumeByDelta(delta: Double) {
         remoteVolumePercent = (remoteVolumePercent + delta).coerceIn(0.0, 1.0)
         sendRemoteVolume()
-        onVolumeAdjusted(remoteVolumePercent)
+        SnowEvents.send("volumeChanged", mapOf("percent" to remoteVolumePercent))
     }
 
     private fun sendRemoteVolume() {

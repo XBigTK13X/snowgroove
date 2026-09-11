@@ -196,10 +196,10 @@ class AudioPlaybackManager(
     }
 
     fun updateMetadata(
-        title: String,
-        artist: String,
-        album: String,
-        durationSeconds: Long,
+        title: String?,
+        artist: String?,
+        album: String?,
+        durationSeconds: Long?,
         artwork: Bitmap?,
     ) {
         if (SnowEvents.DEBUG_ANDROID_AUDIO) {
@@ -214,7 +214,7 @@ class AudioPlaybackManager(
                 .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
                 .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist)
                 .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album)
-                .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, durationSeconds * 1000L)
+                .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, (durationSeconds ?: 0L) * 1000L)
                 .apply {
                     if (artwork != null) {
                         putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, artwork)

@@ -40,6 +40,12 @@ interface SnowgrooveService {
         @Body queuePayload: MusicQueue,
     ): Response<Unit>
 
+    @GET("crate/song/list")
+    suspend fun getCrateSongList(
+        @Query("crate_id") crateId: String,
+        @Query("only_children") onlyChildren: Boolean,
+    ): Response<CrateSongList>
+
     @GET
     @Headers("User-Agent: Snowgroove/1.0")
     suspend fun fetchBitmapStream(
@@ -156,6 +162,21 @@ object ApiClient {
             val response = requireService().fetchBitmapStream(src)
             response.body()?.byteStream()?.use { stream ->
                 BitmapFactory.decodeStream(stream)
+            }
+        } catch (ignored: Exception) {
+            null
+        }
+
+    suspend fun getCrateSongList(
+        crateId: String,
+        onlyChildren: Boolean,
+    ): CrateSongList? =
+        try {
+            val response = requireService().getCrateSongList(crateId, onlyChildren)
+            if (response.isSuccessful) {
+                response.body()
+            } else {
+                null
             }
         } catch (ignored: Exception) {
             null

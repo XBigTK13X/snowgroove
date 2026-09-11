@@ -4,6 +4,53 @@ import expo.modules.kotlin.records.Field
 import expo.modules.kotlin.records.Record
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.longOrNull
+
+val sharedJson =
+    Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+    }
+
+fun JsonElement.toAny(): Any? =
+    when (this) {
+        is JsonNull -> {
+            null
+        }
+
+        is JsonPrimitive -> {
+            if (isString) {
+                content
+            } else {
+                booleanOrNull ?: longOrNull ?: doubleOrNull ?: content
+            }
+        }
+
+        is JsonArray -> {
+            map { it.toAny() }
+        }
+
+        is JsonObject -> {
+            mapValues { it.value.toAny() }
+        }
+    }
+
+inline fun <reified T> T.toMap(): Map<String, Any?> {
+    val element = sharedJson.encodeToJsonElement(this)
+    if (element is JsonObject) {
+        return element.mapValues { it.value.toAny() }
+    }
+    return emptyMap()
+}
 
 @Serializable
 data class Volume(
@@ -58,4 +105,11 @@ data class AudioFile(
     var streamUrl: String = "",
     @Field
     var title: String = "",
+) : Record
+
+@Serializable
+data class CrateSongList(
+    @Field
+    @SerialName("audio_files")
+    var audioFiles: List<AudioFile> = emptyList(),
 ) : Record

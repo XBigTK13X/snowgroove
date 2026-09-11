@@ -23,8 +23,7 @@ export function AudioContextProvider({ children }) {
         if (apiClient?.baseURL && apiClient?.authToken) {
             SnowAudioControls.configureApi(
                 apiClient.baseURL,
-                apiClient.authToken,
-                sessionRef.current?.id || null
+                apiClient.authToken
             )
         }
     }, [apiClient?.baseURL, apiClient?.authToken])
@@ -82,6 +81,10 @@ export function AudioContextProvider({ children }) {
             }),
             SnowAudioControls.addListener('log', (event) => {
                 if (config.debugAndroidAudio) util.prettyLog({ owner: 'audio-context', action: 'log', event })
+            }),
+            SnowAudioControls.addListener('sessionChanged', (event) => {
+                if (config.debugAndroidAudio) util.prettyLog({ owner: 'audio-context', action: 'sessionChanged', event })
+                setPlaybackState((prev) => { return { ...prev, musicSession: event } })
             })
         ]
 

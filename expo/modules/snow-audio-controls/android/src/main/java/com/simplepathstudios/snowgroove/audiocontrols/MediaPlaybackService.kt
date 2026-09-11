@@ -52,15 +52,7 @@ class MediaPlaybackService : Service() {
 
         notificationManager = PlaybackNotificationManager(this)
 
-        queueManager =
-            QueueManager(
-                onQueueStale = {
-                    if (SnowEvents.DEBUG_ANDROID_AUDIO) {
-                        SnowEvents.log("MediaPlaybackService->onQueueStale", "Queue stale callback triggered")
-                    }
-                    onCommand?.invoke("queueStale", null)
-                },
-            )
+        queueManager = QueueManager()
 
         audioPlaybackManager =
             AudioPlaybackManager(
@@ -83,14 +75,7 @@ class MediaPlaybackService : Service() {
                     }
                     val nextSong = queueManager.advanceSong(1)
                     if (nextSong != null) {
-                        loadAndPlay(
-                            uri = nextSong.streamUrl,
-                            title = nextSong.title,
-                            artist = nextSong.artist,
-                            album = nextSong.album,
-                            artworkUrl = nextSong.artworkUrl,
-                            duration = nextSong.duration,
-                        )
+                        loadAndPlay()
                         onCommand?.invoke("trackChanged", mapOf("songFingerprint" to nextSong.fingerprint))
                     } else {
                         onFinished?.invoke()
@@ -104,14 +89,7 @@ class MediaPlaybackService : Service() {
                         val step = if (action == "next") 1 else -1
                         val nextSong = queueManager.advanceSong(step)
                         if (nextSong != null) {
-                            loadAndPlay(
-                                uri = nextSong.streamUrl,
-                                title = nextSong.title,
-                                artist = nextSong.artist,
-                                album = nextSong.album,
-                                artworkUrl = nextSong.artworkUrl,
-                                duration = nextSong.duration,
-                            )
+                            loadAndPlay()
                             return@AudioPlaybackManager
                         }
                     }
@@ -125,16 +103,7 @@ class MediaPlaybackService : Service() {
                 },
             )
 
-        volumeManager =
-            VolumeManager(
-                context = this,
-                onVolumeAdjusted = { percent ->
-                    if (SnowEvents.DEBUG_ANDROID_AUDIO) {
-                        SnowEvents.log("MediaPlaybackService->onVolumeAdjusted", "percent: $percent")
-                    }
-                    onCommand?.invoke("volumeAdjust", mapOf("percent" to percent))
-                },
-            )
+        volumeManager = VolumeManager(context = this)
 
         val initialNotification =
             notificationManager.buildNotification(
@@ -173,9 +142,6 @@ class MediaPlaybackService : Service() {
     fun setRemoteControlMode(
         enabled: Boolean,
         initialVolumePercent: Float,
-        baseUrl: String? = null,
-        authToken: String? = null,
-        sessionId: String? = null,
     ) {
         if (SnowEvents.DEBUG_ANDROID_AUDIO) {
             SnowEvents.log("MediaPlaybackService->setRemoteControlMode", "enabled: $enabled, volume: $initialVolumePercent")
@@ -184,7 +150,6 @@ class MediaPlaybackService : Service() {
             val session = audioPlaybackManager.mediaSession ?: return@launch
             isRemoteMode = enabled
             audioPlaybackManager.setMode(enabled)
-            volumeManager.configureRemoteSettings(initialVolumePercent, baseUrl, authToken, sessionId)
 
             session.setPlaybackToLocal(AudioManager.STREAM_MUSIC)
 
@@ -218,30 +183,32 @@ class MediaPlaybackService : Service() {
         }
     }
 
-    fun loadAndPlay(
-        uri: String,
-        title: String,
-        artist: String,
-        album: String,
-        artworkUrl: String?,
-        duration: Long,
-    ) {
-        currentTitle = title
-        currentArtist = artist
-        currentAlbum = album
-
+    fun loadAndPlay() {
         serviceScope.launch(Dispatchers.Main) {
+            val currentSong = queueManager.currentSong
             if (SnowEvents.DEBUG_ANDROID_AUDIO) {
-                SnowEvents.log("MediaPlaybackService->loadAndPlay", artworkUrl ?: "[empty]")
+                SnowEvents.log("MediaPlaybackService->loadAndPlay", currentSong?.thumbnailWebPath ?: "[empty]")
             }
             setRemoteControlMode(false, volumeManager.targetVolume)
-            audioPlaybackManager.loadAndPlay(uri, volumeManager.targetVolume)
+            audioPlaybackManager.loadAndPlay(currentSong?.streamUrl ?: "", volumeManager.targetVolume)
 
-            val bitmap = resolveArtworkBitmap(artworkUrl)
-            audioPlaybackManager.updateMetadata(currentTitle, currentArtist, currentAlbum, duration, bitmap)
+            val bitmap = resolveArtworkBitmap(currentSong?.thumbnailWebPath)
+            audioPlaybackManager.updateMetadata(
+                currentSong?.title,
+                currentSong?.artist,
+                currentSong?.album,
+                currentSong?.duration,
+                bitmap,
+            )
             audioPlaybackManager.syncSessionPlaybackState(true)
-            audioPlaybackManager.mediaSession?.let { session ->
-                notificationManager.updateNotification(session, currentTitle, currentArtist, true, bitmap)
+            audioPlaybackManager.mediaSession?.let { mediaSession ->
+                notificationManager.updateNotification(
+                    mediaSession,
+                    currentSong?.title,
+                    currentSong?.artist,
+                    true,
+                    bitmap,
+                )
             }
         }
     }
@@ -254,9 +221,16 @@ class MediaPlaybackService : Service() {
             if (!isRemoteMode) {
                 audioPlaybackManager.play(volumeManager.targetVolume)
             }
+            val currentSong = queueManager.currentSong
             audioPlaybackManager.syncSessionPlaybackState(true)
-            audioPlaybackManager.mediaSession?.let { session ->
-                notificationManager.updateNotification(session, currentTitle, currentArtist, true, cachedArtworkBitmap)
+            audioPlaybackManager.mediaSession?.let { mediaSession ->
+                notificationManager.updateNotification(
+                    mediaSession,
+                    currentSong?.title,
+                    currentSong?.artist,
+                    true,
+                    cachedArtworkBitmap,
+                )
             }
         }
     }
@@ -269,9 +243,16 @@ class MediaPlaybackService : Service() {
             if (!isRemoteMode) {
                 audioPlaybackManager.pause()
             }
+            val currentSong = queueManager.currentSong
             audioPlaybackManager.syncSessionPlaybackState(false)
-            audioPlaybackManager.mediaSession?.let { session ->
-                notificationManager.updateNotification(session, currentTitle, currentArtist, false, cachedArtworkBitmap)
+            audioPlaybackManager.mediaSession?.let { mediaSession ->
+                notificationManager.updateNotification(
+                    mediaSession,
+                    currentSong?.title,
+                    currentSong?.artist,
+                    false,
+                    cachedArtworkBitmap,
+                )
             }
         }
     }
@@ -369,19 +350,31 @@ class MediaPlaybackService : Service() {
     }
 
     fun updateRemoteMetadata() {
-        currentTitle = title
-        currentArtist = artist
-        currentAlbum = album
+        val currentSong = queueManager.currentSong
 
         serviceScope.launch(Dispatchers.Main) {
             if (SnowEvents.DEBUG_ANDROID_AUDIO) {
-                SnowEvents.log("MediaPlaybackService->updateRemoteMetadata", "$title by $artist (isPlaying: $isPlaying)")
+                SnowEvents.log(
+                    "MediaPlaybackService->updateRemoteMetadata",
+                    "$currentSong?.title by $currentSong?.artist",
+                )
             }
-            val bitmap = resolveArtworkBitmap(artworkUrl)
-            audioPlaybackManager.updateMetadata(currentTitle, currentArtist, currentAlbum, duration, bitmap)
-            audioPlaybackManager.syncSessionPlaybackState(isPlaying)
-            audioPlaybackManager.mediaSession?.let { session ->
-                notificationManager.updateNotification(session, currentTitle, currentArtist, isPlaying, bitmap)
+            val bitmap = resolveArtworkBitmap(currentSong?.thumbnailWebPath)
+            audioPlaybackManager.updateMetadata(
+                currentSong?.title,
+                currentSong?.artist,
+                currentSong?.album,
+                currentSong?.duration,
+                bitmap,
+            )
+            audioPlaybackManager.mediaSession?.let { mediaSession ->
+                notificationManager.updateNotification(
+                    mediaSession,
+                    currentSong?.title,
+                    currentSong?.artist,
+                    true,
+                    bitmap,
+                )
             }
         }
     }

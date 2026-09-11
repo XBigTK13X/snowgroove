@@ -37,14 +37,11 @@ export class SnowAudioControls {
         if (NativeAudio) NativeAudio.setVolume(volume)
     }
 
-    static setRemoteControlMode(enabled, initialVolume = 1.0, baseUrl = '', authToken = '', sessionId = '') {
+    static setRemoteControlMode(enabled, initialVolume = 1.0) {
         if (!NativeAudio) return
         NativeAudio.setRemoteControlMode({
             enabled: enabled,
-            initialVolume: initialVolume,
-            baseUrl: baseUrl,
-            authToken: authToken,
-            sessionId: String(sessionId || '')
+            initialVolume: initialVolume
         })
     }
 
@@ -73,10 +70,9 @@ export class SnowAudioControls {
         if (NativeAudio) NativeAudio.requestQueueSync()
     }
 
-    static configureApi(baseUrl, token, sessionId) {
+    static configureApi(baseUrl, token) {
         if (NativeAudio) {
-            const resolvedSessionId = sessionId != null ? String(sessionId) : null
-            NativeAudio.configureApi(baseUrl, token, resolvedSessionId)
+            NativeAudio.configureApi(baseUrl, token)
         }
     }
 }

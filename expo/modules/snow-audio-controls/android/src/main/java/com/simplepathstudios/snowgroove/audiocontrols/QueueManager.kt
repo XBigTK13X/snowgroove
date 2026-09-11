@@ -10,9 +10,7 @@ data class QueueRemovalResult(
     val nextSong: AudioFile?,
 )
 
-class QueueManager(
-    private val onQueueStale: () -> Unit,
-) {
+class QueueManager {
     private val scope = CoroutineScope(Dispatchers.Main + Job())
 
     var musicSession: MusicSession? = null
@@ -24,10 +22,7 @@ class QueueManager(
                 queue.songs.getOrNull(queue.currentSongIndex)
             }
 
-    fun loadSession(
-        playerId: String?,
-        onLoaded: ((AudioFile?) -> Unit)? = null,
-    ) {
+    fun loadSession(playerId: String?) {
         scope.launch {
             val session = ApiClient.getMusicSession(playerId)
             if (session == null) {
@@ -37,7 +32,7 @@ class QueueManager(
                 return@launch
             }
             musicSession = session
-            onLoaded?.invoke(currentSong)
+            SnowEvents.send("sessionChanged", session.toMap())
         }
     }
 
@@ -66,9 +61,7 @@ class QueueManager(
             if (SnowEvents.DEBUG_ANDROID_AUDIO) {
                 SnowEvents.log("QueueManager->updateQueue", "Server sync success: $isSuccess")
             }
-            if (isSuccess) {
-                onQueueStale()
-            }
+            SnowEvents.send("sessionChanged", session.toMap())
         }
     }
 

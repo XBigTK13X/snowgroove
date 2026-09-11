@@ -45,8 +45,8 @@ class PlaybackNotificationManager(
 
     fun buildNotification(
         session: MediaSessionCompat,
-        title: String,
-        artist: String,
+        title: String?,
+        artist: String?,
         isPlaying: Boolean,
         artwork: Bitmap?,
     ): Notification {
@@ -97,7 +97,7 @@ class PlaybackNotificationManager(
             NotificationCompat
                 .Builder(service, notificationChannelId)
                 .setSmallIcon(smallIconResId)
-                .setContentTitle(title.ifEmpty { "Snowgroove" })
+                .setContentTitle(title?.ifEmpty { "Snowgroove" })
                 .setContentText(artist)
                 .setContentIntent(contentPendingIntent)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -131,8 +131,8 @@ class PlaybackNotificationManager(
 
     fun updateNotification(
         session: MediaSessionCompat,
-        title: String,
-        artist: String,
+        title: String?,
+        artist: String?,
         isPlaying: Boolean,
         artwork: Bitmap?,
     ) {

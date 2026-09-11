@@ -15,7 +15,7 @@ class SnowAudioControlsModule : Module() {
 
     private fun safeSendEvent(
         name: String,
-        body: Map<String, Any> = emptyMap(),
+        body: Map<String, Any?> = emptyMap(),
     ) {
         try {
             if (appContext.reactContext != null) {
@@ -120,7 +120,7 @@ class SnowAudioControlsModule : Module() {
             }
 
             Function("setRemoteControlMode") { data: Map<String, Any> ->
-                playbackService?.setRemoteControlMode()
+                playbackService?.setRemoteControlMode(false, 0.0f)
             }
 
             Function("syncRemoteVolume") { volume: Double ->
