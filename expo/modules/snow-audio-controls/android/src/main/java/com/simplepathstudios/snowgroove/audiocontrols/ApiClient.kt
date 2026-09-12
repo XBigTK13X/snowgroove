@@ -144,7 +144,7 @@ object ApiClient {
         remotePlayerName: String?,
     ): MusicSession? =
         try {
-            if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+            if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
                 SnowEvents.log(
                     "ApiClient->getMusicSession",
                     "url: $apiUrl, id: $remotePlayerId, name: $remotePlayerName, token: $authToken",
@@ -153,7 +153,7 @@ object ApiClient {
             val response = requireService().getMusicSession(remotePlayerId, remotePlayerName)
             if (response.isSuccessful) {
                 val session = response.body()
-                if (session == null && SnowConfig.DEBUG_ANDROID_AUDIO) {
+                if (session == null && SnowConfig.DEBUG_ANDROID_AUDIO != null) {
                     SnowEvents.log(
                         "ApiClient->getMusicSession",
                         "Successful response code ${response.code()} returned null body",
@@ -161,7 +161,7 @@ object ApiClient {
                 }
                 session
             } else {
-                if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+                if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
                     val errorDetails = response.errorBody()?.string()?.takeIf { it.isNotBlank() } ?: "None"
                     SnowEvents.log(
                         "ApiClient->getMusicSession",
@@ -171,7 +171,7 @@ object ApiClient {
                 null
             }
         } catch (exception: Exception) {
-            if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+            if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
                 SnowEvents.log(
                     "ApiClient->getMusicSession",
                     "Exception fetching music session: ${exception.javaClass.simpleName} - ${exception.message}",

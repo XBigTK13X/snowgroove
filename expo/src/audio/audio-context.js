@@ -32,7 +32,7 @@ export function AudioContextProvider(props) {
 
     const handlers = {
         playAudioFile: (audioFile) => {
-            SnowAudioControls.playAudioFile(audioFile)
+            SnowAudioControls.play(audioFile)
         },
         togglePlayback: () => {
             SnowAudioControls.togglePlayback()
@@ -81,35 +81,35 @@ export function AudioContextProvider(props) {
     React.useEffect(() => {
         const listeners = [
             SnowAudioControls.addListener('apiConfigured', () => {
-                if (config.debugAndroidAudio) util.prettyLog({ owner: 'audio-context', action: 'apiConfigured' })
+                if (config.debugAndroidAudio != null) util.prettyLog({ owner: 'audio-context', action: 'apiConfigured' })
             }),
             SnowAudioControls.addListener('sessionChanged', (event) => {
-                if (config.debugAndroidAudio) util.prettyLog({ owner: 'audio-context', action: 'sessionChanged', event })
+                if (config.debugAndroidAudio === 'verbose') util.prettyLog({ owner: 'audio-context', action: 'sessionChanged', event })
                 setMusicSession(event)
             }),
             SnowAudioControls.addListener('play', () => {
-                if (config.debugAndroidAudio) util.prettyLog({ owner: 'audio-context', action: 'play' })
+                if (config.debugAndroidAudio != null) util.prettyLog({ owner: 'audio-context', action: 'play' })
             }),
             SnowAudioControls.addListener('pause', () => {
-                if (config.debugAndroidAudio) util.prettyLog({ owner: 'audio-context', action: 'pause' })
+                if (config.debugAndroidAudio != null) util.prettyLog({ owner: 'audio-context', action: 'pause' })
             }),
             SnowAudioControls.addListener('next', () => {
-                if (config.debugAndroidAudio) util.prettyLog({ owner: 'audio-context', action: 'next' })
+                if (config.debugAndroidAudio != null) util.prettyLog({ owner: 'audio-context', action: 'next' })
             }),
             SnowAudioControls.addListener('previous', () => {
-                if (config.debugAndroidAudio) util.prettyLog({ owner: 'audio-context', action: 'previous' })
+                if (config.debugAndroidAudio != null) util.prettyLog({ owner: 'audio-context', action: 'previous' })
             }),
             SnowAudioControls.addListener('seek', (event) => {
-                if (config.debugAndroidAudio) util.prettyLog({ owner: 'audio-context', action: 'seek', event })
+                if (config.debugAndroidAudio != null) util.prettyLog({ owner: 'audio-context', action: 'seek', event })
             }),
             SnowAudioControls.addListener('volumeAdjust', (event) => {
-                if (config.debugAndroidAudio) util.prettyLog({ owner: 'audio-context', action: 'volumeAdjust', event })
+                if (config.debugAndroidAudio != null) util.prettyLog({ owner: 'audio-context', action: 'volumeAdjust', event })
             }),
             SnowAudioControls.addListener('trackChanged', (event) => {
-                if (config.debugAndroidAudio) util.prettyLog({ owner: 'audio-context', action: 'trackChanged', event })
+                if (config.debugAndroidAudio != null) util.prettyLog({ owner: 'audio-context', action: 'trackChanged', event })
             }),
             SnowAudioControls.addListener('log', (event) => {
-                if (config.debugAndroidAudio) util.prettyLog({ owner: 'audio-context', action: 'log', event })
+                if (config.debugAndroidAudio != null) util.prettyLog({ owner: 'audio-context', action: 'log', event })
             })
         ]
         return () => {

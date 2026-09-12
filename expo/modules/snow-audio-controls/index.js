@@ -120,8 +120,8 @@ const createAndroidControls = () => {
             nativeAudio.loadMusicSession(remoteDeviceId)
         }
 
-        static play() {
-            nativeAudio.play()
+        static play(audioFile) {
+            nativeAudio.play(audioFile)
         }
 
         static resume() {

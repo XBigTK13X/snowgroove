@@ -8,11 +8,11 @@ interface ISnowPlayer {
     fun prepare(targetVolume: Float)
 
     fun loadAndPlay(
-        uri: String,
-        targetVolume: Float,
+        uri: String?,
+        targetVolume: Float?,
     )
 
-    fun play(targetVolume: Float)
+    fun play(targetVolume: Float?)
 
     fun pause()
 

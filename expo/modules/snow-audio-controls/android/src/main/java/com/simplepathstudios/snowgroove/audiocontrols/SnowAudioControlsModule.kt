@@ -101,12 +101,12 @@ class SnowAudioControlsModule : Module() {
                 playbackService?.changeTargetPlayer(id, name)
             }
 
-            Function("play") { data: Map<String, Any> ->
-                playbackService?.play()
+            Function("play") { audioFile: AudioFile ->
+                playbackService?.play(audioFile)
             }
 
             Function("resume") {
-                playbackService?.play()
+                playbackService?.play(audioFile = null)
             }
 
             Function("pause") {

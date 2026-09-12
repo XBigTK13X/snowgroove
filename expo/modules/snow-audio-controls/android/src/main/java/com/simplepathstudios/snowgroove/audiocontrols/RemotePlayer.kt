@@ -25,13 +25,13 @@ class RemotePlayer : ISnowPlayer {
     override fun prepare(targetVolume: Float) {}
 
     override fun loadAndPlay(
-        uri: String,
-        targetVolume: Float,
+        uri: String?,
+        targetVolume: Float?,
     ) {
         isPlaying = true
     }
 
-    override fun play(targetVolume: Float) {
+    override fun play(targetVolume: Float?) {
         isPlaying = true
     }
 

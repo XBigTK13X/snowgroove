@@ -1,26 +1,17 @@
 package com.simplepathstudios.snowgroove.audiocontrols
 
-import android.app.PendingIntent
-import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
 import android.graphics.Bitmap
-import android.media.AudioManager
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
-import androidx.media.session.MediaButtonReceiver
 
 class AudioPlaybackManager(
     private val context: Context,
+    private val mediaSession: MediaSessionCompat,
     private val onPlaybackStateChange: (isPlaying: Boolean) -> Unit,
     private val onItemFinished: () -> Unit,
-    private val onCommandAction: (String, Map<String, Any>?) -> Unit,
-    private val onSeekAction: (Double) -> Unit,
 ) {
-    var mediaSession: MediaSessionCompat? = null
-        private set
-
     private val localPlayer: LocalPlayer =
         LocalPlayer(
             context = context,
@@ -36,80 +27,8 @@ class AudioPlaybackManager(
     private val remotePlayer: RemotePlayer = RemotePlayer()
     private var activePlayer: ISnowPlayer = localPlayer
 
-    init {
-        initMediaSession()
-    }
-
-    private fun initMediaSession() {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO) {
-            SnowEvents.log("AudioPlaybackManager->initMediaSession", "Initializing MediaSessionCompat")
-        }
-        val mediaButtonReceiver = ComponentName(context, MediaButtonReceiver::class.java)
-        mediaSession =
-            MediaSessionCompat(context, "SnowgrooveSession", mediaButtonReceiver, null).apply {
-                setFlags(
-                    MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
-                        MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS,
-                )
-
-                val mediaButtonIntent =
-                    Intent(Intent.ACTION_MEDIA_BUTTON).apply {
-                        setClass(context, MediaButtonReceiver::class.java)
-                    }
-                val pendingIntent =
-                    PendingIntent.getBroadcast(
-                        context,
-                        0,
-                        mediaButtonIntent,
-                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-                    )
-                setMediaButtonReceiver(pendingIntent)
-
-                setCallback(
-                    object : MediaSessionCompat.Callback() {
-                        override fun onPlay() {
-                            if (SnowConfig.DEBUG_ANDROID_AUDIO) {
-                                SnowEvents.log("AudioPlaybackManager->MediaSessionCompat.Callback", "onPlay")
-                            }
-                            onCommandAction("play", null)
-                        }
-
-                        override fun onPause() {
-                            if (SnowConfig.DEBUG_ANDROID_AUDIO) {
-                                SnowEvents.log("AudioPlaybackManager->MediaSessionCompat.Callback", "onPause")
-                            }
-                            onCommandAction("pause", null)
-                        }
-
-                        override fun onSkipToNext() {
-                            if (SnowConfig.DEBUG_ANDROID_AUDIO) {
-                                SnowEvents.log("AudioPlaybackManager->MediaSessionCompat.Callback", "onSkipToNext")
-                            }
-                            onCommandAction("next", null)
-                        }
-
-                        override fun onSkipToPrevious() {
-                            if (SnowConfig.DEBUG_ANDROID_AUDIO) {
-                                SnowEvents.log("AudioPlaybackManager->MediaSessionCompat.Callback", "onSkipToPrevious")
-                            }
-                            onCommandAction("previous", null)
-                        }
-
-                        override fun onSeekTo(pos: Long) {
-                            if (SnowConfig.DEBUG_ANDROID_AUDIO) {
-                                SnowEvents.log("AudioPlaybackManager->MediaSessionCompat.Callback", "onSeekTo: $pos")
-                            }
-                            onSeekAction(pos / 1000.0)
-                        }
-                    },
-                )
-                setPlaybackToLocal(AudioManager.STREAM_MUSIC)
-                isActive = true
-            }
-    }
-
     fun setMode(isRemoteMode: Boolean) {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log("AudioPlaybackManager->setMode", "isRemoteMode: $isRemoteMode")
         }
         if (isRemoteMode) {
@@ -123,52 +42,52 @@ class AudioPlaybackManager(
     }
 
     fun ensurePlayer(targetVolume: Float) {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log("AudioPlaybackManager->ensurePlayer", "targetVolume: $targetVolume")
         }
         activePlayer.prepare(targetVolume)
     }
 
     fun loadAndPlay(
-        uri: String,
-        targetVolume: Float,
+        uri: String?,
+        targetVolume: Float?,
     ) {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log("AudioPlaybackManager->loadAndPlay", "uri: $uri, targetVolume: $targetVolume")
         }
         activePlayer.loadAndPlay(uri, targetVolume)
     }
 
     fun play(targetVolume: Float) {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log("AudioPlaybackManager->play", "targetVolume: $targetVolume")
         }
         activePlayer.play(targetVolume)
     }
 
     fun pause() {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log("AudioPlaybackManager->pause", "Pausing active player")
         }
         activePlayer.pause()
     }
 
     fun stop() {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log("AudioPlaybackManager->stop", "Stopping active player")
         }
         activePlayer.stop()
     }
 
     fun seek(targetMillis: Long) {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log("AudioPlaybackManager->seek", "targetMillis: $targetMillis")
         }
         activePlayer.seek(targetMillis)
     }
 
     fun setVolume(volume: Float) {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log("AudioPlaybackManager->setVolume", "volume: $volume")
         }
         activePlayer.setVolume(volume)
@@ -183,7 +102,7 @@ class AudioPlaybackManager(
         positionMillis: Long,
         durationMillis: Long = 0L,
     ) {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log(
                 "AudioPlaybackManager->syncRemotePlayback",
                 "isPlaying: $isPlaying, positionMillis: $positionMillis, durationMillis: $durationMillis",
@@ -202,7 +121,7 @@ class AudioPlaybackManager(
         durationSeconds: Float?,
         artwork: Bitmap?,
     ) {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log(
                 "AudioPlaybackManager->updateMetadata",
                 "$title by $artist ($album), duration: ${durationSeconds}s, artwork: ${if (artwork != null) "present" else "null"}",
@@ -224,17 +143,16 @@ class AudioPlaybackManager(
                     }
                 }.build()
 
-        mediaSession?.setMetadata(metadata)
+        mediaSession.setMetadata(metadata)
     }
 
     fun syncSessionPlaybackState(
         isPlaying: Boolean,
         explicitPositionMillis: Long? = null,
     ) {
-        val session = mediaSession ?: return
         val currentPosition = explicitPositionMillis ?: activePlayer.currentPositionMillis
 
-        if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log(
                 "AudioPlaybackManager->syncSessionPlaybackState",
                 "isPlaying: $isPlaying, position: $currentPosition",
@@ -257,17 +175,14 @@ class AudioPlaybackManager(
                 .setActions(actions)
                 .build()
 
-        session.setPlaybackState(playbackState)
+        mediaSession.setPlaybackState(playbackState)
     }
 
     fun cleanup() {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO) {
-            SnowEvents.log("AudioPlaybackManager->release", "Releasing players and media session")
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
+            SnowEvents.log("AudioPlaybackManager->cleanup", "Releasing players")
         }
         localPlayer.cleanup()
         remotePlayer.cleanup()
-        mediaSession?.isActive = false
-        mediaSession?.release()
-        mediaSession = null
     }
 }

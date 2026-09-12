@@ -111,26 +111,28 @@ class LocalPlayer(
     }
 
     override fun loadAndPlay(
-        uri: String,
-        targetVolume: Float,
+        uri: String?,
+        targetVolume: Float?,
     ) {
+        val validUri = uri ?: return
+        val validVolume = targetVolume ?: 1.0f
         hasFiredFinishedForCurrentItem = false
-        prepare(targetVolume)
+        prepare(validVolume)
         exoPlayer?.let { player ->
             player.repeatMode = Player.REPEAT_MODE_OFF
-            player.volume = targetVolume
+            player.volume = validVolume
             player.stop()
             player.clearMediaItems()
-            val mediaItem = MediaItem.fromUri(uri)
+            val mediaItem = MediaItem.fromUri(validUri)
             player.setMediaItem(mediaItem)
             player.prepare()
             player.playWhenReady = true
         }
     }
 
-    override fun play(targetVolume: Float) {
+    override fun play(targetVolume: Float?) {
         exoPlayer?.let { player ->
-            player.volume = targetVolume
+            player.volume = targetVolume ?: 1.0f
             player.playWhenReady = true
         }
     }

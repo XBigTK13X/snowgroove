@@ -92,9 +92,6 @@ data class AudioFile(
     @SerialName("thumbnail_web_path")
     var thumbnailWebPath: String? = null,
     @Field
-    @SerialName("artwork_url")
-    var rawArtworkUrl: String? = null,
-    @Field
     var duration: Float = 0.0f,
     @Field
     var fingerprint: String = "",
@@ -102,7 +99,7 @@ data class AudioFile(
     var id: String = "",
     @Field
     @SerialName("web_path")
-    var streamUrl: String = "",
+    var webPath: String = "",
     @Field
     var title: String = "",
 ) : Record

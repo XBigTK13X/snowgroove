@@ -6,7 +6,6 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
-import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.os.Build
@@ -18,6 +17,7 @@ import androidx.media.session.MediaButtonReceiver
 
 class PlaybackNotificationManager(
     private val service: Service,
+    private val mediaSession: MediaSessionCompat,
 ) {
     val notificationChannelId = "snowgroove_playback_channel"
     val notificationId = 9914
@@ -44,7 +44,6 @@ class PlaybackNotificationManager(
     }
 
     fun buildNotification(
-        session: MediaSessionCompat,
         title: String?,
         artist: String?,
         isPlaying: Boolean,
@@ -107,7 +106,7 @@ class PlaybackNotificationManager(
                 .addAction(nextAction)
                 .setStyle(
                     MediaStyle()
-                        .setMediaSession(session.sessionToken)
+                        .setMediaSession(mediaSession.sessionToken)
                         .setShowActionsInCompactView(0, 1, 2),
                 )
 
@@ -130,13 +129,12 @@ class PlaybackNotificationManager(
     }
 
     fun updateNotification(
-        session: MediaSessionCompat,
         title: String?,
         artist: String?,
         isPlaying: Boolean,
         artwork: Bitmap?,
     ) {
-        val notification = buildNotification(session, title, artist, isPlaying, artwork)
+        val notification = buildNotification(title, artist, isPlaying, artwork)
         startForegroundService(notification)
     }
 

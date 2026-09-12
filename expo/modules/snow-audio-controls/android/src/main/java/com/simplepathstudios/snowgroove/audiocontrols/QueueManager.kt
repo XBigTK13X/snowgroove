@@ -29,7 +29,7 @@ class QueueManager {
         scope.launch {
             val session = ApiClient.getMusicSession(remotePlayerId, remotePlayerName)
             if (session == null) {
-                if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+                if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
                     SnowEvents.log("QueueManager->loadSession", "Failed to retrieve session")
                 }
                 return@launch
@@ -49,7 +49,7 @@ class QueueManager {
         val targetSessionId = session.id ?: return
 
         scope.launch {
-            if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+            if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
                 SnowEvents.log(
                     "QueueManager->updateQueue",
                     "Syncing queue index: ${updatedQueue.currentSongIndex}, count: ${updatedQueue.songs.size} for sessionId: $targetSessionId",
@@ -61,15 +61,16 @@ class QueueManager {
                     sessionId = targetSessionId,
                     queuePayload = updatedQueue,
                 )
-            if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+            if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
                 SnowEvents.log("QueueManager->updateQueue", "Server sync success: $isSuccess")
             }
             SnowEvents.send("sessionChanged", session.toMap())
         }
     }
 
-    fun addSong(
+    fun addAudioFile(
         audioFile: AudioFile,
+        playNow: Boolean = false,
         playNext: Boolean = false,
     ) {
         updateQueue { queue ->
@@ -93,7 +94,7 @@ class QueueManager {
             if (playNext && updatedSongs.size > 1) {
                 val foundIndex =
                     updatedSongs.indexOf(audioFile).takeIf { it != -1 }
-                        ?: updatedSongs.indexOfFirst { candidate -> candidate.id == audioFile.id }
+                        ?: updatedSongs.indexOfFirst { candidate -> candidate.fingerprint == audioFile.fingerprint }
 
                 if (foundIndex != -1) {
                     updatedSongs.removeAt(foundIndex)
@@ -104,6 +105,9 @@ class QueueManager {
                         updatedIndex -= 1
                     }
                 }
+            }
+            if (playNow) {
+                updatedIndex = updatedSongs.indexOfFirst { candidate -> candidate.fingerprint == audioFile.fingerprint }
             }
 
             queue.copy(
@@ -285,7 +289,7 @@ class QueueManager {
     fun advanceSong(amount: Int): AudioFile? {
         val currentQueue = musicSession?.musicQueue ?: return null
         if (currentQueue.songs.isEmpty()) {
-            if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+            if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
                 SnowEvents.log("QueueManager->advanceSong", "Aborting: queue is empty")
             }
             return null
@@ -302,10 +306,10 @@ class QueueManager {
             queue.copy(currentSongIndex = updatedIndex)
         }
 
-        if (SnowConfig.DEBUG_ANDROID_AUDIO && nextSong != null) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null && nextSong != null) {
             SnowEvents.log(
                 "QueueManager->advanceSong",
-                "amount: $amount, index: $previousIndex -> ${musicSession?.musicQueue?.currentSongIndex}, title: ${nextSong?.title}, streamUrl: ${nextSong?.streamUrl}",
+                "amount: $amount, index: $previousIndex -> ${musicSession?.musicQueue?.currentSongIndex}, title: ${nextSong?.title}, webPath: ${nextSong?.webPath}",
             )
         }
 

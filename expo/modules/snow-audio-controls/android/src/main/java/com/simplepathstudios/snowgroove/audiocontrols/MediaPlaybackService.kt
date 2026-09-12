@@ -1,11 +1,14 @@
 package com.simplepathstudios.snowgroove.audiocontrols
 
+import android.app.PendingIntent
 import android.app.Service
+import android.content.ComponentName
 import android.content.Intent
 import android.graphics.Bitmap
 import android.media.AudioManager
 import android.os.Binder
 import android.os.IBinder
+import android.support.v4.media.session.MediaSessionCompat
 import androidx.media.session.MediaButtonReceiver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,6 +24,9 @@ class MediaPlaybackService : Service() {
 
     private var targetPlayerId: Int? = null
     private var targetPlayerName: String? = null
+
+    lateinit var mediaSession: MediaSessionCompat
+        private set
 
     private lateinit var notificationManager: PlaybackNotificationManager
     private lateinit var audioPlaybackManager: AudioPlaybackManager
@@ -49,23 +55,25 @@ class MediaPlaybackService : Service() {
     override fun onCreate() {
         super.onCreate()
 
-        if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log("MediaPlaybackService->onCreate", "Initializing service")
         }
 
-        notificationManager = PlaybackNotificationManager(this)
+        initMediaSession()
+
+        notificationManager = PlaybackNotificationManager(this, mediaSession)
 
         queueManager = QueueManager()
 
         audioPlaybackManager =
             AudioPlaybackManager(
                 context = this,
+                mediaSession = mediaSession,
                 onPlaybackStateChange = { isPlaying ->
-                    if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+                    if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
                         SnowEvents.log("MediaPlaybackService->onPlaybackStateChange", "isPlaying: $isPlaying")
                     }
                     notificationManager.updateNotification(
-                        audioPlaybackManager.mediaSession!!,
                         currentTitle,
                         currentArtist,
                         isPlaying,
@@ -73,7 +81,7 @@ class MediaPlaybackService : Service() {
                     )
                 },
                 onItemFinished = {
-                    if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+                    if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
                         SnowEvents.log("MediaPlaybackService->onItemFinished", "Current track finished")
                     }
                     val nextSong = queueManager.advanceSong(1)
@@ -84,33 +92,12 @@ class MediaPlaybackService : Service() {
                         onFinished?.invoke()
                     }
                 },
-                onCommandAction = { action, payload ->
-                    if (SnowConfig.DEBUG_ANDROID_AUDIO) {
-                        SnowEvents.log("MediaPlaybackService->onCommandAction", "action: $action, isRemoteMode: $isRemoteMode")
-                    }
-                    if (!isRemoteMode && (action == "next" || action == "previous")) {
-                        val step = if (action == "next") 1 else -1
-                        val nextSong = queueManager.advanceSong(step)
-                        if (nextSong != null) {
-                            loadAndPlay()
-                            return@AudioPlaybackManager
-                        }
-                    }
-                    onCommand?.invoke(action, payload)
-                },
-                onSeekAction = { seconds ->
-                    if (SnowConfig.DEBUG_ANDROID_AUDIO) {
-                        SnowEvents.log("MediaPlaybackService->onSeekAction", "seconds: $seconds")
-                    }
-                    seek(seconds)
-                },
             )
 
         volumeManager = VolumeManager(context = this)
 
         val initialNotification =
             notificationManager.buildNotification(
-                audioPlaybackManager.mediaSession!!,
                 "Snowgroove",
                 "Ready",
                 false,
@@ -121,15 +108,86 @@ class MediaPlaybackService : Service() {
         startProgressLoop()
     }
 
+    private fun initMediaSession() {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
+            SnowEvents.log("MediaPlaybackService->initMediaSession", "Initializing MediaSessionCompat")
+        }
+        val mediaButtonReceiver = ComponentName(this, MediaButtonReceiver::class.java)
+        mediaSession =
+            MediaSessionCompat(this, "SnowgrooveSession", mediaButtonReceiver, null).apply {
+                setFlags(
+                    MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
+                        MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS,
+                )
+
+                val mediaButtonIntent =
+                    Intent(Intent.ACTION_MEDIA_BUTTON).apply {
+                        setClass(this@MediaPlaybackService, MediaButtonReceiver::class.java)
+                    }
+                val pendingIntent =
+                    PendingIntent.getBroadcast(
+                        this@MediaPlaybackService,
+                        0,
+                        mediaButtonIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                    )
+                setMediaButtonReceiver(pendingIntent)
+
+                setCallback(
+                    object : MediaSessionCompat.Callback() {
+                        override fun onPlay() {
+                            handleMediaCommand("play", null)
+                        }
+
+                        override fun onPause() {
+                            handleMediaCommand("pause", null)
+                        }
+
+                        override fun onSkipToNext() {
+                            handleMediaCommand("next", null)
+                        }
+
+                        override fun onSkipToPrevious() {
+                            handleMediaCommand("previous", null)
+                        }
+
+                        override fun onSeekTo(pos: Long) {
+                            seek(pos / 1000.0)
+                        }
+                    },
+                )
+                setPlaybackToLocal(AudioManager.STREAM_MUSIC)
+                isActive = true
+            }
+    }
+
+    private fun handleMediaCommand(
+        action: String,
+        payload: Map<String, Any>?,
+    ) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
+            SnowEvents.log("MediaPlaybackService->handleMediaCommand", "action: $action, isRemoteMode: $isRemoteMode")
+        }
+        if (!isRemoteMode && (action == "next" || action == "previous")) {
+            val step = if (action == "next") 1 else -1
+            val nextSong = queueManager.advanceSong(step)
+            if (nextSong != null) {
+                loadAndPlay()
+                return
+            }
+        }
+        onCommand?.invoke(action, payload)
+    }
+
     override fun onStartCommand(
         intent: Intent?,
         flags: Int,
         startId: Int,
     ): Int {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log("MediaPlaybackService->onStartCommand", "action: ${intent?.action ?: "[null]"}")
         }
-        MediaButtonReceiver.handleIntent(audioPlaybackManager.mediaSession, intent)
+        MediaButtonReceiver.handleIntent(mediaSession, intent)
         return START_STICKY
     }
 
@@ -137,7 +195,7 @@ class MediaPlaybackService : Service() {
         id: Int?,
         name: String?,
     ) {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log("MediaPlaybackService->changeTargetPlayer", "id: $id, name: $name")
         }
         targetPlayerId = id
@@ -155,7 +213,7 @@ class MediaPlaybackService : Service() {
     }
 
     fun adjustRemoteVolumeByDelta(delta: Double) {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log("MediaPlaybackService->adjustRemoteVolumeByDelta", "delta: $delta, isRemoteMode: $isRemoteMode")
         }
         serviceScope.launch(Dispatchers.Main) {
@@ -165,7 +223,7 @@ class MediaPlaybackService : Service() {
     }
 
     fun syncRemoteVolume(percent: Float) {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log("MediaPlaybackService->syncRemoteVolume", "percent: $percent")
         }
         serviceScope.launch(Dispatchers.Main) {
@@ -176,10 +234,10 @@ class MediaPlaybackService : Service() {
     fun loadAndPlay() {
         serviceScope.launch(Dispatchers.Main) {
             val currentSong = queueManager.currentSong
-            if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+            if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
                 SnowEvents.log("MediaPlaybackService->loadAndPlay", currentSong?.thumbnailWebPath ?: "[empty]")
             }
-            audioPlaybackManager.loadAndPlay(currentSong?.streamUrl ?: "", volumeManager.targetVolume)
+            audioPlaybackManager.loadAndPlay(currentSong?.webPath ?: "", volumeManager.targetVolume)
 
             val bitmap = resolveArtworkBitmap(currentSong?.thumbnailWebPath)
             audioPlaybackManager.updateMetadata(
@@ -190,42 +248,39 @@ class MediaPlaybackService : Service() {
                 bitmap,
             )
             audioPlaybackManager.syncSessionPlaybackState(true)
-            audioPlaybackManager.mediaSession?.let { mediaSession ->
-                notificationManager.updateNotification(
-                    mediaSession,
-                    currentSong?.title,
-                    currentSong?.artist,
-                    true,
-                    bitmap,
-                )
-            }
+            notificationManager.updateNotification(
+                currentSong?.title,
+                currentSong?.artist,
+                true,
+                bitmap,
+            )
         }
     }
 
-    fun play() {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+    fun play(audioFile: AudioFile?) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log("MediaPlaybackService->play", "isRemoteMode: $isRemoteMode")
         }
         serviceScope.launch(Dispatchers.Main) {
-            if (!isRemoteMode) {
-                audioPlaybackManager.play(volumeManager.targetVolume)
+            if (audioFile != null) {
+                queueManager.addAudioFile(audioFile, playNow = true, playNext = false)
             }
+
             val currentSong = queueManager.currentSong
-            audioPlaybackManager.syncSessionPlaybackState(true)
-            audioPlaybackManager.mediaSession?.let { mediaSession ->
-                notificationManager.updateNotification(
-                    mediaSession,
-                    currentSong?.title,
-                    currentSong?.artist,
-                    true,
-                    cachedArtworkBitmap,
-                )
-            }
+
+            audioPlaybackManager.loadAndPlay(currentSong?.webPath, 1.0f)
+
+            notificationManager.updateNotification(
+                currentSong?.title,
+                currentSong?.artist,
+                true,
+                cachedArtworkBitmap,
+            )
         }
     }
 
     fun pause() {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log("MediaPlaybackService->pause", "isRemoteMode: $isRemoteMode")
         }
         serviceScope.launch(Dispatchers.Main) {
@@ -234,20 +289,17 @@ class MediaPlaybackService : Service() {
             }
             val currentSong = queueManager.currentSong
             audioPlaybackManager.syncSessionPlaybackState(false)
-            audioPlaybackManager.mediaSession?.let { mediaSession ->
-                notificationManager.updateNotification(
-                    mediaSession,
-                    currentSong?.title,
-                    currentSong?.artist,
-                    false,
-                    cachedArtworkBitmap,
-                )
-            }
+            notificationManager.updateNotification(
+                currentSong?.title,
+                currentSong?.artist,
+                false,
+                cachedArtworkBitmap,
+            )
         }
     }
 
     fun stop() {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log("MediaPlaybackService->stop", "Stopping playback")
         }
         serviceScope.launch(Dispatchers.Main) {
@@ -258,7 +310,7 @@ class MediaPlaybackService : Service() {
     }
 
     fun seek(seconds: Double) {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log("MediaPlaybackService->seek", "seconds: $seconds, isRemoteMode: $isRemoteMode")
         }
         serviceScope.launch(Dispatchers.Main) {
@@ -275,7 +327,7 @@ class MediaPlaybackService : Service() {
     }
 
     fun setVolumeLevel(percent: Float) {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log("MediaPlaybackService->setVolumeLevel", "percent: $percent, isRemoteMode: $isRemoteMode")
         }
         serviceScope.launch(Dispatchers.Main) {
@@ -316,7 +368,7 @@ class MediaPlaybackService : Service() {
 
     private suspend fun resolveArtworkBitmap(artworkUrl: String?): Bitmap? {
         if (artworkUrl.isNullOrEmpty()) {
-            if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+            if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
                 SnowEvents.log("MediaPlaybackService->resolveArtworkBitmap", "Artwork URL null or empty")
             }
             currentArtworkUrl = null
@@ -324,12 +376,12 @@ class MediaPlaybackService : Service() {
             return null
         }
         if (artworkUrl == currentArtworkUrl && cachedArtworkBitmap != null) {
-            if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+            if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
                 SnowEvents.log("MediaPlaybackService->resolveArtworkBitmap", "Returning cached bitmap")
             }
             return cachedArtworkBitmap
         }
-        if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log("MediaPlaybackService->resolveArtworkBitmap", "Fetching bitmap: $artworkUrl")
         }
         val downloaded = ApiClient.fetchBitmap(artworkUrl)
@@ -342,7 +394,7 @@ class MediaPlaybackService : Service() {
         val currentSong = queueManager.currentSong
 
         serviceScope.launch(Dispatchers.Main) {
-            if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+            if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
                 SnowEvents.log(
                     "MediaPlaybackService->updateRemoteMetadata",
                     "$currentSong?.title by $currentSong?.artist",
@@ -356,20 +408,17 @@ class MediaPlaybackService : Service() {
                 currentSong?.duration,
                 bitmap,
             )
-            audioPlaybackManager.mediaSession?.let { mediaSession ->
-                notificationManager.updateNotification(
-                    mediaSession,
-                    currentSong?.title,
-                    currentSong?.artist,
-                    true,
-                    bitmap,
-                )
-            }
+            notificationManager.updateNotification(
+                currentSong?.title,
+                currentSong?.artist,
+                true,
+                bitmap,
+            )
         }
     }
 
     override fun onDestroy() {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log("MediaPlaybackService->onDestroy", "Destroying service")
         }
         progressJob?.cancel()
@@ -377,6 +426,8 @@ class MediaPlaybackService : Service() {
         serviceScope.launch(Dispatchers.Main) {
             audioPlaybackManager.cleanup()
         }
+        mediaSession.isActive = false
+        mediaSession.release()
         ApiClient.cleanup()
         cachedArtworkBitmap = null
         super.onDestroy()
