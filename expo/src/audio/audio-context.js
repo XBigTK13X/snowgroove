@@ -23,6 +23,7 @@ export function AudioContextProvider(props) {
         currentAudioFile: null,
         musicSession: null
     })
+    const [musicSession, setMusicSession] = React.useState(null)
 
     const duration = playback.currentAudioFile?.duration || 0
     const progressPercent = duration > 0
@@ -82,6 +83,10 @@ export function AudioContextProvider(props) {
             SnowAudioControls.addListener('apiConfigured', () => {
                 if (config.debugAndroidAudio) util.prettyLog({ owner: 'audio-context', action: 'apiConfigured' })
             }),
+            SnowAudioControls.addListener('sessionChanged', (event) => {
+                if (config.debugAndroidAudio) util.prettyLog({ owner: 'audio-context', action: 'sessionChanged', event })
+                setMusicSession(event)
+            }),
             SnowAudioControls.addListener('play', () => {
                 if (config.debugAndroidAudio) util.prettyLog({ owner: 'audio-context', action: 'play' })
             }),
@@ -100,17 +105,11 @@ export function AudioContextProvider(props) {
             SnowAudioControls.addListener('volumeAdjust', (event) => {
                 if (config.debugAndroidAudio) util.prettyLog({ owner: 'audio-context', action: 'volumeAdjust', event })
             }),
-            SnowAudioControls.addListener('queueStale', () => {
-                if (config.debugAndroidAudio) util.prettyLog({ owner: 'audio-context', action: 'queueStale' })
-            }),
             SnowAudioControls.addListener('trackChanged', (event) => {
                 if (config.debugAndroidAudio) util.prettyLog({ owner: 'audio-context', action: 'trackChanged', event })
             }),
             SnowAudioControls.addListener('log', (event) => {
                 if (config.debugAndroidAudio) util.prettyLog({ owner: 'audio-context', action: 'log', event })
-            }),
-            SnowAudioControls.addListener('sessionChanged', (event) => {
-                if (config.debugAndroidAudio) util.prettyLog({ owner: 'audio-context', action: 'sessionChanged', event })
             })
         ]
         return () => {
@@ -132,8 +131,9 @@ export function AudioContextProvider(props) {
 
     let context = {
         ...playback,
+        ...handlers,
         progressPercent,
-        ...handlers
+        musicSession
     }
 
     return (
