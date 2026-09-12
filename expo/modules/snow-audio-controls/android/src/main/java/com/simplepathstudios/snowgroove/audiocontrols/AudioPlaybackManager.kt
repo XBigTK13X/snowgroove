@@ -199,7 +199,7 @@ class AudioPlaybackManager(
         title: String?,
         artist: String?,
         album: String?,
-        durationSeconds: Long?,
+        durationSeconds: Float?,
         artwork: Bitmap?,
     ) {
         if (SnowConfig.DEBUG_ANDROID_AUDIO) {
@@ -208,13 +208,15 @@ class AudioPlaybackManager(
                 "$title by $artist ($album), duration: ${durationSeconds}s, artwork: ${if (artwork != null) "present" else "null"}",
             )
         }
+        val durationMs = ((durationSeconds ?: 0f) * 1000f).toLong()
+
         val metadata =
             MediaMetadataCompat
                 .Builder()
                 .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
                 .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist)
                 .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album)
-                .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, (durationSeconds ?: 0L) * 1000L)
+                .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, durationMs)
                 .apply {
                     if (artwork != null) {
                         putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, artwork)

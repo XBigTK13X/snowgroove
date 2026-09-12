@@ -22,9 +22,12 @@ class QueueManager {
                 queue.songs.getOrNull(queue.currentSongIndex)
             }
 
-    fun loadSession(playerId: String?) {
+    fun loadSession(
+        remotePlayerId: Int?,
+        remotePlayerName: String?,
+    ) {
         scope.launch {
-            val session = ApiClient.getMusicSession(playerId)
+            val session = ApiClient.getMusicSession(remotePlayerId, remotePlayerName)
             if (session == null) {
                 if (SnowConfig.DEBUG_ANDROID_AUDIO) {
                     SnowEvents.log("QueueManager->loadSession", "Failed to retrieve session")

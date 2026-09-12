@@ -67,6 +67,7 @@ class SnowAudioControlsModule : Module() {
             Name("SnowAudioControls")
 
             Events(
+                "apiConfigured",
                 "finished",
                 "log",
                 "next",
@@ -75,6 +76,7 @@ class SnowAudioControlsModule : Module() {
                 "previous",
                 "seek",
                 "statusUpdate",
+                "sessionChanged",
                 "trackChanged",
                 "volumeAdjust",
             )
@@ -122,21 +124,12 @@ class SnowAudioControlsModule : Module() {
             Function("setVolume") { volume: Double ->
                 playbackService?.setVolumeLevel(volume.toFloat())
             }
-
-            Function("setRemoteControlMode") { data: Map<String, Any> ->
-                playbackService?.setRemoteControlMode(false, 0.0f)
-            }
-
             Function("syncRemoteVolume") { volume: Double ->
                 playbackService?.syncRemoteVolume(volume.toFloat())
             }
 
             Function("updateMetadata") { data: Map<String, Any> ->
                 playbackService?.updateRemoteMetadata()
-            }
-
-            Function("requestQueueSync") {
-                playbackService?.requestQueueSync()
             }
 
             OnDestroy {

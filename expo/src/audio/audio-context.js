@@ -15,7 +15,7 @@ export function useAudioContext() {
 }
 
 export function AudioContextProvider(props) {
-    const { targetPlayer, config } = useAppContext()
+    const { targetPlayer, config, apiClient } = useAppContext()
     const [playback, setPlayback] = React.useState({
         isPlaying: false,
         positionSeconds: 0,
@@ -78,9 +78,13 @@ export function AudioContextProvider(props) {
     }
 
     React.useEffect(() => {
-        SnowAudioControls.addListener('play', () => {
-            if (config.debugAndroidAudio) util.prettyLog({ owner: 'audio-context', action: 'play' })
-        }),
+        const listeners = [
+            SnowAudioControls.addListener('apiConfigured', () => {
+                if (config.debugAndroidAudio) util.prettyLog({ owner: 'audio-context', action: 'apiConfigured' })
+            }),
+            SnowAudioControls.addListener('play', () => {
+                if (config.debugAndroidAudio) util.prettyLog({ owner: 'audio-context', action: 'play' })
+            }),
             SnowAudioControls.addListener('pause', () => {
                 if (config.debugAndroidAudio) util.prettyLog({ owner: 'audio-context', action: 'pause' })
             }),
@@ -107,15 +111,24 @@ export function AudioContextProvider(props) {
             }),
             SnowAudioControls.addListener('sessionChanged', (event) => {
                 if (config.debugAndroidAudio) util.prettyLog({ owner: 'audio-context', action: 'sessionChanged', event })
-                setPlaybackState((prev) => { return { ...prev, musicSession: event } })
             })
+        ]
+        return () => {
+            for (let listener of listeners) {
+                listener.remove()
+            }
+        }
     }, [])
 
     React.useEffect(() => {
-        SnowAudioControls.changeTargetPlayer(targetPlayer?.id ?? null, targetPlayer?.name ?? null)
-    }, [targetPlayer?.id, targetPlayer?.name])
-
-
+        if (apiClient?.baseURL && apiClient?.authToken) {
+            SnowAudioControls.configureApi(
+                apiClient.baseURL,
+                apiClient.authToken
+            )
+            SnowAudioControls.changeTargetPlayer(targetPlayer?.id ?? null, targetPlayer?.name ?? null)
+        }
+    }, [apiClient?.baseURL, apiClient?.authToken, targetPlayer?.id, targetPlayer?.name])
 
     let context = {
         ...playback,

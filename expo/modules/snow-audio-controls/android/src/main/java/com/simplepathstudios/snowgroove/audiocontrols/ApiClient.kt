@@ -31,7 +31,8 @@ interface SnowgrooveService {
 
     @GET("music-session")
     suspend fun getMusicSession(
-        @Query("player_id") playerId: String?,
+        @Query("remote_player_id") remotePlayerId: Int?,
+        @Query("remote_player_name") remotePlayerName: String?,
     ): Response<MusicSession>
 
     @POST("music-session/{sessionId}/queue")
@@ -58,6 +59,9 @@ object ApiClient {
     private var service: SnowgrooveService? = null
 
     @Volatile
+    private var apiUrl: String? = null
+
+    @Volatile
     private var authToken: String? = null
 
     private val json =
@@ -72,6 +76,7 @@ object ApiClient {
     ) {
         authToken = token
         val sanitizedBaseUrl = baseUrl.trimEnd('/') + "/"
+        apiUrl = sanitizedBaseUrl
 
         val authInterceptor =
             Interceptor { chain ->
@@ -134,15 +139,44 @@ object ApiClient {
         }
     }
 
-    suspend fun getMusicSession(playerId: String?): MusicSession? =
+    suspend fun getMusicSession(
+        remotePlayerId: Int?,
+        remotePlayerName: String?,
+    ): MusicSession? =
         try {
-            val response = requireService().getMusicSession(playerId)
+            if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+                SnowEvents.log(
+                    "ApiClient->getMusicSession",
+                    "url: $apiUrl, id: $remotePlayerId, name: $remotePlayerName, token: $authToken",
+                )
+            }
+            val response = requireService().getMusicSession(remotePlayerId, remotePlayerName)
             if (response.isSuccessful) {
-                response.body()
+                val session = response.body()
+                if (session == null && SnowConfig.DEBUG_ANDROID_AUDIO) {
+                    SnowEvents.log(
+                        "ApiClient->getMusicSession",
+                        "Successful response code ${response.code()} returned null body",
+                    )
+                }
+                session
             } else {
+                if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+                    val errorDetails = response.errorBody()?.string()?.takeIf { it.isNotBlank() } ?: "None"
+                    SnowEvents.log(
+                        "ApiClient->getMusicSession",
+                        "Unsuccessful response code ${response.code()} message: ${response.message()}, error body: $errorDetails",
+                    )
+                }
                 null
             }
-        } catch (ignored: Exception) {
+        } catch (exception: Exception) {
+            if (SnowConfig.DEBUG_ANDROID_AUDIO) {
+                SnowEvents.log(
+                    "ApiClient->getMusicSession",
+                    "Exception fetching music session: ${exception.javaClass.simpleName} - ${exception.message}",
+                )
+            }
             null
         }
 

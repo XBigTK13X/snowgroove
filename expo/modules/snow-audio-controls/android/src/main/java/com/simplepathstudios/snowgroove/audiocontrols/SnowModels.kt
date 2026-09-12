@@ -95,7 +95,7 @@ data class AudioFile(
     @SerialName("artwork_url")
     var rawArtworkUrl: String? = null,
     @Field
-    var duration: Long = 0L,
+    var duration: Float = 0.0f,
     @Field
     var fingerprint: String = "",
     @Field

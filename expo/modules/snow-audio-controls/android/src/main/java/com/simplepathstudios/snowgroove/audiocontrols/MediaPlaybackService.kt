@@ -142,39 +142,15 @@ class MediaPlaybackService : Service() {
         }
         targetPlayerId = id
         targetPlayerName = name
-    }
-
-    fun requestQueueSync() {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO) {
-            SnowEvents.log("MediaPlaybackService->requestQueueSync", "Requesting sync")
+        if (targetPlayerId == null) {
+            audioPlaybackManager.setMode(false)
+            volumeManager.unregisterObserver()
+        } else {
+            audioPlaybackManager.setMode(true)
+            volumeManager.registerObserver()
         }
         serviceScope.launch(Dispatchers.Main) {
-            queueManager.loadSession(null)
-        }
-    }
-
-    fun setRemoteControlMode(
-        enabled: Boolean,
-        initialVolumePercent: Float,
-    ) {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO) {
-            SnowEvents.log("MediaPlaybackService->setRemoteControlMode", "enabled: $enabled, volume: $initialVolumePercent")
-        }
-        serviceScope.launch(Dispatchers.Main) {
-            val session = audioPlaybackManager.mediaSession ?: return@launch
-            isRemoteMode = enabled
-            audioPlaybackManager.setMode(enabled)
-
-            session.setPlaybackToLocal(AudioManager.STREAM_MUSIC)
-
-            if (enabled) {
-                audioPlaybackManager.stop()
-                volumeManager.registerObserver()
-                session.isActive = true
-                audioPlaybackManager.syncSessionPlaybackState(true)
-            } else {
-                volumeManager.unregisterObserver()
-            }
+            queueManager.loadSession(id, name)
         }
     }
 
@@ -203,7 +179,6 @@ class MediaPlaybackService : Service() {
             if (SnowConfig.DEBUG_ANDROID_AUDIO) {
                 SnowEvents.log("MediaPlaybackService->loadAndPlay", currentSong?.thumbnailWebPath ?: "[empty]")
             }
-            setRemoteControlMode(false, volumeManager.targetVolume)
             audioPlaybackManager.loadAndPlay(currentSong?.streamUrl ?: "", volumeManager.targetVolume)
 
             val bitmap = resolveArtworkBitmap(currentSong?.thumbnailWebPath)

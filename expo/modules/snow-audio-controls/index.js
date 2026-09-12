@@ -87,23 +87,12 @@ const createCrossControls = () => {
             CrossAudio.setVolume(volume)
         }
 
-        static setRemoteControlMode(enabled, initialVolume = 1.0) {
-            CrossAudio.setRemoteControlMode({
-                enabled: enabled,
-                initialVolume: initialVolume
-            })
-        }
-
         static syncRemoteVolume(volume) {
             CrossAudio.syncRemoteVolume(volume)
         }
 
         static updateMetadata() {
             CrossAudio.updateMetadata()
-        }
-
-        static requestQueueSync() {
-            CrossAudio.requestQueueSync()
         }
     }
 }
@@ -155,23 +144,12 @@ const createAndroidControls = () => {
             nativeAudio.setVolume(volume)
         }
 
-        static setRemoteControlMode(enabled, initialVolume = 1.0) {
-            nativeAudio.setRemoteControlMode({
-                enabled: enabled,
-                initialVolume: initialVolume
-            })
-        }
-
         static syncRemoteVolume(volume) {
             nativeAudio.syncRemoteVolume(volume)
         }
 
         static updateMetadata() {
             nativeAudio.updateMetadata()
-        }
-
-        static requestQueueSync() {
-            nativeAudio.requestQueueSync()
         }
     }
 }

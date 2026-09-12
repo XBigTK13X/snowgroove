@@ -28,11 +28,6 @@ export function AudioContextProvider({ children }) {
         }
     }, [apiClient?.baseURL, apiClient?.authToken])
 
-    React.useEffect(() => {
-        if (playbackState.musicSession?.music_queue) {
-            SnowAudioControls.requestQueueSync()
-        }
-    }, [playbackState.musicSession])
 
     React.useEffect(() => {
         const subscriptions = [
