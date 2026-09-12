@@ -84,14 +84,6 @@ const createCrossControls = () => {
         static setVolume(volume) {
             CrossAudio.setVolume(volume)
         }
-
-        static syncRemoteVolume(volume) {
-            CrossAudio.syncRemoteVolume(volume)
-        }
-
-        static updateMetadata() {
-            CrossAudio.updateMetadata()
-        }
     }
 }
 
@@ -133,14 +125,6 @@ const createAndroidControls = () => {
 
         static setVolume(volume) {
             nativeAudio.setVolume(volume)
-        }
-
-        static syncRemoteVolume(volume) {
-            nativeAudio.syncRemoteVolume(volume)
-        }
-
-        static updateMetadata() {
-            nativeAudio.updateMetadata()
         }
     }
 }

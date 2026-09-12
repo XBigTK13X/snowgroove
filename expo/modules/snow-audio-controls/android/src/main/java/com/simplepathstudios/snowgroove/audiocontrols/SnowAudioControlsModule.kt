@@ -124,13 +124,6 @@ class SnowAudioControlsModule : Module() {
             Function("setVolume") { volume: Double ->
                 playbackService?.setVolumeLevel(volume.toFloat())
             }
-            Function("syncRemoteVolume") { volume: Double ->
-                playbackService?.syncRemoteVolume(volume.toFloat())
-            }
-
-            Function("updateMetadata") { data: Map<String, Any> ->
-                playbackService?.updateRemoteMetadata()
-            }
 
             OnDestroy {
                 SnowEvents.setEventEmitter(null)

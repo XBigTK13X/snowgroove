@@ -212,25 +212,6 @@ class MediaPlaybackService : Service() {
         }
     }
 
-    fun adjustRemoteVolumeByDelta(delta: Double) {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
-            SnowEvents.log("MediaPlaybackService->adjustRemoteVolumeByDelta", "delta: $delta, isRemoteMode: $isRemoteMode")
-        }
-        serviceScope.launch(Dispatchers.Main) {
-            if (!isRemoteMode) return@launch
-            volumeManager.adjustRemoteVolumeByDelta(delta)
-        }
-    }
-
-    fun syncRemoteVolume(percent: Float) {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
-            SnowEvents.log("MediaPlaybackService->syncRemoteVolume", "percent: $percent")
-        }
-        serviceScope.launch(Dispatchers.Main) {
-            volumeManager.syncRemoteVolume(percent)
-        }
-    }
-
     fun loadAndPlay() {
         serviceScope.launch(Dispatchers.Main) {
             val currentSong = queueManager.currentSong
@@ -335,6 +316,16 @@ class MediaPlaybackService : Service() {
             if (!isRemoteMode) {
                 audioPlaybackManager.setVolume(volumeManager.targetVolume)
             }
+        }
+    }
+
+    fun adjustRemoteVolumeByDelta(delta: Double) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
+            SnowEvents.log("MediaPlaybackService->adjustRemoteVolumeByDelta", "delta: $delta, isRemoteMode: $isRemoteMode")
+        }
+        serviceScope.launch(Dispatchers.Main) {
+            if (!isRemoteMode) return@launch
+            volumeManager.adjustRemoteVolumeByDelta(delta)
         }
     }
 

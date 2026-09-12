@@ -7,6 +7,7 @@ export class CrossAudioControls {
         this.apiClient = null
         this.targetPlayerId = null
         this.targetPlayerName = null
+        this.player = null
         this.localPlayer = null
         this.remotePlayer = null
     }
@@ -36,13 +37,42 @@ export class CrossAudioControls {
     changeTargetPlayer(id, name) {
         this.targetPlayerId = id
         this.targetPlayerName = name
+
+        if (this.player !== null) {
+            this.player.deactivate()
+        }
+        if (this.targetPlayerId !== null) {
+            this.player = this.localPlayer
+        } else {
+            this.player = this.remotePlayer
+        }
         this.apiClient.getMusicSession(this.targetPlayerId, this.targetPlayerName).then((session) => {
             this.eventEmitter.emit('sessionChanged', session)
         })
     }
 
     play(audioFile) {
-        this.localPlayer.play(audioFile)
+        this.player.play(audioFile)
+    }
+
+    pause() {
+        this.player.pause()
+    }
+
+    resume() {
+        this.player.resume()
+    }
+
+    stop() {
+        this.player.resume()
+    }
+
+    seek(seconds) {
+        this.player.seek(seconds)
+    }
+
+    setVolume(percent) {
+        this.player.setVolume(percent)
     }
 }
 
