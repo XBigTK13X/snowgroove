@@ -1,12 +1,21 @@
 import React from 'react'
+import { util } from 'expo-snowui'
 import { useAppContext } from '../app-context'
 import { SnowAudioControls } from '../../modules/snow-audio-controls'
 
 
-export const AudioContext = React.createContext(null)
+const AudioContext = React.createContext(null)
 
 export function useAudioContext() {
-    const { targetPlayer } = useAppContext()
+    const context = React.useContext(AudioContext)
+    if (!context) {
+        throw new Error('useAudioContext must be used within an AudioContextProvider')
+    }
+    return context
+}
+
+export function AudioContextProvider(props) {
+    const { targetPlayer, config } = useAppContext()
     const [playback, setPlayback] = React.useState({
         isPlaying: false,
         positionSeconds: 0,
@@ -103,20 +112,20 @@ export function useAudioContext() {
     }, [])
 
     React.useEffect(() => {
-        SnowAudioControls.changeTargetPlayer(targetPlayer?.id, targetPlayer?.name)
+        SnowAudioControls.changeTargetPlayer(targetPlayer?.id ?? null, targetPlayer?.name ?? null)
     }, [targetPlayer?.id, targetPlayer?.name])
 
-    return {
+
+
+    let context = {
         ...playback,
         progressPercent,
         ...handlers
     }
-}
 
-export function useAudioContext() {
-    const context = React.useContext(AudioContext)
-    if (!context) {
-        throw new Error('useAudioContext must be used within an AudioContextProvider')
-    }
-    return context
+    return (
+        <AudioContext.Provider value={context}>
+            {props.children}
+        </AudioContext.Provider>
+    )
 }

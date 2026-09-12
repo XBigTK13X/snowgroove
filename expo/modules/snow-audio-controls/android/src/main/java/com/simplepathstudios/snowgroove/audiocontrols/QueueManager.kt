@@ -26,7 +26,7 @@ class QueueManager {
         scope.launch {
             val session = ApiClient.getMusicSession(playerId)
             if (session == null) {
-                if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+                if (SnowConfig.DEBUG_ANDROID_AUDIO) {
                     SnowEvents.log("QueueManager->loadSession", "Failed to retrieve session")
                 }
                 return@launch
@@ -46,7 +46,7 @@ class QueueManager {
         val targetSessionId = session.id ?: return
 
         scope.launch {
-            if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            if (SnowConfig.DEBUG_ANDROID_AUDIO) {
                 SnowEvents.log(
                     "QueueManager->updateQueue",
                     "Syncing queue index: ${updatedQueue.currentSongIndex}, count: ${updatedQueue.songs.size} for sessionId: $targetSessionId",
@@ -58,7 +58,7 @@ class QueueManager {
                     sessionId = targetSessionId,
                     queuePayload = updatedQueue,
                 )
-            if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            if (SnowConfig.DEBUG_ANDROID_AUDIO) {
                 SnowEvents.log("QueueManager->updateQueue", "Server sync success: $isSuccess")
             }
             SnowEvents.send("sessionChanged", session.toMap())
@@ -282,7 +282,7 @@ class QueueManager {
     fun advanceSong(amount: Int): AudioFile? {
         val currentQueue = musicSession?.musicQueue ?: return null
         if (currentQueue.songs.isEmpty()) {
-            if (SnowEvents.DEBUG_ANDROID_AUDIO) {
+            if (SnowConfig.DEBUG_ANDROID_AUDIO) {
                 SnowEvents.log("QueueManager->advanceSong", "Aborting: queue is empty")
             }
             return null
@@ -299,7 +299,7 @@ class QueueManager {
             queue.copy(currentSongIndex = updatedIndex)
         }
 
-        if (SnowEvents.DEBUG_ANDROID_AUDIO && nextSong != null) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO && nextSong != null) {
             SnowEvents.log(
                 "QueueManager->advanceSong",
                 "amount: $amount, index: $previousIndex -> ${musicSession?.musicQueue?.currentSongIndex}, title: ${nextSong?.title}, streamUrl: ${nextSong?.streamUrl}",

@@ -206,7 +206,7 @@ export function useAudioContextBase() {
     }
 }
 
-export function useAudioContext() {
+export function useAudioContextOld() {
     const context = React.useContext(AudioContext)
     if (!context) {
         throw new Error('useAudioContext must be used within an AudioContextProvider')

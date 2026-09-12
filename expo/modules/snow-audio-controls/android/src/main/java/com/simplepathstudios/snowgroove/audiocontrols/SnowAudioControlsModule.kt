@@ -95,7 +95,7 @@ class SnowAudioControlsModule : Module() {
                 SnowEvents.send("apiConfigured")
             }
 
-            Function("changeTargetPlayer") { id:Integer, name:String
+            Function("changeTargetPlayer") { id: Int?, name: String? ->
                 playbackService?.changeTargetPlayer(id, name)
             }
 
