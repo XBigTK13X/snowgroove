@@ -122,8 +122,7 @@ export function AudioContextProvider(props) {
     React.useEffect(() => {
         if (apiClient?.baseURL && apiClient?.authToken) {
             SnowAudioControls.configureApi(
-                apiClient.baseURL,
-                apiClient.authToken
+                apiClient
             )
             SnowAudioControls.changeTargetPlayer(targetPlayer?.id ?? null, targetPlayer?.name ?? null)
         }

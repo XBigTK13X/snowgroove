@@ -1,8 +1,8 @@
-import { requireNativeModule, EventEmitter } from 'expo-modules-core'
+import { requireNativeModule } from 'expo-modules-core'
 import { Platform } from 'react-native'
 
 const createCrossControls = () => {
-    const CrossAudio = require('./audio-controls.js')()
+    const CrossAudio = require('./cross/cross-audio-controls.js').default
 
     class SimpleEventEmitter {
         listeners = new Map()
@@ -44,6 +44,8 @@ const createCrossControls = () => {
 
     const crossEmitter = new SimpleEventEmitter()
 
+    CrossAudio.setEventEmitter(crossEmitter)
+
     return class CrossPlatformAudioControls {
         static emitter = crossEmitter
 
@@ -51,20 +53,16 @@ const createCrossControls = () => {
             return crossEmitter.addListener(eventName, listener)
         }
 
-        static configureApi(baseUrl, token) {
-            CrossAudio.configureApi(baseUrl, token)
+        static configureApi(apiClient) {
+            CrossAudio.configureApi(apiClient)
         }
 
         static changeTargetPlayer(name, id) {
             CrossAudio.changeTargetPlayer(name, id)
         }
 
-        static loadMusicSession(remoteDeviceId) {
-            CrossAudio.loadMusicSession(remoteDeviceId)
-        }
-
-        static play() {
-            CrossAudio.play()
+        static play(audioFile) {
+            CrossAudio.play(audioFile)
         }
 
         static resume() {
@@ -99,25 +97,18 @@ const createCrossControls = () => {
 
 const createAndroidControls = () => {
     const nativeAudio = requireNativeModule('SnowAudioControls')
-    const nativeEmitter = new EventEmitter(nativeAudio)
 
     return class SnowAudioControlsAndroid {
-        static emitter = nativeEmitter
-
         static addListener(eventName, listener) {
-            return nativeEmitter.addListener(eventName, listener)
+            return nativeAudio.addListener(eventName, listener)
         }
 
-        static configureApi(baseUrl, token) {
-            nativeAudio.configureApi(baseUrl, token)
+        static configureApi(apiClient) {
+            nativeAudio.configureApi(apiClient.baseURL, apiClient.authToken)
         }
 
         static changeTargetPlayer(id, name) {
             nativeAudio.changeTargetPlayer(id, name)
-        }
-
-        static loadMusicSession(remoteDeviceId) {
-            nativeAudio.loadMusicSession(remoteDeviceId)
         }
 
         static play(audioFile) {
