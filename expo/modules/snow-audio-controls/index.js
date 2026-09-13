@@ -84,6 +84,10 @@ const createCrossControls = () => {
         static setVolume(volume) {
             CrossAudio.setVolume(volume)
         }
+
+        static moveCurrentIndex(amount) {
+            nativeAudio.moveCurrentIndex(amount)
+        }
     }
 }
 
@@ -125,6 +129,10 @@ const createAndroidControls = () => {
 
         static setVolume(volume) {
             nativeAudio.setVolume(volume)
+        }
+
+        static moveCurrentIndex(amount) {
+            nativeAudio.moveCurrentIndex(amount)
         }
     }
 }

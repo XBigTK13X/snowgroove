@@ -329,6 +329,10 @@ class MediaPlaybackService : Service() {
         }
     }
 
+    fun moveCurrentIndex(amount: Int) {
+        queueManager.advanceSong(amount)
+    }
+
     private fun startProgressLoop() {
         progressJob?.cancel()
         progressJob =

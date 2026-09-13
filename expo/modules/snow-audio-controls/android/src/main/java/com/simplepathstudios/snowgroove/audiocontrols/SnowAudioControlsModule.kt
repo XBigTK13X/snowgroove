@@ -74,6 +74,7 @@ class SnowAudioControlsModule : Module() {
                 "pause",
                 "play",
                 "previous",
+                "progressUpdated",
                 "seek",
                 "statusUpdate",
                 "sessionChanged",
@@ -123,6 +124,10 @@ class SnowAudioControlsModule : Module() {
 
             Function("setVolume") { volume: Double ->
                 playbackService?.setVolumeLevel(volume.toFloat())
+            }
+
+            Function("moveCurrentIndex") { amount: Int ->
+                playbackService?.moveCurrentIndex(amount)
             }
 
             OnDestroy {

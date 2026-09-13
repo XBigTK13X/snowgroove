@@ -3,7 +3,6 @@ import { util } from 'expo-snowui'
 import { useAppContext } from '../app-context'
 import { SnowAudioControls } from '../../modules/snow-audio-controls'
 
-
 const AudioContext = React.createContext(null)
 
 export function useAudioContext() {
@@ -16,26 +15,34 @@ export function useAudioContext() {
 
 export function AudioContextProvider(props) {
     const { targetPlayer, config, apiClient } = useAppContext()
-    const [playback, setPlayback] = React.useState({
-        isPlaying: false,
-        positionSeconds: 0,
-        volume: 1.0,
-        currentAudioFile: null,
-        musicSession: null
-    })
+
+    const [isPlaying, setIsPlaying] = React.useState(false)
+    const [positionSeconds, setPositionSeconds] = React.useState(0)
+    const [durationSeconds, setDurationSeconds] = React.useState(0)
+    const [volume, setVolume] = React.useState(1.0)
+    const [currentAudioFile, setCurrentAudioFile] = React.useState(null)
     const [musicSession, setMusicSession] = React.useState(null)
 
-    const duration = playback.currentAudioFile?.duration || 0
-    const progressPercent = duration > 0
-        ? Math.min(1, Math.max(0, playback.positionSeconds / duration))
+    const progressPercent = durationSeconds > 0
+        ? Math.min(1, Math.max(0, positionSeconds / durationSeconds))
         : 0
 
     const handlers = {
         playAudioFile: (audioFile) => {
             SnowAudioControls.play(audioFile)
         },
+        resumePlayback: () => {
+            SnowAudioControls.resume()
+        },
+        pausePlayback: () => {
+            SnowAudioControls.pause()
+        },
         togglePlayback: () => {
-            SnowAudioControls.togglePlayback()
+            if (isPlaying) {
+                SnowAudioControls.pause()
+            } else {
+                SnowAudioControls.resume()
+            }
         },
         stopAudio: () => {
             SnowAudioControls.stop()
@@ -83,9 +90,16 @@ export function AudioContextProvider(props) {
             SnowAudioControls.addListener('apiConfigured', () => {
                 if (config.debugAndroidAudio != null) util.prettyLog({ owner: 'audio-context', action: 'apiConfigured' })
             }),
-            SnowAudioControls.addListener('sessionChanged', (event) => {
-                if (config.debugAndroidAudio === 'verbose') util.prettyLog({ owner: 'audio-context', action: 'sessionChanged', event })
-                setMusicSession(event)
+            SnowAudioControls.addListener('sessionChanged', (session) => {
+                if (config.debugAndroidAudio === 'verbose') util.prettyLog({ owner: 'audio-context', action: 'sessionChanged', session })
+                setMusicSession(session)
+                setCurrentAudioFile(session.music_queue.songs[session.music_queue.current_song_index])
+            }),
+            SnowAudioControls.addListener('statusUpdate', (event) => {
+                if (config.debugAndroidAudio != null) util.prettyLog({ owner: 'audio-context', action: 'statusUpdate', event })
+                setPositionSeconds(event.positionMillis / 1000)
+                setDurationSeconds(event.durationMillis / 1000)
+                setIsPlaying(event.isPlaying)
             }),
             SnowAudioControls.addListener('play', () => {
                 if (config.debugAndroidAudio != null) util.prettyLog({ owner: 'audio-context', action: 'play' })
@@ -129,10 +143,18 @@ export function AudioContextProvider(props) {
     }, [apiClient?.baseURL, apiClient?.authToken, targetPlayer?.id, targetPlayer?.name])
 
     let context = {
-        ...playback,
-        ...handlers,
+        isPlaying,
+        setIsPlaying,
+        positionSeconds,
+        setPositionSeconds,
+        volume,
+        setVolume,
+        currentAudioFile,
+        setCurrentAudioFile,
+        musicSession,
+        setMusicSession,
         progressPercent,
-        musicSession
+        ...handlers
     }
 
     return (
