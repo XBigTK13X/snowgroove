@@ -37,14 +37,13 @@ class MediaPlaybackService : Service() {
     var onStatusUpdate: ((Map<String, Any>) -> Unit)? = null
     var onFinished: (() -> Unit)? = null
 
-    private var currentTitle = ""
-    private var currentArtist = ""
-    private var currentAlbum = ""
+    private var currentFingerprint: String? = null
     private var currentArtworkUrl: String? = null
     private var cachedArtworkBitmap: Bitmap? = null
 
     private var isRemoteMode = false
     private var progressJob: Job? = null
+    private var lastStatus: Map<String, Any>? = null
 
     inner class LocalBinder : Binder() {
         fun getService(): MediaPlaybackService = this@MediaPlaybackService
@@ -73,9 +72,10 @@ class MediaPlaybackService : Service() {
                     if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
                         SnowEvents.log("MediaPlaybackService->onPlaybackStateChange", "isPlaying: $isPlaying")
                     }
+                    val currentSong = queueManager.currentSong
                     notificationManager.updateNotification(
-                        currentTitle,
-                        currentArtist,
+                        currentSong?.title,
+                        currentSong?.artist,
                         isPlaying,
                         cachedArtworkBitmap,
                     )
@@ -257,6 +257,8 @@ class MediaPlaybackService : Service() {
                 true,
                 cachedArtworkBitmap,
             )
+
+            currentFingerprint = currentSong?.fingerprint ?: null
         }
     }
 
@@ -276,6 +278,30 @@ class MediaPlaybackService : Service() {
                 false,
                 cachedArtworkBitmap,
             )
+        }
+    }
+
+    fun resume() {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
+            SnowEvents.log("MediaPlaybackService->pause", "isRemoteMode: $isRemoteMode")
+        }
+        serviceScope.launch(Dispatchers.Main) {
+            val currentSong = queueManager.currentSong
+            if (currentFingerprint == null || currentFingerprint != currentSong?.fingerprint) {
+                play(currentSong)
+            } else {
+                if (!isRemoteMode) {
+                    audioPlaybackManager.resume()
+                }
+
+                audioPlaybackManager.syncSessionPlaybackState(false)
+                notificationManager.updateNotification(
+                    currentSong?.title,
+                    currentSong?.artist,
+                    false,
+                    cachedArtworkBitmap,
+                )
+            }
         }
     }
 
@@ -335,6 +361,7 @@ class MediaPlaybackService : Service() {
 
     private fun startProgressLoop() {
         progressJob?.cancel()
+        lastStatus = null
         progressJob =
             serviceScope.launch(Dispatchers.Default) {
                 while (isActive) {
@@ -343,14 +370,17 @@ class MediaPlaybackService : Service() {
                             withContext(Dispatchers.Main) {
                                 val progress = audioPlaybackManager.getPlayerProgress()
                                 if (progress != null) {
-                                    onStatusUpdate?.invoke(
+                                    val currentStatus =
                                         mapOf(
                                             "positionMillis" to progress.first,
                                             "durationMillis" to progress.second,
                                             "isPlaying" to audioPlaybackManager.isPlaying(),
                                             "isLoaded" to true,
-                                        ),
-                                    )
+                                        )
+                                    if (currentStatus != lastStatus) {
+                                        lastStatus = currentStatus
+                                        onStatusUpdate?.invoke(currentStatus)
+                                    }
                                 }
                             }
                         } catch (ignored: Exception) {
@@ -417,6 +447,7 @@ class MediaPlaybackService : Service() {
             SnowEvents.log("MediaPlaybackService->onDestroy", "Destroying service")
         }
         progressJob?.cancel()
+        lastStatus = null
         volumeManager.cleanup()
         serviceScope.launch(Dispatchers.Main) {
             audioPlaybackManager.cleanup()

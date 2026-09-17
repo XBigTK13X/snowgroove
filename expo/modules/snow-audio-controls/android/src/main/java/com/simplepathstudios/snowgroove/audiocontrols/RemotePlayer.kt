@@ -39,6 +39,10 @@ class RemotePlayer : ISnowPlayer {
         isPlaying = false
     }
 
+    override fun resume() {
+        isPlaying = true
+    }
+
     override fun stop() {
         isPlaying = false
         currentPositionMillis = 0L

@@ -141,6 +141,10 @@ class LocalPlayer(
         exoPlayer?.playWhenReady = false
     }
 
+    override fun resume() {
+        exoPlayer?.playWhenReady = true
+    }
+
     override fun stop() {
         exoPlayer?.let { player ->
             try {

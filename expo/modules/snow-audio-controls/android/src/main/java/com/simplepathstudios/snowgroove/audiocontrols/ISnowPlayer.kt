@@ -16,6 +16,8 @@ interface ISnowPlayer {
 
     fun pause()
 
+    fun resume()
+
     fun stop()
 
     fun seek(targetMillis: Long)

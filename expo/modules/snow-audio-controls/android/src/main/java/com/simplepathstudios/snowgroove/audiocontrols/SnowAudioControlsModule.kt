@@ -107,7 +107,7 @@ class SnowAudioControlsModule : Module() {
             }
 
             Function("resume") {
-                playbackService?.play(audioFile = null)
+                playbackService?.resume()
             }
 
             Function("pause") {

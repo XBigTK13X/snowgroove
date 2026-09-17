@@ -65,6 +65,13 @@ class AudioPlaybackManager(
         activePlayer.play(targetVolume)
     }
 
+    fun resume() {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
+            SnowEvents.log("AudioPlaybackManager->resume", "Resuming active player")
+        }
+        activePlayer.resume()
+    }
+
     fun pause() {
         if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log("AudioPlaybackManager->pause", "Pausing active player")
