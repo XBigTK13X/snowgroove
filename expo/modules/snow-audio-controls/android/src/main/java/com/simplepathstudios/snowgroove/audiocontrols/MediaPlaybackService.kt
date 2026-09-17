@@ -389,6 +389,16 @@ class MediaPlaybackService : Service() {
         }
     }
 
+    fun moveQueueItem(
+        oldIndex: Int,
+        newIndex: Int,
+    ) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
+            SnowEvents.log("MediaPlaybackService->moveQueueItem", "$oldIndex to $newIndex")
+        }
+        queueManager.move(oldIndex, newIndex)
+    }
+
     private fun startProgressLoop() {
         progressJob?.cancel()
         lastStatus = null

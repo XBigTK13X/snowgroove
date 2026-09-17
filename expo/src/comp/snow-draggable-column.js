@@ -180,7 +180,6 @@ export function SnowDraggableColumn(props) {
 
                 setDraggingIndex(null)
                 setTargetIndex(null)
-
                 if (
                     currentDragging !== null &&
                     currentDragging !== undefined &&
@@ -189,12 +188,13 @@ export function SnowDraggableColumn(props) {
                     currentDragging !== currentTarget &&
                     currentItems
                 ) {
-                    const listCopy = [...currentItems]
-                    const [movedItem] = listCopy.splice(currentDragging, 1)
-                    listCopy.splice(currentTarget, 0, movedItem)
-
+                    const movedItem = currentItems[currentDragging]
                     if (props.onReorder) {
-                        props.onReorder(listCopy)
+                        props.onReorder({
+                            item: movedItem,
+                            oldIndex: currentDragging,
+                            newIndex: currentTarget
+                        })
                     }
                 }
             },

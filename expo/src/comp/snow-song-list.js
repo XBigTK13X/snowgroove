@@ -12,7 +12,7 @@ export function SnowSongList(props) {
         addAudioFileToQueue,
         playAudioFile,
         musicSession,
-        reorderMusicQueue,
+        moveQueueItem,
         removeAudioFileFromQueue,
         removeCrateFromQueue
     } = useAudioContext()
@@ -151,7 +151,7 @@ export function SnowSongList(props) {
             disableDrag={props.disableDrag}
             items={props.audioFiles}
             rowHeight={125}
-            onReorder={reorderMusicQueue}
+            onReorder={moveQueueItem}
             renderItem={(item, itemIndex) => {
                 let itemDisplay = ''
                 if (SnowStyle.isPortrait) {

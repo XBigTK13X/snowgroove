@@ -149,6 +149,10 @@ class SnowAudioControlsModule : Module() {
                 playbackService?.removeFromQueue(audioFiles)
             }
 
+            Function("moveQueueItem") { oldIndex: Int, newIndex: Int ->
+                playbackService?.moveQueueItem(oldIndex, newIndex)
+            }
+
             OnDestroy {
                 SnowEvents.setEventEmitter(null)
                 val context = appContext.reactContext

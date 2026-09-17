@@ -67,6 +67,7 @@ const forwardMethods = [
     'changeTargetPlayer',
     'clearQueue',
     'moveCurrentIndex',
+    'moveQueueItem',
     'pause',
     'play',
     'removeFromQueue',

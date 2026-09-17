@@ -260,4 +260,41 @@ class QueueManager {
             syncQueue()
         }
     }
+
+    fun move(
+        oldIndex: Int,
+        newIndex: Int,
+    ) {
+        val queue = getOrCreateQueue() ?: return
+        if (queue.songs.isEmpty()) return
+        if (oldIndex !in queue.songs.indices) return
+        if (oldIndex == newIndex) return
+
+        val boundedTarget = newIndex.coerceIn(0, queue.songs.lastIndex)
+        val mutableSongs = queue.songs.toMutableList()
+        val movedSong = mutableSongs.removeAt(oldIndex)
+
+        val insertionIndex =
+            if (oldIndex < boundedTarget) {
+                boundedTarget - 1
+            } else {
+                boundedTarget
+            }
+
+        mutableSongs.add(insertionIndex, movedSong)
+
+        val currentIndex = queue.currentSongIndex
+        val updatedCurrentIndex =
+            when {
+                currentIndex == oldIndex -> insertionIndex
+                oldIndex < currentIndex && insertionIndex >= currentIndex -> currentIndex - 1
+                oldIndex > currentIndex && insertionIndex <= currentIndex -> currentIndex + 1
+                else -> currentIndex
+            }
+
+        queue.songs = mutableSongs
+        queue.currentSongIndex = updatedCurrentIndex.coerceIn(0, queue.songs.lastIndex)
+
+        syncQueue()
+    }
 }

@@ -95,7 +95,6 @@ export function AudioContextProvider(props) {
                     }
                 }
             }
-            console.log({ crateId, kind, count: targets.length })
             if (targets?.length) {
                 SnowAudioControls.removeFromQueue(targets)
             }
@@ -106,8 +105,8 @@ export function AudioContextProvider(props) {
         shuffleQueue: () => {
             SnowAudioControls.shuffleQueue()
         },
-        reorderQueue: (list) => () => {
-            SnowAudioControls.updateQueueOrder(list)
+        moveQueueItem: ({ item, oldIndex, newIndex }) => {
+            SnowAudioControls.moveQueueItem(oldIndex, newIndex)
         }
     }
 
