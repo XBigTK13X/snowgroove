@@ -29,9 +29,7 @@ class VolumeManager(
     var remoteVolumePercent: Double = 1.0
         private set
 
-    var remoteApiBaseUrl: String? = null
-    var remoteAuthToken: String? = null
-    var remoteSessionId: String? = null
+    var remoteSessionId: Int? = null
 
     fun setLocalVolumeLevel(percent: Float) {
         targetVolume = percent.coerceIn(0.0f, 1.0f)
@@ -39,18 +37,6 @@ class VolumeManager(
 
     fun syncRemoteVolume(percent: Float) {
         remoteVolumePercent = percent.toDouble().coerceIn(0.0, 1.0)
-    }
-
-    fun configureRemoteSettings(
-        initialVolumePercent: Float,
-        baseUrl: String?,
-        authToken: String?,
-        sessionId: String?,
-    ) {
-        remoteApiBaseUrl = baseUrl
-        remoteAuthToken = authToken
-        remoteSessionId = sessionId
-        remoteVolumePercent = initialVolumePercent.toDouble().coerceIn(0.0, 1.0)
     }
 
     fun registerObserver() {
@@ -111,8 +97,6 @@ class VolumeManager(
     }
 
     private fun sendRemoteVolume() {
-        val baseUrl = remoteApiBaseUrl ?: return
-        val token = remoteAuthToken ?: return
         val sessionId = remoteSessionId ?: return
         ApiClient.sendRemoteVolume(sessionId, remoteVolumePercent, wakeLock)
     }

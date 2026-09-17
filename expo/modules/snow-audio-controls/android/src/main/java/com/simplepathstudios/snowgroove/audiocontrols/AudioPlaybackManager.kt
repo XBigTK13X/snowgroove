@@ -24,18 +24,25 @@ class AudioPlaybackManager(
             },
         )
 
-    private val remotePlayer: RemotePlayer = RemotePlayer()
+    private var musicSession: MusicSession? = null
     private var activePlayer: ISnowPlayer = localPlayer
 
-    fun setMode(isRemoteMode: Boolean) {
+    fun setSession(
+        playerId: Int?,
+        session: MusicSession,
+    ) {
         if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
-            SnowEvents.log("AudioPlaybackManager->setMode", "isRemoteMode: $isRemoteMode")
+            SnowEvents.log("AudioPlaybackManager->setMode", "playerId: $playerId")
         }
-        if (isRemoteMode) {
+        if (playerId != null) {
             if (activePlayer === localPlayer) {
                 localPlayer.pause()
             }
-            activePlayer = remotePlayer
+            playerId?.let { remoteId ->
+                session?.id?.let { sessionId ->
+                    activePlayer = RemotePlayer(remoteId, sessionId)
+                }
+            }
         } else {
             activePlayer = localPlayer
         }
@@ -103,23 +110,6 @@ class AudioPlaybackManager(
     fun isPlaying(): Boolean = activePlayer.isPlaying
 
     fun getPlayerProgress(): Pair<Long, Long>? = activePlayer.progress
-
-    fun syncRemotePlayback(
-        isPlaying: Boolean,
-        positionMillis: Long,
-        durationMillis: Long = 0L,
-    ) {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
-            SnowEvents.log(
-                "AudioPlaybackManager->syncRemotePlayback",
-                "isPlaying: $isPlaying, positionMillis: $positionMillis, durationMillis: $durationMillis",
-            )
-        }
-        remotePlayer.syncRemoteState(isPlaying, positionMillis, durationMillis)
-        if (activePlayer === remotePlayer) {
-            syncSessionPlaybackState(isPlaying, positionMillis)
-        }
-    }
 
     fun updateMetadata(
         title: String?,
@@ -190,6 +180,8 @@ class AudioPlaybackManager(
             SnowEvents.log("AudioPlaybackManager->cleanup", "Releasing players")
         }
         localPlayer.cleanup()
-        remotePlayer.cleanup()
+        if (activePlayer != localPlayer) {
+            activePlayer.cleanup()
+        }
     }
 }

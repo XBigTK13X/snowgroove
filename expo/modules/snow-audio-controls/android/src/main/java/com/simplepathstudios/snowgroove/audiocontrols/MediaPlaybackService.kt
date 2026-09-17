@@ -32,6 +32,7 @@ class MediaPlaybackService : Service() {
     private lateinit var audioPlaybackManager: AudioPlaybackManager
     private lateinit var volumeManager: VolumeManager
     private lateinit var queueManager: QueueManager
+    private lateinit var musicSession: MusicSession
 
     var onCommand: ((String, Map<String, Any>?) -> Unit)? = null
     var onStatusUpdate: ((Map<String, Any>) -> Unit)? = null
@@ -195,20 +196,27 @@ class MediaPlaybackService : Service() {
         id: Int?,
         name: String?,
     ) {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
-            SnowEvents.log("MediaPlaybackService->changeTargetPlayer", "id: $id, name: $name")
-        }
-        targetPlayerId = id
-        targetPlayerName = name
-        if (targetPlayerId == null) {
-            audioPlaybackManager.setMode(false)
-            volumeManager.unregisterObserver()
-        } else {
-            audioPlaybackManager.setMode(true)
-            volumeManager.registerObserver()
-        }
         serviceScope.launch(Dispatchers.Main) {
-            queueManager.loadSession(id, name)
+            if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
+                SnowEvents.log("MediaPlaybackService->changeTargetPlayer", "id: $id, name: $name")
+            }
+            val session = ApiClient.getMusicSession(id, name)
+            if (session == null) {
+                if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
+                    SnowEvents.log("MediaPlaybackService->loadSession", "Failed to retrieve session")
+                }
+                return@launch
+            }
+            musicSession = session
+            SnowEvents.send("sessionChanged", session.toMap())
+            if (id == null) {
+                audioPlaybackManager.setSession(null, musicSession)
+                volumeManager.unregisterObserver()
+            } else {
+                audioPlaybackManager.setSession(id, musicSession)
+                volumeManager.registerObserver()
+            }
+            queueManager.setSession(musicSession)
         }
     }
 

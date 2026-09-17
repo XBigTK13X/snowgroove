@@ -2,7 +2,10 @@ package com.simplepathstudios.snowgroove.audiocontrols
 
 import android.content.Context
 
-class RemotePlayer : ISnowPlayer {
+class RemotePlayer(
+    val remotePlayerId: Int,
+    val musicSessionId: Int,
+) : ISnowPlayer {
     override var isPlaying: Boolean = false
     override var currentPositionMillis: Long = 0L
     private var knownDurationMillis: Long = 0L
@@ -33,23 +36,28 @@ class RemotePlayer : ISnowPlayer {
 
     override fun play(targetVolume: Float?) {
         isPlaying = true
+        ApiClient.playMusicSession(musicSessionId)
     }
 
     override fun pause() {
         isPlaying = false
+        ApiClient.pauseMusicSession(musicSessionId)
     }
 
     override fun resume() {
         isPlaying = true
+        ApiClient.playMusicSession(musicSessionId)
     }
 
     override fun stop() {
         isPlaying = false
         currentPositionMillis = 0L
+        ApiClient.stopMusicSession(musicSessionId)
     }
 
     override fun seek(targetMillis: Long) {
         currentPositionMillis = targetMillis
+        ApiClient.seekMusicSession(musicSessionId, targetMillis.toDouble())
     }
 
     override fun setVolume(volume: Float) {}

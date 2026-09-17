@@ -7,6 +7,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -18,12 +21,32 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Headers
 import retrofit2.http.POST
-import retrofit2.http.Path
 import retrofit2.http.Query
 import retrofit2.http.Url
 import java.util.concurrent.TimeUnit
+import kotlin.math.roundToInt
 
 interface SnowgrooveService {
+    @POST("music-session/play")
+    suspend fun playMusicSession(
+        @Body payload: JsonElement,
+    ): Response<Unit>
+
+    @POST("music-session/pause")
+    suspend fun pauseMusicSession(
+        @Body payload: JsonElement,
+    ): Response<Unit>
+
+    @POST("music-session/stop")
+    suspend fun stopMusicSession(
+        @Body payload: JsonElement,
+    ): Response<Unit>
+
+    @POST("music-session/seek")
+    suspend fun seekMusicSession(
+        @Body payload: JsonElement,
+    ): Response<Unit>
+
     @POST("music-session/volume")
     suspend fun sendVolume(
         @Body payload: Volume,
@@ -110,8 +133,108 @@ object ApiClient {
 
     private fun requireService(): SnowgrooveService = service ?: throw IllegalStateException("ApiClient must be configured before use")
 
+    fun playMusicSession(
+        sessionId: Int,
+        wakeLock: PowerManager.WakeLock? = null,
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                wakeLock?.acquire(SnowConfig.WAKE_LOCK_TIMEOUT_MILLISECONDS)
+                val payload =
+                    buildJsonObject {
+                        put("music_session_id", sessionId)
+                    }
+                requireService().playMusicSession(payload)
+            } catch (ignored: Exception) {
+            } finally {
+                try {
+                    if (wakeLock?.isHeld == true) {
+                        wakeLock?.release()
+                    }
+                } catch (ignored: Exception) {
+                }
+            }
+        }
+    }
+
+    fun pauseMusicSession(
+        sessionId: Int,
+        wakeLock: PowerManager.WakeLock? = null,
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                wakeLock?.acquire(SnowConfig.WAKE_LOCK_TIMEOUT_MILLISECONDS)
+                val payload =
+                    buildJsonObject {
+                        put("music_session_id", sessionId)
+                    }
+                requireService().pauseMusicSession(payload)
+            } catch (ignored: Exception) {
+            } finally {
+                try {
+                    if (wakeLock?.isHeld == true) {
+                        wakeLock?.release()
+                    }
+                } catch (ignored: Exception) {
+                }
+            }
+        }
+    }
+
+    fun stopMusicSession(
+        sessionId: Int,
+        wakeLock: PowerManager.WakeLock? = null,
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                wakeLock?.acquire(SnowConfig.WAKE_LOCK_TIMEOUT_MILLISECONDS)
+                val payload =
+                    buildJsonObject {
+                        put("music_session_id", sessionId)
+                    }
+                requireService().stopMusicSession(payload)
+            } catch (ignored: Exception) {
+            } finally {
+                try {
+                    if (wakeLock?.isHeld == true) {
+                        wakeLock?.release()
+                    }
+                } catch (ignored: Exception) {
+                }
+            }
+        }
+    }
+
+    fun seekMusicSession(
+        sessionId: Int,
+        seekToSeconds: Double,
+        wakeLock: PowerManager.WakeLock? = null,
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                wakeLock?.acquire(SnowConfig.WAKE_LOCK_TIMEOUT_MILLISECONDS)
+                val parsedSessionId = sessionId
+                val parsedSeekSeconds = seekToSeconds.roundToInt()
+                val payload =
+                    buildJsonObject {
+                        put("music_session_id", parsedSessionId)
+                        put("seek_to_seconds", parsedSeekSeconds)
+                    }
+                requireService().seekMusicSession(payload)
+            } catch (ignored: Exception) {
+            } finally {
+                try {
+                    if (wakeLock?.isHeld == true) {
+                        wakeLock?.release()
+                    }
+                } catch (ignored: Exception) {
+                }
+            }
+        }
+    }
+
     fun sendRemoteVolume(
-        sessionId: String,
+        sessionId: Int,
         percent: Double,
         wakeLock: PowerManager.WakeLock?,
     ) {
@@ -174,7 +297,7 @@ object ApiClient {
         }
 
     suspend fun updateMusicSession(
-        sessionId: String,
+        sessionId: Int,
         queue: MusicQueue,
     ): Boolean =
         try {

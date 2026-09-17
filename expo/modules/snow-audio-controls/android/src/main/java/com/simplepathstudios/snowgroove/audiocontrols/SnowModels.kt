@@ -56,7 +56,7 @@ inline fun <reified T> T.toMap(): Map<String, Any?> {
 data class Volume(
     @Field
     @SerialName("music_session_id")
-    var musicSessionId: String = "",
+    var musicSessionId: Int? = null,
     @Field
     @SerialName("volume_percent")
     var volumePercent: Double = 0.0,
@@ -66,10 +66,10 @@ data class Volume(
 data class MusicSession(
     @SerialName("music_session_id")
     @Field
-    var writeId: String? = null,
+    var writeId: Int? = null,
     @SerialName("id")
     @Field
-    var id: String? = null,
+    var id: Int? = null,
     @Field
     @SerialName("music_queue")
     var musicQueue: MusicQueue? = null,
