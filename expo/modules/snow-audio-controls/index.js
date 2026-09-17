@@ -86,7 +86,15 @@ const createCrossControls = () => {
         }
 
         static moveCurrentIndex(amount) {
-            nativeAudio.moveCurrentIndex(amount)
+            CrossAudio.moveCurrentIndex(amount)
+        }
+
+        static clearQueue() {
+            CrossAudio.clearQueue()
+        }
+
+        static shuffleQueue() {
+            CrossAudio.shuffleQueue()
         }
     }
 }
@@ -133,6 +141,14 @@ const createAndroidControls = () => {
 
         static moveCurrentIndex(amount) {
             nativeAudio.moveCurrentIndex(amount)
+        }
+
+        static clearQueue() {
+            nativeAudio.clearQueue()
+        }
+
+        static shuffleQueue() {
+            nativeAudio.shuffleQueue()
         }
     }
 }

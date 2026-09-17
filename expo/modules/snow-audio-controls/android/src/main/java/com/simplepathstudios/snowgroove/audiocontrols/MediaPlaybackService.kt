@@ -360,6 +360,17 @@ class MediaPlaybackService : Service() {
         play(queueManager.currentSong)
     }
 
+    fun clearQueue() {
+        stop()
+        queueManager.clearQueue()
+    }
+
+    fun shuffleQueue() {
+        stop()
+        queueManager.shuffleQueue()
+        play(queueManager.currentSong)
+    }
+
     private fun startProgressLoop() {
         progressJob?.cancel()
         lastStatus = null
