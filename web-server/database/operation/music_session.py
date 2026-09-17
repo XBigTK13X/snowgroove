@@ -24,6 +24,8 @@ def load_music_queue(music_session):
     if music_session.music_queue_json:
         music_session.music_queue = dbi.json.loads(music_session.music_queue_json)
         del music_session.music_queue_json
+        if not 'songs' in music_session.music_queue:
+            music_session.music_queue['songs'] = []
         for song in music_session.music_queue['songs']:
             if 'snowgroove_info_json' in song:
                 song['snowgroove_info'] = dbi.json.loads(song['snowgroove_info_json'])

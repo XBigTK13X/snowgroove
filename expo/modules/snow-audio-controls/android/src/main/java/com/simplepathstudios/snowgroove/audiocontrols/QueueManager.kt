@@ -182,7 +182,7 @@ class QueueManager {
 
     fun reorderQueue(
         updatedList: List<AudioFile>,
-        currentAudioFileId: String? = null,
+        currentAudioFileId: Int? = null,
     ) {
         val queue = getOrCreateQueue() ?: return
 
@@ -253,7 +253,7 @@ class QueueManager {
         return nextSong
     }
 
-    fun setQueueIndexBySongId(songId: String) {
+    fun setQueueIndexBySongId(songId: Int) {
         val queue = musicSession?.musicQueue ?: return
         val targetIndex = queue.songs.indexOfFirst { candidate -> candidate.id == songId }
         if (targetIndex != -1) {

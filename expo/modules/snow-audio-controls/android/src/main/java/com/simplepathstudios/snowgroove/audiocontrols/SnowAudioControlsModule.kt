@@ -138,6 +138,9 @@ class SnowAudioControlsModule : Module() {
                 playbackService?.shuffleQueue()
             }
 
+            // If these AudioFile methods fail to be called
+            // It is likely a new property hanging off the server api model.
+            // Those all need to be mapped in SnowModels, or else it fails without warning
             Function("addToQueue") { audioFiles: List<AudioFile> ->
                 playbackService?.addToQueue(audioFiles)
             }

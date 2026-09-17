@@ -90,22 +90,73 @@ data class MusicQueue(
 data class AudioFile(
     @Field
     var album: String = "",
+    @Field("album_crate_id")
+    @SerialName("album_crate_id")
+    var albumCrateId: Int? = null,
     @Field
     var artist: String = "",
+    @Field("artist_crate_id")
+    @SerialName("artist_crate_id")
+    var artistCrateId: Int? = null,
+    @Field("crate_id")
+    @SerialName("crate_id")
+    var crateId: Int? = null,
+    @Field("crate_title")
+    @SerialName("crate_title")
+    var crateTitle: String? = null,
+    @Field("crate_year")
+    @SerialName("crate_year")
+    var crateYear: Int? = null,
+    @Field("crate_year_order")
+    @SerialName("crate_year_order")
+    var crateYearOrder: Int? = null,
+    @Field("created_at")
+    @SerialName("created_at")
+    var createdAt: String? = null,
     @Field
-    @SerialName("thumbnail_web_path")
-    var thumbnailWebPath: String? = null,
+    var disc: String? = null,
     @Field
-    var duration: Float = 0.0f,
+    var duration: Double = 0.0,
+    @Field("ffprobe_raw_json")
+    @SerialName("ffprobe_raw_json")
+    var ffprobeRawJson: String? = null,
     @Field
     var fingerprint: String = "",
     @Field
-    var id: String = "",
+    var id: Int = 0,
     @Field
+    var kind: String = "",
+    @Field("local_path")
+    @SerialName("local_path")
+    var localPath: String? = null,
+    @Field
+    var lyrics: String? = null,
+    @Field("model_kind")
+    @SerialName("model_kind")
+    var modelKind: String? = null,
+    @Field("network_path")
+    @SerialName("network_path")
+    var networkPath: String? = null,
+    @Field
+    var position: String? = null,
+    @Field("snowgroove_info_json")
+    @SerialName("snowgroove_info_json")
+    var snowgrooveInfoJson: String? = null,
+    @Field("thumbnail_web_path")
+    @SerialName("thumbnail_web_path")
+    var thumbnailWebPath: String? = null,
+    @Field
+    var title: String = "",
+    @Field
+    var track: Int? = null,
+    @Field("updated_at")
+    @SerialName("updated_at")
+    var updatedAt: String? = null,
+    @Field("web_path")
     @SerialName("web_path")
     var webPath: String = "",
     @Field
-    var title: String = "",
+    var year: Int? = null,
 ) : Record
 
 @Serializable

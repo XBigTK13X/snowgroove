@@ -72,8 +72,9 @@ export function AudioContextProvider(props) {
         removeAudioFileFromQueue: (audioFile) => {
             SnowAudioControls.removeFromQueue([audioFile])
         },
-        addCrateToQueue: async (crateId) => {
-            let response = await client.getCrateSongList(crateId, onlyChildren)
+        addCrateToQueue: async (crateId, onlyChildren) => {
+            let response = await apiClient.getCrateSongList(crateId, onlyChildren)
+            console.log({ song: response?.audio_files?.[0] })
             SnowAudioControls.addToQueue(response?.audio_files)
         },
         removeCrateFromQueue: (crateId, kind) => {

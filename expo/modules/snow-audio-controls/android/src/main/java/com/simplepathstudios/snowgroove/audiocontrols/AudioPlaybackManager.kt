@@ -125,7 +125,7 @@ class AudioPlaybackManager(
         title: String?,
         artist: String?,
         album: String?,
-        durationSeconds: Float?,
+        durationSeconds: Double?,
         artwork: Bitmap?,
     ) {
         if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
@@ -134,7 +134,7 @@ class AudioPlaybackManager(
                 "$title by $artist ($album), duration: ${durationSeconds}s, artwork: ${if (artwork != null) "present" else "null"}",
             )
         }
-        val durationMs = ((durationSeconds ?: 0f) * 1000f).toLong()
+        val durationMs = ((durationSeconds ?: 0.0) * 1000.0).toLong()
 
         val metadata =
             MediaMetadataCompat

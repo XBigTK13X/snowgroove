@@ -372,6 +372,9 @@ class MediaPlaybackService : Service() {
     }
 
     fun addToQueue(audioFiles: List<AudioFile>) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
+            SnowEvents.log("MediaPlaybackService->addToQueue", "audioFiles count: ${audioFiles.size}")
+        }
         queueManager.addAudioFiles(audioFiles)
     }
 
