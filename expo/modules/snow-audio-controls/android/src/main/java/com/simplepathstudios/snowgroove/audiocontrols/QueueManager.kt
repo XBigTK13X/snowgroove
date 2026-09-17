@@ -46,7 +46,7 @@ class QueueManager {
                     "Syncing queue index: ${currentQueue.currentSongIndex}, count: ${currentQueue.songs.size} for sessionId: $targetSessionId",
                 )
             }
-
+            SnowEvents.send("sessionChanged", session.toMap())
             val isSuccess =
                 ApiClient.updateMusicSession(
                     sessionId = targetSessionId,
@@ -55,7 +55,6 @@ class QueueManager {
             if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
                 SnowEvents.log("QueueManager->syncQueue", "Server sync success: $isSuccess")
             }
-            SnowEvents.send("sessionChanged", session.toMap())
         }
     }
 

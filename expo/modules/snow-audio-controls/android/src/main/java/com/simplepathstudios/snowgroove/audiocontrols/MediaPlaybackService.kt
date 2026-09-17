@@ -379,7 +379,14 @@ class MediaPlaybackService : Service() {
     }
 
     fun removeFromQueue(audioFiles: List<AudioFile>) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
+            SnowEvents.log("MediaPlaybackService->removeFromQueue", "audioFiles count: ${audioFiles.size}")
+        }
         queueManager.removeAudioFiles(audioFiles)
+        if (queueManager.currentSong?.fingerprint != currentFingerprint) {
+            stop()
+            play(queueManager.currentSong)
+        }
     }
 
     private fun startProgressLoop() {

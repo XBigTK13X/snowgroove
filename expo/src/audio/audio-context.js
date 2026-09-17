@@ -74,12 +74,11 @@ export function AudioContextProvider(props) {
         },
         addCrateToQueue: async (crateId, onlyChildren) => {
             let response = await apiClient.getCrateSongList(crateId, onlyChildren)
-            console.log({ song: response?.audio_files?.[0] })
             SnowAudioControls.addToQueue(response?.audio_files)
         },
         removeCrateFromQueue: (crateId, kind) => {
             let targets = []
-            for (let song of musicSessionRef?.music_queue?.songs || []) {
+            for (let song of musicSessionRef?.current?.music_queue?.songs || []) {
                 if (!kind) {
                     if (song.crate_id === crateId) {
                         targets.push(song)
@@ -96,6 +95,7 @@ export function AudioContextProvider(props) {
                     }
                 }
             }
+            console.log({ crateId, kind, count: targets.length })
             if (targets?.length) {
                 SnowAudioControls.removeFromQueue(targets)
             }
