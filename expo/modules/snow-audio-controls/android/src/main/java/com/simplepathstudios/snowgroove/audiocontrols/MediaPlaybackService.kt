@@ -357,6 +357,7 @@ class MediaPlaybackService : Service() {
 
     fun moveCurrentIndex(amount: Int) {
         queueManager.advanceSong(amount)
+        play(queueManager.currentSong)
     }
 
     private fun startProgressLoop() {

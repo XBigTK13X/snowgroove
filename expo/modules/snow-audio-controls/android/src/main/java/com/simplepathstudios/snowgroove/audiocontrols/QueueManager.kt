@@ -39,33 +39,37 @@ class QueueManager {
         }
     }
 
-    private fun updateQueue(transform: (MusicQueue) -> MusicQueue) {
+    private fun syncQueue() {
         val session = musicSession ?: return
-        val currentQueue = session.musicQueue ?: MusicQueue()
-        val updatedQueue = transform(currentQueue)
-
-        session.musicQueue = updatedQueue
-
+        val currentQueue = session.musicQueue ?: return
         val targetSessionId = session.id ?: return
 
         scope.launch {
             if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
                 SnowEvents.log(
-                    "QueueManager->updateQueue",
-                    "Syncing queue index: ${updatedQueue.currentSongIndex}, count: ${updatedQueue.songs.size} for sessionId: $targetSessionId",
+                    "QueueManager->syncQueue",
+                    "Syncing queue index: ${currentQueue.currentSongIndex}, count: ${currentQueue.songs.size} for sessionId: $targetSessionId",
                 )
             }
 
             val isSuccess =
                 ApiClient.updateMusicSessionQueue(
                     sessionId = targetSessionId,
-                    queuePayload = updatedQueue,
+                    queuePayload = currentQueue,
                 )
             if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
-                SnowEvents.log("QueueManager->updateQueue", "Server sync success: $isSuccess")
+                SnowEvents.log("QueueManager->syncQueue", "Server sync success: $isSuccess")
             }
             SnowEvents.send("sessionChanged", session.toMap())
         }
+    }
+
+    private fun getOrCreateQueue(): MusicQueue? {
+        val session = musicSession ?: return null
+        if (session.musicQueue == null) {
+            session.musicQueue = MusicQueue()
+        }
+        return session.musicQueue
     }
 
     fun addAudioFile(
@@ -73,68 +77,57 @@ class QueueManager {
         playNow: Boolean = false,
         playNext: Boolean = false,
     ) {
-        updateQueue { queue ->
-            val updatedDedupe =
-                if (audioFile.fingerprint !in queue.dedupe) {
-                    queue.dedupe + (audioFile.fingerprint to true)
-                } else {
-                    queue.dedupe
-                }
+        val queue = getOrCreateQueue() ?: return
+        val isNewSong = audioFile.fingerprint !in queue.dedupe
 
-            val isNewSong = audioFile.fingerprint !in queue.dedupe
-            val updatedSongs =
-                if (isNewSong) {
-                    queue.songs + audioFile
-                } else {
-                    queue.songs
-                }.toMutableList()
-
-            var updatedIndex = queue.currentSongIndex
-
-            if (playNext && updatedSongs.size > 1) {
-                val foundIndex =
-                    updatedSongs.indexOf(audioFile).takeIf { it != -1 }
-                        ?: updatedSongs.indexOfFirst { candidate -> candidate.fingerprint == audioFile.fingerprint }
-
-                if (foundIndex != -1) {
-                    updatedSongs.removeAt(foundIndex)
-                    val targetIndex = (updatedIndex + 1).coerceAtMost(updatedSongs.size)
-                    updatedSongs.add(targetIndex, audioFile)
-
-                    if (updatedIndex > foundIndex) {
-                        updatedIndex -= 1
-                    }
-                }
-            }
-            if (playNow) {
-                updatedIndex = updatedSongs.indexOfFirst { candidate -> candidate.fingerprint == audioFile.fingerprint }
-            }
-
-            queue.copy(
-                currentSongIndex = updatedIndex,
-                songs = updatedSongs,
-                dedupe = updatedDedupe,
-            )
+        if (isNewSong) {
+            queue.dedupe = queue.dedupe + (audioFile.fingerprint to true)
+            queue.songs = queue.songs + audioFile
         }
+
+        if (playNext && queue.songs.size > 1) {
+            val mutableSongs = queue.songs.toMutableList()
+            val foundIndex =
+                mutableSongs.indexOf(audioFile).takeIf { it != -1 }
+                    ?: mutableSongs.indexOfFirst { candidate -> candidate.fingerprint == audioFile.fingerprint }
+
+            if (foundIndex != -1) {
+                mutableSongs.removeAt(foundIndex)
+                val targetIndex = (queue.currentSongIndex + 1).coerceAtMost(mutableSongs.size)
+                mutableSongs.add(targetIndex, audioFile)
+
+                if (queue.currentSongIndex > foundIndex) {
+                    queue.currentSongIndex -= 1
+                }
+                queue.songs = mutableSongs
+            }
+        }
+
+        if (playNow) {
+            val foundIndex = queue.songs.indexOfFirst { candidate -> candidate.fingerprint == audioFile.fingerprint }
+            if (foundIndex != -1) {
+                queue.currentSongIndex = foundIndex
+            }
+        }
+
+        syncQueue()
     }
 
     fun addSongs(audioFiles: List<AudioFile>?) {
         if (audioFiles.isNullOrEmpty()) return
+        val queue = getOrCreateQueue() ?: return
 
-        updateQueue { queue ->
-            val uniqueIncoming =
-                audioFiles
-                    .distinctBy { candidate -> candidate.fingerprint.ifEmpty { candidate.id } }
-                    .filter { candidate -> candidate.fingerprint !in queue.dedupe }
+        val uniqueIncoming =
+            audioFiles
+                .distinctBy { candidate -> candidate.fingerprint.ifEmpty { candidate.id } }
+                .filter { candidate -> candidate.fingerprint !in queue.dedupe }
 
-            val updatedDedupe = queue.dedupe + uniqueIncoming.associate { candidate -> candidate.fingerprint to true }
-            val updatedSongs = queue.songs + uniqueIncoming
+        if (uniqueIncoming.isEmpty()) return
 
-            queue.copy(
-                songs = updatedSongs,
-                dedupe = updatedDedupe,
-            )
-        }
+        queue.dedupe = queue.dedupe + uniqueIncoming.associate { candidate -> candidate.fingerprint to true }
+        queue.songs = queue.songs + uniqueIncoming
+
+        syncQueue()
     }
 
     fun addCrate(
@@ -148,45 +141,37 @@ class QueueManager {
     }
 
     fun removeSong(audioFile: AudioFile): QueueRemovalResult {
-        var hasRemaining = false
-        var nextSong: AudioFile? = null
+        val queue = musicSession?.musicQueue ?: return QueueRemovalResult(false, null)
 
-        updateQueue { queue ->
-            val updatedDedupe = queue.dedupe - audioFile.fingerprint
-            val foundIndex =
-                queue.songs.indexOf(audioFile).takeIf { it != -1 }
-                    ?: queue.songs.indexOfFirst { candidate -> candidate.id == audioFile.id }
+        val foundIndex =
+            queue.songs.indexOf(audioFile).takeIf { it != -1 }
+                ?: queue.songs.indexOfFirst { candidate -> candidate.id == audioFile.id }
 
-            val updatedSongs = queue.songs.toMutableList()
-            var updatedIndex = queue.currentSongIndex
+        if (foundIndex != -1) {
+            val mutableSongs = queue.songs.toMutableList()
+            val wasLastItem = foundIndex == mutableSongs.lastIndex
+            mutableSongs.removeAt(foundIndex)
+            queue.songs = mutableSongs
+            queue.dedupe = queue.dedupe - audioFile.fingerprint
 
-            if (foundIndex != -1) {
-                val wasLastItem = foundIndex == updatedSongs.lastIndex
-                updatedSongs.removeAt(foundIndex)
+            when {
+                foundIndex < queue.currentSongIndex -> {
+                    queue.currentSongIndex -= 1
+                }
 
-                when {
-                    foundIndex < updatedIndex -> {
-                        updatedIndex -= 1
+                foundIndex == queue.currentSongIndex -> {
+                    if (wasLastItem) {
+                        queue.currentSongIndex -= 1
                     }
-
-                    foundIndex == updatedIndex -> {
-                        if (wasLastItem) {
-                            updatedIndex -= 1
-                        }
-                        updatedIndex = updatedIndex.coerceAtLeast(0)
-                    }
+                    queue.currentSongIndex = queue.currentSongIndex.coerceAtLeast(0)
                 }
             }
-
-            hasRemaining = updatedSongs.isNotEmpty()
-            nextSong = updatedSongs.getOrNull(updatedIndex)
-
-            queue.copy(
-                currentSongIndex = updatedIndex,
-                songs = updatedSongs,
-                dedupe = updatedDedupe,
-            )
         }
+
+        val hasRemaining = queue.songs.isNotEmpty()
+        val nextSong = queue.songs.getOrNull(queue.currentSongIndex)
+
+        syncQueue()
 
         return QueueRemovalResult(
             hasRemainingSongs = hasRemaining,
@@ -198,118 +183,104 @@ class QueueManager {
         crateId: String,
         kind: String? = null,
     ) {
-        updateQueue { queue ->
-            val predicate: (AudioFile) -> Boolean =
-                when (kind) {
-                    "artist" -> { song -> song.artist == crateId }
-                    "album" -> { song -> song.album == crateId }
-                    else -> { song -> song.id == crateId }
-                }
+        val queue = musicSession?.musicQueue ?: return
 
-            val removedSongs = queue.songs.filter(predicate)
-            if (removedSongs.isEmpty()) {
-                return@updateQueue queue
+        val predicate: (AudioFile) -> Boolean =
+            when (kind) {
+                "artist" -> { song -> song.artist == crateId }
+                "album" -> { song -> song.album == crateId }
+                else -> { song -> song.id == crateId }
             }
 
-            val removedFingerprints = removedSongs.map { candidate -> candidate.fingerprint }.toSet()
-            val updatedDedupe = queue.dedupe - removedFingerprints
+        val removedSongs = queue.songs.filter(predicate)
+        if (removedSongs.isEmpty()) return
 
-            val currentSongBeforeRemoval = queue.songs.getOrNull(queue.currentSongIndex)
-            val updatedSongs = queue.songs.filterNot(predicate)
+        val removedFingerprints = removedSongs.map { candidate -> candidate.fingerprint }.toSet()
+        val currentSongBeforeRemoval = queue.songs.getOrNull(queue.currentSongIndex)
+        val remainingSongs = queue.songs.filterNot(predicate)
 
-            val updatedIndex =
-                when {
-                    updatedSongs.isEmpty() -> {
-                        0
-                    }
+        queue.dedupe = queue.dedupe - removedFingerprints
+        queue.songs = remainingSongs
 
-                    currentSongBeforeRemoval != null && updatedSongs.indexOf(currentSongBeforeRemoval) != -1 -> {
-                        updatedSongs.indexOf(currentSongBeforeRemoval)
-                    }
-
-                    else -> {
-                        queue.currentSongIndex.coerceIn(0, updatedSongs.lastIndex)
-                    }
+        queue.currentSongIndex =
+            when {
+                remainingSongs.isEmpty() -> {
+                    0
                 }
 
-            queue.copy(
-                currentSongIndex = updatedIndex,
-                songs = updatedSongs,
-                dedupe = updatedDedupe,
-            )
-        }
+                currentSongBeforeRemoval != null && remainingSongs.indexOf(currentSongBeforeRemoval) != -1 -> {
+                    remainingSongs.indexOf(currentSongBeforeRemoval)
+                }
+
+                else -> {
+                    queue.currentSongIndex.coerceIn(0, remainingSongs.lastIndex)
+                }
+            }
+
+        syncQueue()
     }
 
     fun reorderQueue(
         updatedList: List<AudioFile>,
         currentAudioFileId: String? = null,
     ) {
-        updateQueue { queue ->
-            val targetIndex =
-                if (currentAudioFileId != null) {
-                    val matchedIndex = updatedList.indexOfFirst { candidate -> candidate.id == currentAudioFileId }
-                    if (matchedIndex != -1) matchedIndex else queue.currentSongIndex
-                } else {
-                    queue.currentSongIndex
-                }
+        val queue = getOrCreateQueue() ?: return
 
-            queue.copy(
-                currentSongIndex = targetIndex.coerceIn(0, (updatedList.size - 1).coerceAtLeast(0)),
-                songs = updatedList,
-            )
-        }
+        val targetIndex =
+            if (currentAudioFileId != null) {
+                val matchedIndex = updatedList.indexOfFirst { candidate -> candidate.id == currentAudioFileId }
+                if (matchedIndex != -1) matchedIndex else queue.currentSongIndex
+            } else {
+                queue.currentSongIndex
+            }
+
+        queue.songs = updatedList
+        queue.currentSongIndex = targetIndex.coerceIn(0, (updatedList.size - 1).coerceAtLeast(0))
+
+        syncQueue()
     }
 
     fun clearQueue() {
-        updateQueue { queue ->
-            queue.copy(
-                currentSongIndex = 0,
-                songs = emptyList(),
-                dedupe = emptyMap(),
-            )
-        }
+        val queue = musicSession?.musicQueue ?: return
+        queue.currentSongIndex = 0
+        queue.songs = emptyList()
+        queue.dedupe = emptyMap()
+
+        syncQueue()
     }
 
     fun shuffleQueue(): AudioFile? {
-        var topSong: AudioFile? = null
+        val queue = musicSession?.musicQueue ?: return null
+        if (queue.songs.isEmpty()) return null
 
-        updateQueue { queue ->
-            val shuffledSongs = queue.songs.shuffled()
-            topSong = shuffledSongs.firstOrNull()
+        queue.songs = queue.songs.shuffled()
+        queue.currentSongIndex = 0
 
-            queue.copy(
-                currentSongIndex = 0,
-                songs = shuffledSongs,
-            )
-        }
+        syncQueue()
 
-        return topSong
+        return queue.songs.firstOrNull()
     }
 
     fun advanceSong(amount: Int): AudioFile? {
-        val currentQueue = musicSession?.musicQueue ?: return null
-        if (currentQueue.songs.isEmpty()) {
+        val queue = musicSession?.musicQueue ?: return null
+        if (queue.songs.isEmpty()) {
             if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
                 SnowEvents.log("QueueManager->advanceSong", "Aborting: queue is empty")
             }
             return null
         }
 
-        val previousIndex = currentQueue.currentSongIndex
-        var nextSong: AudioFile? = null
+        val previousIndex = queue.currentSongIndex
+        val queueSize = queue.songs.size
+        queue.currentSongIndex = (queue.currentSongIndex + amount).mod(queueSize)
+        val nextSong = queue.songs.getOrNull(queue.currentSongIndex)
 
-        updateQueue { queue ->
-            val queueSize = queue.songs.size
-            val updatedIndex = (queue.currentSongIndex + amount).mod(queueSize)
-            nextSong = queue.songs.getOrNull(updatedIndex)
-
-            queue.copy(currentSongIndex = updatedIndex)
-        }
+        syncQueue()
 
         if (SnowConfig.DEBUG_ANDROID_AUDIO != null && nextSong != null) {
             SnowEvents.log(
                 "QueueManager->advanceSong",
-                "amount: $amount, index: $previousIndex -> ${musicSession?.musicQueue?.currentSongIndex}, title: ${nextSong?.title}, webPath: ${nextSong?.webPath}",
+                "amount: $amount, index: $previousIndex -> ${queue.currentSongIndex}, title: ${nextSong.title}, webPath: ${nextSong.webPath}",
             )
         }
 
@@ -317,13 +288,11 @@ class QueueManager {
     }
 
     fun setQueueIndexBySongId(songId: String) {
-        updateQueue { queue ->
-            val targetIndex = queue.songs.indexOfFirst { candidate -> candidate.id == songId }
-            if (targetIndex != -1) {
-                queue.copy(currentSongIndex = targetIndex)
-            } else {
-                queue
-            }
+        val queue = musicSession?.musicQueue ?: return
+        val targetIndex = queue.songs.indexOfFirst { candidate -> candidate.id == songId }
+        if (targetIndex != -1) {
+            queue.currentSongIndex = targetIndex
+            syncQueue()
         }
     }
 }
