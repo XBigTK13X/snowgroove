@@ -371,6 +371,14 @@ class MediaPlaybackService : Service() {
         play(queueManager.currentSong)
     }
 
+    fun addToQueue(audioFiles: List<AudioFile>) {
+        queueManager.addAudioFiles(audioFiles)
+    }
+
+    fun removeFromQueue(audioFiles: List<AudioFile>) {
+        queueManager.removeAudioFiles(audioFiles)
+    }
+
     private fun startProgressLoop() {
         progressJob?.cancel()
         lastStatus = null

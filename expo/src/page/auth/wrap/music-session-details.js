@@ -4,7 +4,7 @@ import { C, useAppContext, useAudioContext } from 'snowgroove'
 export default function MusicSessionDetailsPage(props) {
     const { navPush } = C.useSnowContext(props)
     const { targetPlayer, changeTargetPlayer, routes } = useAppContext()
-    const { clearMusicQueue, musicSession, shuffleMusicQueue } = useAudioContext()
+    const { clearQueue, musicSession, shuffleQueue } = useAudioContext()
 
     if (!musicSession) {
         return <C.SnowLabel center>Loading music session...</C.SnowLabel>
@@ -45,14 +45,14 @@ export default function MusicSessionDetailsPage(props) {
                     <C.SnowTextButton
                         title="Clear Queue"
                         onPress={() => {
-                            clearMusicQueue()
+                            clearQueue()
                         }}
                     />
                 ) : null}
                 {hasSongs ?
                     <C.SnowTextButton
                         title="Shuffle"
-                        onPress={shuffleMusicQueue}
+                        onPress={shuffleQueue}
                     /> : null}
                 <C.SnowTextButton
                     title="Repeat Mode"

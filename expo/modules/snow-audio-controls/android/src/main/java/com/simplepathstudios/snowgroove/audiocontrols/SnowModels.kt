@@ -64,6 +64,10 @@ data class Volume(
 
 @Serializable
 data class MusicSession(
+    @SerialName("music_session_id")
+    @Field
+    var writeId: String? = null,
+    @SerialName("id")
     @Field
     var id: String? = null,
     @Field

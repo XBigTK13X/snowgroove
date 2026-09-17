@@ -138,6 +138,14 @@ class SnowAudioControlsModule : Module() {
                 playbackService?.shuffleQueue()
             }
 
+            Function("addToQueue") { audioFiles: List<AudioFile> ->
+                playbackService?.addToQueue(audioFiles)
+            }
+
+            Function("removeFromQueue") { audioFiles: List<AudioFile> ->
+                playbackService?.removeFromQueue(audioFiles)
+            }
+
             OnDestroy {
                 SnowEvents.setEventEmitter(null)
                 val context = appContext.reactContext

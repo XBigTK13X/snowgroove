@@ -35,17 +35,10 @@ interface SnowgrooveService {
         @Query("remote_player_name") remotePlayerName: String?,
     ): Response<MusicSession>
 
-    @POST("music-session/{sessionId}/queue")
-    suspend fun updateQueue(
-        @Path("sessionId") sessionId: String,
-        @Body queuePayload: MusicQueue,
+    @POST("music-session")
+    suspend fun updateMusicSession(
+        @Body musicSession: MusicSession,
     ): Response<Unit>
-
-    @GET("crate/song/list")
-    suspend fun getCrateSongList(
-        @Query("crate_id") crateId: String,
-        @Query("only_children") onlyChildren: Boolean,
-    ): Response<CrateSongList>
 
     @GET
     @Headers("User-Agent: Snowgroove/1.0")
@@ -180,14 +173,25 @@ object ApiClient {
             null
         }
 
-    suspend fun updateMusicSessionQueue(
+    suspend fun updateMusicSession(
         sessionId: String,
-        queuePayload: MusicQueue,
+        queue: MusicQueue,
     ): Boolean =
         try {
-            val response = requireService().updateQueue(sessionId, queuePayload)
+            val updatedSession =
+                MusicSession(
+                    writeId = sessionId,
+                    musicQueue = queue,
+                )
+            val response = requireService().updateMusicSession(updatedSession)
             response.isSuccessful
-        } catch (ignored: Exception) {
+        } catch (exception: Exception) {
+            if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
+                SnowEvents.log(
+                    "ApiClient->updateMusicSession",
+                    "Exception updating queue: ${exception.javaClass.simpleName} - ${exception.message}",
+                )
+            }
             false
         }
 
@@ -197,22 +201,13 @@ object ApiClient {
             response.body()?.byteStream()?.use { stream ->
                 BitmapFactory.decodeStream(stream)
             }
-        } catch (ignored: Exception) {
-            null
-        }
-
-    suspend fun getCrateSongList(
-        crateId: String,
-        onlyChildren: Boolean,
-    ): CrateSongList? =
-        try {
-            val response = requireService().getCrateSongList(crateId, onlyChildren)
-            if (response.isSuccessful) {
-                response.body()
-            } else {
-                null
+        } catch (exception: Exception) {
+            if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
+                SnowEvents.log(
+                    "ApiClient->fetchBitmap",
+                    "Exception fetching bitmap: ${exception.javaClass.simpleName} - ${exception.message}",
+                )
             }
-        } catch (ignored: Exception) {
             null
         }
 
