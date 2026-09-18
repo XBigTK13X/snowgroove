@@ -44,6 +44,8 @@ class MediaPlaybackService : Service() {
     private var progressJob: Job? = null
     private var lastStatus: Map<String, Any>? = null
 
+    private val isRemote = targetPlayerId == null
+
     inner class LocalBinder : Binder() {
         fun getService(): MediaPlaybackService = this@MediaPlaybackService
     }
@@ -222,6 +224,11 @@ class MediaPlaybackService : Service() {
             if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
                 SnowEvents.log("MediaPlaybackService->loadAndPlay", currentSong?.thumbnailWebPath ?: "[empty]")
             }
+
+            if (isRemote) {
+                queueManager.syncQueue()?.join()
+            }
+
             audioPlaybackManager.loadAndPlay(currentSong?.webPath ?: "", volumeManager.targetVolume)
 
             val bitmap = resolveArtworkBitmap(currentSong?.thumbnailWebPath)
@@ -233,6 +240,7 @@ class MediaPlaybackService : Service() {
                 bitmap,
             )
             audioPlaybackManager.syncSessionPlaybackState(true)
+
             notificationManager.updateNotification(
                 currentSong?.title,
                 currentSong?.artist,
@@ -248,7 +256,7 @@ class MediaPlaybackService : Service() {
         }
         serviceScope.launch(Dispatchers.Main) {
             if (audioFile != null) {
-                queueManager.addAudioFile(audioFile, playNow = true, playNext = false)
+                queueManager.addAudioFile(audioFile, playNow = true, playNext = false)?.join()
             }
 
             val currentSong = queueManager.currentSong

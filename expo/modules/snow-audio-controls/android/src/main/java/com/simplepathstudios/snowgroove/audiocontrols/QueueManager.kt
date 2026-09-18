@@ -6,7 +6,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class QueueManager {
-    private val scope = CoroutineScope(Dispatchers.Main + Job())
+    private val scope = CoroutineScope(Dispatchers.IO + Job())
 
     var musicSession: MusicSession? = null
         private set
@@ -21,12 +21,12 @@ class QueueManager {
         musicSession = session
     }
 
-    private fun syncQueue() {
-        val session = musicSession ?: return
-        val currentQueue = session.musicQueue ?: return
-        val targetSessionId = session.id ?: return
+    fun syncQueue(): Job? {
+        val session = musicSession ?: return null
+        val currentQueue = session.musicQueue ?: return null
+        val targetSessionId = session.id ?: return null
 
-        scope.launch {
+        return scope.launch {
             if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
                 SnowEvents.log(
                     "QueueManager->syncQueue",
@@ -57,8 +57,8 @@ class QueueManager {
         audioFile: AudioFile,
         playNow: Boolean = false,
         playNext: Boolean = false,
-    ) {
-        val queue = getOrCreateQueue() ?: return
+    ): Job? {
+        val queue = getOrCreateQueue() ?: return null
         val isNewSong = audioFile.fingerprint !in queue.dedupe
 
         if (isNewSong) {
@@ -91,31 +91,31 @@ class QueueManager {
             }
         }
 
-        syncQueue()
+        return syncQueue()
     }
 
-    fun addAudioFiles(audioFiles: List<AudioFile>?) {
-        if (audioFiles.isNullOrEmpty()) return
-        val queue = getOrCreateQueue() ?: return
+    fun addAudioFiles(audioFiles: List<AudioFile>?): Job? {
+        if (audioFiles.isNullOrEmpty()) return null
+        val queue = getOrCreateQueue() ?: return null
 
         val uniqueIncoming =
             audioFiles
                 .distinctBy { candidate -> candidate.fingerprint.ifEmpty { candidate.id } }
                 .filter { candidate -> candidate.fingerprint !in queue.dedupe }
 
-        if (uniqueIncoming.isEmpty()) return
+        if (uniqueIncoming.isEmpty()) return null
 
         queue.dedupe = queue.dedupe + uniqueIncoming.associate { candidate -> candidate.fingerprint to true }
         queue.songs = queue.songs + uniqueIncoming
 
-        syncQueue()
+        return syncQueue()
     }
 
-    fun removeAudioFiles(audioFiles: List<AudioFile>) {
-        val queue = musicSession?.musicQueue ?: return
+    fun removeAudioFiles(audioFiles: List<AudioFile>): Job? {
+        val queue = musicSession?.musicQueue ?: return null
 
         if (audioFiles.isEmpty() || queue.songs.isEmpty()) {
-            return
+            return null
         }
 
         val targetIds = audioFiles.map { fileItem -> fileItem.id }.toSet()
@@ -160,17 +160,14 @@ class QueueManager {
             queue.currentSongIndex = adjustedIndex.coerceIn(0, queue.songs.lastIndex)
         }
 
-        val hasRemaining = queue.songs.isNotEmpty()
-        val nextSong = queue.songs.getOrNull(queue.currentSongIndex)
-
-        syncQueue()
+        return syncQueue()
     }
 
     fun reorderQueue(
         updatedList: List<AudioFile>,
         currentAudioFileId: Int? = null,
-    ) {
-        val queue = getOrCreateQueue() ?: return
+    ): Job? {
+        val queue = getOrCreateQueue() ?: return null
 
         val targetIndex =
             if (currentAudioFileId != null) {
@@ -183,16 +180,16 @@ class QueueManager {
         queue.songs = updatedList
         queue.currentSongIndex = targetIndex.coerceIn(0, (updatedList.size - 1).coerceAtLeast(0))
 
-        syncQueue()
+        return syncQueue()
     }
 
-    fun clearQueue() {
-        val queue = musicSession?.musicQueue ?: return
+    fun clearQueue(): Job? {
+        val queue = musicSession?.musicQueue ?: return null
         queue.currentSongIndex = 0
         queue.songs = emptyList()
         queue.dedupe = emptyMap()
 
-        syncQueue()
+        return syncQueue()
     }
 
     fun shuffleQueue(): AudioFile? {
@@ -239,23 +236,24 @@ class QueueManager {
         return nextSong
     }
 
-    fun setQueueIndexBySongId(songId: Int) {
-        val queue = musicSession?.musicQueue ?: return
+    fun setQueueIndexBySongId(songId: Int): Job? {
+        val queue = musicSession?.musicQueue ?: return null
         val targetIndex = queue.songs.indexOfFirst { candidate -> candidate.id == songId }
         if (targetIndex != -1) {
             queue.currentSongIndex = targetIndex
-            syncQueue()
+            return syncQueue()
         }
+        return null
     }
 
     fun move(
         oldIndex: Int,
         newIndex: Int,
-    ) {
-        val queue = getOrCreateQueue() ?: return
-        if (queue.songs.isEmpty()) return
-        if (oldIndex !in queue.songs.indices) return
-        if (oldIndex == newIndex) return
+    ): Job? {
+        val queue = getOrCreateQueue() ?: return null
+        if (queue.songs.isEmpty()) return null
+        if (oldIndex !in queue.songs.indices) return null
+        if (oldIndex == newIndex) return null
 
         val boundedTarget = newIndex.coerceIn(0, queue.songs.lastIndex)
         val mutableSongs = queue.songs.toMutableList()
@@ -282,6 +280,6 @@ class QueueManager {
         queue.songs = mutableSongs
         queue.currentSongIndex = updatedCurrentIndex.coerceIn(0, queue.songs.lastIndex)
 
-        syncQueue()
+        return syncQueue()
     }
 }
