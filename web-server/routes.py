@@ -313,6 +313,18 @@ def music_session_routes(router):
         player.status = remote_players.get_status(remote_player=player)
         return player
 
+    @router.get('/remote-player/status', tags=['Music Session'])
+    def get_remote_player_by_id(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+        remote_player_id: int,
+    ):
+        player = db.op.get_remote_player_by_id(
+            ticket=auth_user.ticket, id=remote_player_id
+        )
+        if not player:
+            return None
+        return remote_players.get_status(remote_player=player)
+
     @router.post('/remote-player/stop/all', tags=['Music Session'])
     def stop_all_remote_players(
         auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],

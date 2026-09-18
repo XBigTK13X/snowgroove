@@ -165,3 +165,13 @@ data class CrateSongList(
     @SerialName("audio_files")
     var audioFiles: List<AudioFile> = emptyList(),
 ) : Record
+
+@Serializable
+data class PlayerStatus(
+    @Field("position_seconds")
+    @SerialName("position_seconds")
+    var positionSeconds: Long? = 0L,
+    @Field("is_playing")
+    @SerialName("is_playing")
+    var isPlaying: Boolean? = false,
+)

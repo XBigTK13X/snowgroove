@@ -48,13 +48,6 @@ class AudioPlaybackManager(
         }
     }
 
-    fun ensurePlayer(targetVolume: Float) {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
-            SnowEvents.log("AudioPlaybackManager->ensurePlayer", "targetVolume: $targetVolume")
-        }
-        activePlayer.prepare(targetVolume)
-    }
-
     fun loadAndPlay(
         uri: String?,
         targetVolume: Float?,
@@ -107,10 +100,6 @@ class AudioPlaybackManager(
         activePlayer.setVolume(volume)
     }
 
-    fun isPlaying(): Boolean = activePlayer.isPlaying
-
-    fun getPlayerProgress(): Pair<Long, Long>? = activePlayer.progress
-
     fun updateMetadata(
         title: String?,
         artist: String?,
@@ -143,11 +132,13 @@ class AudioPlaybackManager(
         mediaSession.setMetadata(metadata)
     }
 
+    suspend fun getStatus() = activePlayer.getStatus()
+
     fun syncSessionPlaybackState(
-        isPlaying: Boolean,
+        isPlaying: Boolean? = false,
         explicitPositionMillis: Long? = null,
     ) {
-        val currentPosition = explicitPositionMillis ?: activePlayer.currentPositionMillis
+        val currentPosition = explicitPositionMillis ?: 0L
 
         if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log(
@@ -156,7 +147,7 @@ class AudioPlaybackManager(
             )
         }
 
-        val stateCode = if (isPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
+        val stateCode = if (isPlaying ?: false) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
         val actions =
             PlaybackStateCompat.ACTION_PLAY or
                 PlaybackStateCompat.ACTION_PAUSE or
@@ -168,7 +159,7 @@ class AudioPlaybackManager(
         val playbackState =
             PlaybackStateCompat
                 .Builder()
-                .setState(stateCode, currentPosition, if (isPlaying) 1.0f else 0.0f)
+                .setState(stateCode, currentPosition, if (isPlaying ?: false) 1.0f else 0.0f)
                 .setActions(actions)
                 .build()
 

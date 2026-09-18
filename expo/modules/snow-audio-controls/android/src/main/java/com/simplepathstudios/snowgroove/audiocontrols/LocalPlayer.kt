@@ -19,13 +19,7 @@ class LocalPlayer(
     private var exoPlayer: ExoPlayer? = null
     private var hasFiredFinishedForCurrentItem = false
 
-    override val isPlaying: Boolean
-        get() = exoPlayer?.isPlaying == true
-
-    override val currentPositionMillis: Long
-        get() = exoPlayer?.currentPosition ?: 0L
-
-    override val progress: Pair<Long, Long>?
+    val progress: Pair<Long, Long>?
         get() {
             val player = exoPlayer ?: return null
             if (player.playbackState == Player.STATE_READY || player.playbackState == Player.STATE_BUFFERING) {
@@ -36,7 +30,7 @@ class LocalPlayer(
             return null
         }
 
-    override fun prepare(targetVolume: Float) {
+    fun prepare(targetVolume: Float) {
         if (exoPlayer != null) {
             exoPlayer?.volume = targetVolume
             return
@@ -109,6 +103,12 @@ class LocalPlayer(
                     )
                 }
     }
+
+    override suspend fun getStatus(): PlayerStatus =
+        PlayerStatus(
+            isPlaying = exoPlayer?.isPlaying == true,
+            positionSeconds = ((exoPlayer?.currentPosition ?: 0L) / 1000L) ?: 0L,
+        )
 
     override fun loadAndPlay(
         uri: String?,

@@ -63,6 +63,11 @@ interface SnowgrooveService {
         @Body musicSession: MusicSession,
     ): Response<Unit>
 
+    @GET("remote-player/status")
+    suspend fun getRemotePlayerStatus(
+        @Query("remote_player_id") remotePlayerId: Int,
+    ): Response<PlayerStatus>
+
     @GET
     @Headers("User-Agent: Snowgroove/1.0")
     suspend fun fetchBitmapStream(
@@ -316,6 +321,44 @@ object ApiClient {
                 )
             }
             false
+        }
+
+    suspend fun getRemotePlayerStatus(remotePlayerId: Int): PlayerStatus? =
+        try {
+            if (SnowConfig.DEBUG_ANDROID_AUDIO == "verbose") {
+                SnowEvents.log(
+                    "ApiClient->getRemotePlayerStatus",
+                    "id: $remotePlayerId",
+                )
+            }
+            val response = requireService().getRemotePlayerStatus(remotePlayerId)
+            if (response.isSuccessful) {
+                val player = response.body()
+                if (player == null && SnowConfig.DEBUG_ANDROID_AUDIO != null) {
+                    SnowEvents.log(
+                        "ApiClient->getRemotePlayerStatus",
+                        "Successful response code ${response.code()} returned null body",
+                    )
+                }
+                player
+            } else {
+                if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
+                    val errorDetails = response.errorBody()?.string()?.takeIf { it.isNotBlank() } ?: "None"
+                    SnowEvents.log(
+                        "ApiClient->getRemotePlayerStatus",
+                        "Unsuccessful response code ${response.code()} message: ${response.message()}, error body: $errorDetails",
+                    )
+                }
+                null
+            }
+        } catch (exception: Exception) {
+            if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
+                SnowEvents.log(
+                    "ApiClient->getRemotePlayerStatus",
+                    "Exception fetching remote player: ${exception.javaClass.simpleName} - ${exception.message}",
+                )
+            }
+            null
         }
 
     suspend fun fetchBitmap(src: String): Bitmap? =

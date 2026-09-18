@@ -90,12 +90,6 @@ class VolumeManager(
         }
     }
 
-    fun adjustRemoteVolumeByDelta(delta: Double) {
-        remoteVolumePercent = (remoteVolumePercent + delta).coerceIn(0.0, 1.0)
-        sendRemoteVolume()
-        SnowEvents.send("volumeChanged", mapOf("percent" to remoteVolumePercent))
-    }
-
     private fun sendRemoteVolume() {
         val sessionId = remoteSessionId ?: return
         ApiClient.sendRemoteVolume(sessionId, remoteVolumePercent, wakeLock)

@@ -34,14 +34,6 @@ class SnowAudioControlsModule : Module() {
                 val binder = service as? MediaPlaybackService.LocalBinder
                 playbackService = binder?.getService()
 
-                playbackService?.onCommand = { command, data ->
-                    when (command) {
-                        "seek" -> safeSendEvent("seek", data ?: emptyMap())
-                        "volumeAdjust" -> safeSendEvent("volumeAdjust", data ?: emptyMap())
-                        else -> safeSendEvent(command, data ?: emptyMap())
-                    }
-                }
-
                 playbackService?.onStatusUpdate = { status ->
                     safeSendEvent("statusUpdate", status)
                 }
@@ -54,7 +46,6 @@ class SnowAudioControlsModule : Module() {
             }
 
             override fun onServiceDisconnected(name: ComponentName?) {
-                playbackService?.onCommand = null
                 playbackService?.onStatusUpdate = null
                 playbackService?.onFinished = null
                 playbackService = null

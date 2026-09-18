@@ -34,7 +34,6 @@ class MediaPlaybackService : Service() {
     private lateinit var queueManager: QueueManager
     private lateinit var musicSession: MusicSession
 
-    var onCommand: ((String, Map<String, Any>?) -> Unit)? = null
     var onStatusUpdate: ((Map<String, Any>) -> Unit)? = null
     var onFinished: (() -> Unit)? = null
 
@@ -42,7 +41,6 @@ class MediaPlaybackService : Service() {
     private var currentArtworkUrl: String? = null
     private var cachedArtworkBitmap: Bitmap? = null
 
-    private var isRemoteMode = false
     private var progressJob: Job? = null
     private var lastStatus: Map<String, Any>? = null
 
@@ -88,9 +86,8 @@ class MediaPlaybackService : Service() {
                     val nextSong = queueManager.advanceSong(1)
                     if (nextSong != null) {
                         loadAndPlay()
-                        onCommand?.invoke("trackChanged", mapOf("songFingerprint" to nextSong.fingerprint))
                     } else {
-                        onFinished?.invoke()
+                        SnowEvents.send("playbackComplete")
                     }
                 },
             )
@@ -167,9 +164,9 @@ class MediaPlaybackService : Service() {
         payload: Map<String, Any>?,
     ) {
         if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
-            SnowEvents.log("MediaPlaybackService->handleMediaCommand", "action: $action, isRemoteMode: $isRemoteMode")
+            SnowEvents.log("MediaPlaybackService->handleMediaCommand", "action: $action")
         }
-        if (!isRemoteMode && (action == "next" || action == "previous")) {
+        if (action == "next" || action == "previous") {
             val step = if (action == "next") 1 else -1
             val nextSong = queueManager.advanceSong(step)
             if (nextSong != null) {
@@ -177,7 +174,6 @@ class MediaPlaybackService : Service() {
                 return
             }
         }
-        onCommand?.invoke(action, payload)
     }
 
     override fun onStartCommand(
@@ -248,7 +244,7 @@ class MediaPlaybackService : Service() {
 
     fun play(audioFile: AudioFile?) {
         if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
-            SnowEvents.log("MediaPlaybackService->play", "isRemoteMode: $isRemoteMode")
+            SnowEvents.log("MediaPlaybackService->play", "Playing")
         }
         serviceScope.launch(Dispatchers.Main) {
             if (audioFile != null) {
@@ -272,12 +268,10 @@ class MediaPlaybackService : Service() {
 
     fun pause() {
         if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
-            SnowEvents.log("MediaPlaybackService->pause", "isRemoteMode: $isRemoteMode")
+            SnowEvents.log("MediaPlaybackService->pause", "Pausing")
         }
         serviceScope.launch(Dispatchers.Main) {
-            if (!isRemoteMode) {
-                audioPlaybackManager.pause()
-            }
+            audioPlaybackManager.pause()
             val currentSong = queueManager.currentSong
             audioPlaybackManager.syncSessionPlaybackState(false)
             notificationManager.updateNotification(
@@ -291,17 +285,14 @@ class MediaPlaybackService : Service() {
 
     fun resume() {
         if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
-            SnowEvents.log("MediaPlaybackService->pause", "isRemoteMode: $isRemoteMode")
+            SnowEvents.log("MediaPlaybackService->resume", "Resuming")
         }
         serviceScope.launch(Dispatchers.Main) {
             val currentSong = queueManager.currentSong
             if (currentFingerprint == null || currentFingerprint != currentSong?.fingerprint) {
                 play(currentSong)
             } else {
-                if (!isRemoteMode) {
-                    audioPlaybackManager.resume()
-                }
-
+                audioPlaybackManager.resume()
                 audioPlaybackManager.syncSessionPlaybackState(false)
                 notificationManager.updateNotification(
                     currentSong?.title,
@@ -326,40 +317,22 @@ class MediaPlaybackService : Service() {
 
     fun seek(seconds: Double) {
         if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
-            SnowEvents.log("MediaPlaybackService->seek", "seconds: $seconds, isRemoteMode: $isRemoteMode")
+            SnowEvents.log("MediaPlaybackService->seek", "seconds: $seconds")
         }
         serviceScope.launch(Dispatchers.Main) {
             val targetMillis = (seconds * 1000).toLong()
-            if (!isRemoteMode) {
-                audioPlaybackManager.seek(targetMillis)
-            } else {
-                onCommand?.invoke("seek", mapOf("position" to seconds))
-            }
-
-            val isPlaying = if (isRemoteMode) true else audioPlaybackManager.isPlaying()
-            audioPlaybackManager.syncSessionPlaybackState(isPlaying, targetMillis)
+            audioPlaybackManager.seek(targetMillis)
+            audioPlaybackManager.syncSessionPlaybackState(audioPlaybackManager.getStatus().isPlaying, targetMillis)
         }
     }
 
     fun setVolumeLevel(percent: Float) {
         if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
-            SnowEvents.log("MediaPlaybackService->setVolumeLevel", "percent: $percent, isRemoteMode: $isRemoteMode")
+            SnowEvents.log("MediaPlaybackService->setVolumeLevel", "percent: $percent")
         }
         serviceScope.launch(Dispatchers.Main) {
             volumeManager.setLocalVolumeLevel(percent)
-            if (!isRemoteMode) {
-                audioPlaybackManager.setVolume(volumeManager.targetVolume)
-            }
-        }
-    }
-
-    fun adjustRemoteVolumeByDelta(delta: Double) {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
-            SnowEvents.log("MediaPlaybackService->adjustRemoteVolumeByDelta", "delta: $delta, isRemoteMode: $isRemoteMode")
-        }
-        serviceScope.launch(Dispatchers.Main) {
-            if (!isRemoteMode) return@launch
-            volumeManager.adjustRemoteVolumeByDelta(delta)
+            audioPlaybackManager.setVolume(volumeManager.targetVolume)
         }
     }
 
@@ -411,28 +384,26 @@ class MediaPlaybackService : Service() {
         progressJob?.cancel()
         lastStatus = null
         progressJob =
-            serviceScope.launch(Dispatchers.Default) {
+            serviceScope.launch(Dispatchers.IO) {
                 while (isActive) {
-                    if (!isRemoteMode) {
-                        try {
-                            withContext(Dispatchers.Main) {
-                                val progress = audioPlaybackManager.getPlayerProgress()
-                                if (progress != null) {
-                                    val currentStatus =
-                                        mapOf(
-                                            "positionMillis" to progress.first,
-                                            "durationMillis" to progress.second,
-                                            "isPlaying" to audioPlaybackManager.isPlaying(),
-                                            "isLoaded" to true,
-                                        )
-                                    if (currentStatus != lastStatus) {
-                                        lastStatus = currentStatus
-                                        onStatusUpdate?.invoke(currentStatus)
-                                    }
+                    try {
+                        val playerStatus = audioPlaybackManager.getStatus()
+                        if (playerStatus != null) {
+                            val currentStatus =
+                                mapOf<String, Any>(
+                                    "positionSeconds" to (playerStatus.positionSeconds ?: 0L),
+                                    "durationSeconds" to (queueManager.currentSong?.duration ?: 0L),
+                                    "isPlaying" to (playerStatus.isPlaying ?: false),
+                                    "isLoaded" to true,
+                                )
+                            if (currentStatus != lastStatus) {
+                                lastStatus = currentStatus
+                                withContext(Dispatchers.Main) {
+                                    onStatusUpdate?.invoke(currentStatus)
                                 }
                             }
-                        } catch (ignored: Exception) {
                         }
+                    } catch (ignored: Exception) {
                     }
                     delay(SnowConfig.REMOTE_POLLING_DELAY_MILLISECONDS)
                 }

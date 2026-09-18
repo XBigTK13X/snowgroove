@@ -1,16 +1,12 @@
 package com.simplepathstudios.snowgroove.audiocontrols
 
 interface ISnowPlayer {
-    val isPlaying: Boolean
-    val progress: Pair<Long, Long>?
-    val currentPositionMillis: Long
-
-    fun prepare(targetVolume: Float)
-
     fun loadAndPlay(
         uri: String?,
         targetVolume: Float?,
     )
+
+    suspend fun getStatus(): PlayerStatus
 
     fun play(targetVolume: Float?)
 
