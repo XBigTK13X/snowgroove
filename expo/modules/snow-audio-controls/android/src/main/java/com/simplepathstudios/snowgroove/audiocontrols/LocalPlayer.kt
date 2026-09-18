@@ -12,9 +12,7 @@ import androidx.media3.exoplayer.ExoPlayer
 
 class LocalPlayer(
     private val context: Context,
-    private val onPlaybackStateChange: (isPlaying: Boolean) -> Unit,
     private val onItemFinished: () -> Unit,
-    private val onInternalStateUpdate: (isPlaying: Boolean, positionMillis: Long) -> Unit,
 ) : ISnowPlayer {
     private var exoPlayer: ExoPlayer? = null
     private var hasFiredFinishedForCurrentItem = false
@@ -69,7 +67,6 @@ class LocalPlayer(
                             override fun onPlaybackStateChanged(playbackState: Int) {
                                 when (playbackState) {
                                     Player.STATE_ENDED -> {
-                                        onInternalStateUpdate(false, currentPosition)
                                         if (!hasFiredFinishedForCurrentItem) {
                                             hasFiredFinishedForCurrentItem = true
                                             onItemFinished()
@@ -78,26 +75,20 @@ class LocalPlayer(
 
                                     Player.STATE_READY -> {
                                         hasFiredFinishedForCurrentItem = false
-                                        onInternalStateUpdate(playWhenReady, currentPosition)
                                     }
 
                                     Player.STATE_BUFFERING -> {
-                                        onInternalStateUpdate(playWhenReady, currentPosition)
                                     }
 
                                     Player.STATE_IDLE -> {
-                                        onInternalStateUpdate(false, currentPosition)
                                     }
                                 }
                             }
 
                             override fun onIsPlayingChanged(playing: Boolean) {
-                                onInternalStateUpdate(playing, currentPosition)
-                                onPlaybackStateChange(playing)
                             }
 
                             override fun onPlayerError(error: PlaybackException) {
-                                onInternalStateUpdate(false, currentPosition)
                             }
                         },
                     )

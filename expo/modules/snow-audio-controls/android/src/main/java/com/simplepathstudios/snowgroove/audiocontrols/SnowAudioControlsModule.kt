@@ -10,7 +10,7 @@ import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
 class SnowAudioControlsModule : Module() {
-    private var playbackService: MediaPlaybackService? = null
+    private var playbackService: SnowgrooveService? = null
     private var isBound = false
 
     private fun safeSendEvent(
@@ -31,7 +31,7 @@ class SnowAudioControlsModule : Module() {
                 name: ComponentName?,
                 service: IBinder?,
             ) {
-                val binder = service as? MediaPlaybackService.LocalBinder
+                val binder = service as? SnowgrooveService.LocalBinder
                 playbackService = binder?.getService()
 
                 playbackService?.onStatusUpdate = { status ->
@@ -79,7 +79,7 @@ class SnowAudioControlsModule : Module() {
                 }
 
                 val context = appContext.reactContext ?: return@OnCreate
-                val intent = Intent(context, MediaPlaybackService::class.java)
+                val intent = Intent(context, SnowgrooveService::class.java)
                 ContextCompat.startForegroundService(context, intent)
                 context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
             }

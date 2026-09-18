@@ -8,7 +8,7 @@
 
     <application>
         <service
-            android:name="com.simplepathstudios.snowgroove.audiocontrols.MediaPlaybackService"
+            android:name="com.simplepathstudios.snowgroove.audiocontrols.SnowgrooveService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
 

@@ -25,7 +25,7 @@ import retrofit2.http.Query
 import retrofit2.http.Url
 import java.util.concurrent.TimeUnit
 
-interface SnowgrooveService {
+interface SnowgrooveApiService {
     @POST("music-session/play")
     suspend fun playMusicSession(
         @Body payload: JsonElement,
@@ -76,7 +76,7 @@ interface SnowgrooveService {
 
 object ApiClient {
     @Volatile
-    private var service: SnowgrooveService? = null
+    private var service: SnowgrooveApiService? = null
 
     @Volatile
     private var apiUrl: String? = null
@@ -128,14 +128,14 @@ object ApiClient {
                 .client(httpClient)
                 .addConverterFactory(json.asConverterFactory(contentType))
                 .build()
-                .create(SnowgrooveService::class.java)
+                .create(SnowgrooveApiService::class.java)
     }
 
     fun updateToken(token: String) {
         authToken = token
     }
 
-    private fun requireService(): SnowgrooveService = service ?: throw IllegalStateException("ApiClient must be configured before use")
+    private fun requireService(): SnowgrooveApiService = service ?: throw IllegalStateException("ApiClient must be configured before use")
 
     fun playMusicSession(
         sessionId: Int,
