@@ -114,7 +114,7 @@ class SnowAudioControlsModule : Module() {
             }
 
             Function("setVolume") { volume: Double ->
-                playbackService?.setVolumeLevel(volume.toFloat())
+                playbackService?.setVolumeLevel(volume)
             }
 
             Function("moveCurrentIndex") { amount: Int ->

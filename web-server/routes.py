@@ -336,7 +336,6 @@ def music_session_routes(router):
         status = remote_players.get_status(remote_player=player)
         status['current_song_index'] = player.music_queue['current_song_index']
         status['queue_fingerprint'] = get_hash(player.music_queue['songs'])
-        log.info(status)
         return status
 
     @router.post('/remote-player/stop/all', tags=['Music Session'])

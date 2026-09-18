@@ -19,7 +19,7 @@ class AudioPlaybackManager(
             onItemFinished = onItemFinished,
             onInternalStateUpdate = { isPlaying: Boolean, positionMillis: Long ->
                 if (activePlayer === localPlayer) {
-                    syncSessionPlaybackState(isPlaying, positionMillis)
+                    syncSessionPlaybackState(isPlaying, (positionMillis / 1000.0))
                 }
             },
         )
@@ -50,7 +50,7 @@ class AudioPlaybackManager(
 
     fun loadAndPlay(
         uri: String?,
-        targetVolume: Float?,
+        targetVolume: Double?,
     ) {
         if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log("AudioPlaybackManager->loadAndPlay", "uri: $uri, targetVolume: $targetVolume")
@@ -58,7 +58,7 @@ class AudioPlaybackManager(
         activePlayer.loadAndPlay(uri, targetVolume)
     }
 
-    fun play(targetVolume: Float) {
+    fun play(targetVolume: Double) {
         if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log("AudioPlaybackManager->play", "targetVolume: $targetVolume")
         }
@@ -86,14 +86,15 @@ class AudioPlaybackManager(
         activePlayer.stop()
     }
 
-    fun seek(targetMillis: Long) {
+    fun seek(seconds: Double) {
         if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
-            SnowEvents.log("AudioPlaybackManager->seek", "targetMillis: $targetMillis")
+            SnowEvents.log("AudioPlaybackManager->seek", "seconds: $seconds")
         }
-        activePlayer.seek(targetMillis)
+        activePlayer.seek(seconds)
+        syncSessionPlaybackState(true, seconds)
     }
 
-    fun setVolume(volume: Float) {
+    fun setVolume(volume: Double) {
         if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log("AudioPlaybackManager->setVolume", "volume: $volume")
         }
@@ -136,9 +137,9 @@ class AudioPlaybackManager(
 
     fun syncSessionPlaybackState(
         isPlaying: Boolean? = false,
-        explicitPositionMillis: Long? = null,
+        positionSeconds: Double? = null,
     ) {
-        val currentPosition = explicitPositionMillis ?: 0L
+        val currentPosition = positionSeconds?.toLong() ?: 0L
 
         if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log(

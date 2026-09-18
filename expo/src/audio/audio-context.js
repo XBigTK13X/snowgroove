@@ -49,6 +49,7 @@ export function AudioContextProvider(props) {
             SnowAudioControls.stop()
         },
         seekToSeconds: (seconds) => {
+            console.log({ seconds })
             SnowAudioControls.seek(seconds)
         },
         changeVolume: (volumeLevel) => {
@@ -123,7 +124,6 @@ export function AudioContextProvider(props) {
             }),
             SnowAudioControls.addListener('statusUpdate', (event) => {
                 if (config.debugAndroidAudio === 'verbose') util.prettyLog({ owner: 'audio-context', action: 'statusUpdate', event })
-                console.log({ event })
                 setPositionSeconds(event.position_seconds)
                 setDurationSeconds(event.duration_seconds)
                 setIsPlaying(event.is_playing)

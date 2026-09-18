@@ -24,7 +24,6 @@ import retrofit2.http.POST
 import retrofit2.http.Query
 import retrofit2.http.Url
 import java.util.concurrent.TimeUnit
-import kotlin.math.roundToInt
 
 interface SnowgrooveService {
     @POST("music-session/play")
@@ -219,7 +218,7 @@ object ApiClient {
             try {
                 wakeLock?.acquire(SnowConfig.WAKE_LOCK_TIMEOUT_MILLISECONDS)
                 val parsedSessionId = sessionId
-                val parsedSeekSeconds = seekToSeconds.roundToInt()
+                val parsedSeekSeconds = seekToSeconds.toInt()
                 val payload =
                     buildJsonObject {
                         put("music_session_id", parsedSessionId)

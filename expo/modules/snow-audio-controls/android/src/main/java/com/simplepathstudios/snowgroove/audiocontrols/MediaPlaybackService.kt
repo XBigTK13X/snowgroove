@@ -268,7 +268,7 @@ class MediaPlaybackService : Service() {
 
             val currentSong = queueManager.currentSong
 
-            audioPlaybackManager.loadAndPlay(currentSong?.webPath, 1.0f)
+            audioPlaybackManager.loadAndPlay(currentSong?.webPath, 1.0)
 
             notificationManager.updateNotification(
                 currentSong?.title,
@@ -335,13 +335,11 @@ class MediaPlaybackService : Service() {
             SnowEvents.log("MediaPlaybackService->seek", "seconds: $seconds")
         }
         serviceScope.launch(Dispatchers.Main) {
-            val targetMillis = (seconds * 1000).toLong()
-            audioPlaybackManager.seek(targetMillis)
-            audioPlaybackManager.syncSessionPlaybackState(audioPlaybackManager.getStatus().isPlaying, targetMillis)
+            audioPlaybackManager.seek(seconds)
         }
     }
 
-    fun setVolumeLevel(percent: Float) {
+    fun setVolumeLevel(percent: Double) {
         if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log("MediaPlaybackService->setVolumeLevel", "percent: $percent")
         }

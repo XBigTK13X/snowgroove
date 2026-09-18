@@ -8,7 +8,7 @@ class RemotePlayer(
 ) : ISnowPlayer {
     override fun loadAndPlay(
         uri: String?,
-        targetVolume: Float?,
+        targetVolume: Double?,
     ) {
         ApiClient.playMusicSession(musicSessionId)
     }
@@ -24,7 +24,7 @@ class RemotePlayer(
         )
     }
 
-    override fun play(targetVolume: Float?) {
+    override fun play(targetVolume: Double?) {
         ApiClient.playMusicSession(musicSessionId)
     }
 
@@ -40,11 +40,11 @@ class RemotePlayer(
         ApiClient.stopMusicSession(musicSessionId)
     }
 
-    override fun seek(targetMillis: Long) {
-        ApiClient.seekMusicSession(musicSessionId, targetMillis.toDouble())
+    override fun seek(seconds: Double) {
+        ApiClient.seekMusicSession(musicSessionId, seconds)
     }
 
-    override fun setVolume(volume: Float) {
+    override fun setVolume(volume: Double) {
         ApiClient.setRemoteVolume(musicSessionId, volume.toDouble())
     }
 

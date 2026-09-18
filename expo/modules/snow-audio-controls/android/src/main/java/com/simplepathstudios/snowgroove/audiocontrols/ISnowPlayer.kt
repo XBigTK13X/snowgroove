@@ -3,12 +3,12 @@ package com.simplepathstudios.snowgroove.audiocontrols
 interface ISnowPlayer {
     fun loadAndPlay(
         uri: String?,
-        targetVolume: Float?,
+        targetVolume: Double?,
     )
 
     suspend fun getStatus(): PlayerStatus
 
-    fun play(targetVolume: Float?)
+    fun play(targetVolume: Double?)
 
     fun pause()
 
@@ -16,9 +16,9 @@ interface ISnowPlayer {
 
     fun stop()
 
-    fun seek(targetMillis: Long)
+    fun seek(seconds: Double)
 
-    fun setVolume(volume: Float)
+    fun setVolume(volume: Double)
 
     fun cleanup()
 }

@@ -23,7 +23,7 @@ class VolumeManager(
     private var lastObservedStreamVolume = -1
     private var isProgrammaticVolumeChange = false
 
-    var targetVolume: Float = 1.0f
+    var targetVolume: Double = 1.0
         private set
 
     var remoteVolumePercent: Double = 1.0
@@ -31,11 +31,11 @@ class VolumeManager(
 
     var remoteSessionId: Int? = null
 
-    fun setLocalVolumeLevel(percent: Float) {
-        targetVolume = percent.coerceIn(0.0f, 1.0f)
+    fun setLocalVolumeLevel(percent: Double) {
+        targetVolume = percent.coerceIn(0.0, 1.0)
     }
 
-    fun syncRemoteVolume(percent: Float) {
+    fun syncRemoteVolume(percent: Double) {
         remoteVolumePercent = percent.toDouble().coerceIn(0.0, 1.0)
     }
 

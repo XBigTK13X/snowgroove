@@ -30,9 +30,9 @@ class LocalPlayer(
             return null
         }
 
-    fun prepare(targetVolume: Float) {
+    fun prepare(targetVolume: Double) {
         if (exoPlayer != null) {
-            exoPlayer?.volume = targetVolume
+            exoPlayer?.volume = targetVolume.toFloat()
             return
         }
 
@@ -63,7 +63,7 @@ class LocalPlayer(
                 .setWakeMode(C.WAKE_MODE_LOCAL)
                 .build()
                 .apply {
-                    volume = targetVolume
+                    volume = targetVolume.toFloat()
                     addListener(
                         object : Player.Listener {
                             override fun onPlaybackStateChanged(playbackState: Int) {
@@ -112,15 +112,15 @@ class LocalPlayer(
 
     override fun loadAndPlay(
         uri: String?,
-        targetVolume: Float?,
+        targetVolume: Double?,
     ) {
         val validUri = uri ?: return
-        val validVolume = targetVolume ?: 1.0f
+        val validVolume = targetVolume ?: 1.0
         hasFiredFinishedForCurrentItem = false
         prepare(validVolume)
         exoPlayer?.let { player ->
             player.repeatMode = Player.REPEAT_MODE_OFF
-            player.volume = validVolume
+            player.volume = validVolume.toFloat()
             player.stop()
             player.clearMediaItems()
             val mediaItem = MediaItem.fromUri(validUri)
@@ -130,9 +130,9 @@ class LocalPlayer(
         }
     }
 
-    override fun play(targetVolume: Float?) {
+    override fun play(targetVolume: Double?) {
         exoPlayer?.let { player ->
-            player.volume = targetVolume ?: 1.0f
+            player.volume = targetVolume?.toFloat() ?: 1.0f
             player.playWhenReady = true
         }
     }
@@ -155,12 +155,12 @@ class LocalPlayer(
         }
     }
 
-    override fun seek(targetMillis: Long) {
-        exoPlayer?.seekTo(targetMillis)
+    override fun seek(seconds: Double) {
+        exoPlayer?.seekTo(seconds.toLong())
     }
 
-    override fun setVolume(volume: Float) {
-        exoPlayer?.volume = volume
+    override fun setVolume(volume: Double) {
+        exoPlayer?.volume = volume.toFloat()
     }
 
     override fun cleanup() {
