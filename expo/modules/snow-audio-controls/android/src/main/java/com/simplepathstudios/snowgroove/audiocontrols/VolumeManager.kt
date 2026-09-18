@@ -92,7 +92,7 @@ class VolumeManager(
 
     private fun sendRemoteVolume() {
         val sessionId = remoteSessionId ?: return
-        ApiClient.sendRemoteVolume(sessionId, remoteVolumePercent, wakeLock)
+        ApiClient.setRemoteVolume(sessionId, remoteVolumePercent, wakeLock)
     }
 
     fun cleanup() {

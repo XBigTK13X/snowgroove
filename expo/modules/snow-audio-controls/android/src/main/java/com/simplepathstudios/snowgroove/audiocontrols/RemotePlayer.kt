@@ -10,6 +10,7 @@ class RemotePlayer(
         uri: String?,
         targetVolume: Float?,
     ) {
+        ApiClient.playMusicSession(musicSessionId)
     }
 
     override suspend fun getStatus(): PlayerStatus {
@@ -40,7 +41,9 @@ class RemotePlayer(
         ApiClient.seekMusicSession(musicSessionId, targetMillis.toDouble())
     }
 
-    override fun setVolume(volume: Float) {}
+    override fun setVolume(volume: Float) {
+        ApiClient.setRemoteVolume(musicSessionId, volume.toDouble())
+    }
 
     override fun cleanup() {
     }

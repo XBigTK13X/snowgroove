@@ -238,15 +238,16 @@ object ApiClient {
         }
     }
 
-    fun sendRemoteVolume(
+    fun setRemoteVolume(
         sessionId: Int,
         percent: Double,
-        wakeLock: PowerManager.WakeLock?,
+        wakeLock: PowerManager.WakeLock? = null,
     ) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 wakeLock?.acquire(SnowConfig.WAKE_LOCK_TIMEOUT_MILLISECONDS)
-                val payload = Volume(musicSessionId = sessionId, volumePercent = percent)
+                val boundedVolume = percent.coerceIn(0.0, 1.0)
+                val payload = Volume(musicSessionId = sessionId, volumePercent = boundedVolume)
                 requireService().sendVolume(payload)
             } catch (ignored: Exception) {
             } finally {
@@ -254,7 +255,14 @@ object ApiClient {
                     if (wakeLock?.isHeld == true) {
                         wakeLock?.release()
                     }
-                } catch (ignored: Exception) {
+                } catch (exception: Exception) {
+                    if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
+                        SnowEvents.log(
+                            "ApiClient->setRemoteVolume",
+                            "Exception setting remote volume: ${exception.javaClass.simpleName} - ${exception.message}",
+                        )
+                    }
+                    null
                 }
             }
         }
