@@ -35,7 +35,7 @@ class SnowAudioControlsModule : Module() {
                 playbackService = binder?.getService()
 
                 playbackService?.onStatusUpdate = { status ->
-                    safeSendEvent("statusUpdate", status)
+                    safeSendEvent("statusUpdate", status.toMap())
                 }
 
                 playbackService?.onFinished = {

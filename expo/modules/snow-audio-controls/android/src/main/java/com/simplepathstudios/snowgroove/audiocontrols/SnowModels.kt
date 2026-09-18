@@ -171,7 +171,23 @@ data class PlayerStatus(
     @Field("position_seconds")
     @SerialName("position_seconds")
     var positionSeconds: Long? = 0L,
+    @Field("duration_seconds")
+    @SerialName("duration_seconds")
+    var durationSeconds: Long? = 0L,
     @Field("is_playing")
     @SerialName("is_playing")
     var isPlaying: Boolean? = false,
-)
+    var volume: Double? = 0.0,
+    @Field("player_state")
+    @SerialName("player_state")
+    var playerState: String? = "",
+    @Field("queue_fingerprint")
+    @SerialName("queue_fingerprint")
+    var queueFingerprint: String? = "",
+    @Field("current_song_index")
+    @SerialName("current_song_index")
+    var currentSongIndex: Int? = 0,
+    @Field("is_loaded")
+    @SerialName("is_loaded")
+    var isLoaded: Boolean? = false,
+) : Record

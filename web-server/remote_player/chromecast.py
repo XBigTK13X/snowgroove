@@ -367,7 +367,12 @@ def get_status(remote_player):
         connection_info = json.loads(remote_player.connection_info_json)
         cast_device = _get_cached_cast(connection_info)
         if not cast_device:
-            return {'position_seconds': 0, 'is_playing': False, 'volume': 0.0}
+            return {
+                'position_seconds': 0,
+                'is_playing': False,
+                'volume': 0.0,
+                'player_state': 'stopped',
+            }
 
         try:
             cast_device.socket_client.receiver_controller.update_status()
@@ -385,6 +390,7 @@ def get_status(remote_player):
 
         status = media_controller.status
         player_state = status.player_state
+        idle_reason = status.idle_reason
 
         position_seconds = (
             int(status.current_time) if status.current_time is not None else 0
@@ -401,10 +407,31 @@ def get_status(remote_player):
         unscaled_volume = raw_volume / 0.7
         normalized_volume = max(0.0, min(1.0, round(unscaled_volume, 4)))
 
+        if player_state == 'PLAYING':
+            media_status = 'playing'
+        elif player_state == 'PAUSED':
+            media_status = 'paused'
+        elif player_state == 'BUFFERING':
+            media_status = 'buffering'
+        elif player_state in ('IDLE', 'UNKNOWN'):
+            if idle_reason == 'FINISHED':
+                media_status = 'complete'
+            elif idle_reason == 'CANCELLED':
+                media_status = 'stopped'
+            elif idle_reason == 'INTERRUPTED':
+                media_status = 'interrupted'
+            elif idle_reason == 'ERROR':
+                media_status = 'error'
+            else:
+                media_status = 'idle'
+        else:
+            media_status = 'stopped'
+
         return {
             'position_seconds': position_seconds,
             'is_playing': is_playing,
             'volume': normalized_volume,
+            'player_state': media_status,
         }
     except Exception as error_message:
         player_uuid = connection_info.get('uuid')
@@ -415,4 +442,9 @@ def get_status(remote_player):
         log.error(
             f'Failed to fetch status from Chromecast device {remote_player.name}: {error_message}'
         )
-        return {'position_seconds': 0, 'is_playing': False, 'volume': 0.0}
+        return {
+            'position_seconds': 0,
+            'is_playing': False,
+            'volume': 0.0,
+            'player_state': 'stopped',
+        }

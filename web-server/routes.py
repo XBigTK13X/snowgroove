@@ -9,11 +9,14 @@ from fastapi import Response, Request, Body
 from fastapi import Security
 from fastapi.responses import PlainTextResponse, StreamingResponse
 
+from typing import Annotated
+
+import hashlib
+
 from auth import get_current_user
 from db import db
 from log import log
 from settings import config
-from typing import Annotated
 import api_models as am
 import message.write
 import snow_media
@@ -21,6 +24,11 @@ from remote_player import remote_player
 
 remote_players = remote_player.RemotePlayers()
 remote_players.recover_active_sessions()
+
+
+def get_hash(items: list[str]) -> str:
+    encoded_payload = json.dumps(items).encode('utf-8')
+    return hashlib.sha256(encoded_payload).hexdigest()
 
 
 def register(router):
@@ -323,7 +331,13 @@ def music_session_routes(router):
         )
         if not player:
             return None
-        return remote_players.get_status(remote_player=player)
+        if player.music_session:
+            player.music_queue = json.loads(player.music_session.music_queue_json)
+        status = remote_players.get_status(remote_player=player)
+        status['current_song_index'] = player.music_queue['current_song_index']
+        status['queue_fingerprint'] = get_hash(player.music_queue['songs'])
+        log.info(status)
+        return status
 
     @router.post('/remote-player/stop/all', tags=['Music Session'])
     def stop_all_remote_players(

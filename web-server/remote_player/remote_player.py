@@ -32,6 +32,14 @@ def scan_remote_players(job_id: int):
     return remote_players
 
 
+DEFAULT_STATUS = {
+    'position_seconds': 0,
+    'is_playing': False,
+    'volume': 0.0,
+    'player_state': 'stopped',
+}
+
+
 class RemotePlayers:
     def __init__(self):
         self.active_connections = {}
@@ -366,12 +374,12 @@ class RemotePlayers:
                 return virtual.get_status(remote_player)
             else:
                 log.warning(f'Unhandled status lookup for kind [{remote_player.kind}]')
-                return {'position_seconds': 0, 'is_playing': False}
+                return DEFAULT_STATUS
         except Exception as hardware_error:
             log.error(
                 f'Failed to fetch hardware status for player {remote_player.id}: {hardware_error}'
             )
-            return {'position_seconds': 0, 'is_playing': False}
+            return DEFAULT_STATUS
 
     def stop_all_players(self, ticket):
         self._log_debug('Stopping playback on all known remote players...')

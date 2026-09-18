@@ -119,7 +119,7 @@ class SonosTrackCompletionListener:
         _log_debug(f'Sonos event listener thread started for {self.sonos_player.uid}')
         while self._running and self.subscription:
             try:
-                event = self.subscription.SnowEvents.get(timeout=0.5)
+                event = self.subscription.events.get(timeout=0.5)
                 transport_state = event.variables.get('current_transport_state')
                 _log_debug(
                     f'Inbound UPnP AVTransport event received -> State: {transport_state}. Was playing flag: {self._was_playing}'
@@ -395,26 +395,73 @@ def get_status(remote_player):
         raw_volume = sonos_player.volume
         normalized_volume = max(0.0, min(1.0, round(float(raw_volume) / 100.0, 4)))
 
+        if current_state == 'PLAYING':
+            player_state = 'playing'
+        elif current_state in ('PAUSED_PLAYBACK', 'PAUSED'):
+            player_state = 'paused'
+        elif current_state in ('TRANSITIONING',):
+            player_state = 'buffering'
+        elif current_state == 'STOPPED':
+            dur_sec = 0
+            duration_str = track_info.get('duration', '0:00:00')
+            dur_parts = duration_str.split(':') if duration_str else []
+            if len(dur_parts) == 3:
+                dur_sec = (
+                    int(dur_parts[0]) * 3600
+                    + int(dur_parts[1]) * 60
+                    + int(dur_parts[2])
+                )
+            elif len(dur_parts) == 2:
+                dur_sec = int(dur_parts[0]) * 60 + int(dur_parts[1])
+
+            if dur_sec > 0 and position_seconds >= (dur_sec - 2):
+                player_state = 'complete'
+            else:
+                player_state = 'stopped'
+        else:
+            player_state = 'stopped'
+
         return {
             'position_seconds': position_seconds,
             'is_playing': is_playing,
             'volume': normalized_volume,
+            'player_state': player_state,
         }
     except soco.exceptions.SoCoUPnPException as upnp_error:
         if (
             upnp_error.error_code == '711'
             or getattr(upnp_error, 'error_code', None) == 711
         ):
-            return {'position_seconds': 0, 'is_playing': False, 'volume': 0.0}
+            return {
+                'position_seconds': 0,
+                'is_playing': False,
+                'volume': 0.0,
+                'player_state': 'stopped',
+            }
 
         log.error(f'UPnP error from Sonos device {remote_player.name}: {upnp_error}')
-        return {'position_seconds': 0, 'is_playing': False, 'volume': 0.0}
+        return {
+            'position_seconds': 0,
+            'is_playing': False,
+            'volume': 0.0,
+            'player_state': 'stopped',
+        }
     except Exception as error_message:
         error_str = str(error_message)
         if '711' in error_str or 'Illegal seek target' in error_str:
-            return {'position_seconds': 0, 'is_playing': False, 'volume': 0.0}
+            return {
+                'position_seconds': 0,
+                'is_playing': False,
+                'volume': 0.0,
+                'player_state': 'stopped',
+            }
 
         log.error(
             f'Failed to fetch status from Sonos device {remote_player.name}: {error_message}'
         )
-        return {'position_seconds': 0, 'is_playing': False, 'volume': 0.0}
+        return {
+            'position_seconds': 0,
+            'is_playing': False,
+            'volume': 0.0,
+            'player_state': 'stopped',
+        }

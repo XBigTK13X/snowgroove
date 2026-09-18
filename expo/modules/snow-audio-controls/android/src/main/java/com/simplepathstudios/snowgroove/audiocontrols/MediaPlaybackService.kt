@@ -34,7 +34,7 @@ class MediaPlaybackService : Service() {
     private lateinit var queueManager: QueueManager
     private lateinit var musicSession: MusicSession
 
-    var onStatusUpdate: ((Map<String, Any>) -> Unit)? = null
+    var onStatusUpdate: ((PlayerStatus) -> Unit)? = null
     var onFinished: (() -> Unit)? = null
 
     private var currentFingerprint: String? = null
@@ -42,7 +42,7 @@ class MediaPlaybackService : Service() {
     private var cachedArtworkBitmap: Bitmap? = null
 
     private var progressJob: Job? = null
-    private var lastStatus: Map<String, Any>? = null
+    private var lastStatus: PlayerStatus? = null
 
     private val isRemote = targetPlayerId == null
 
@@ -190,6 +190,27 @@ class MediaPlaybackService : Service() {
         return START_STICKY
     }
 
+    suspend fun loadMusicSession() {
+        val session = ApiClient.getMusicSession(targetPlayerId, targetPlayerName)
+        if (session == null) {
+            if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
+                SnowEvents.log("MediaPlaybackService->loadSession", "Failed to retrieve session")
+            }
+            return
+        }
+
+        musicSession = session
+        SnowEvents.send("sessionChanged", session.toMap())
+        if (targetPlayerId == null) {
+            audioPlaybackManager.setSession(null, musicSession)
+            volumeManager.unregisterObserver()
+        } else {
+            audioPlaybackManager.setSession(targetPlayerId, musicSession)
+            volumeManager.registerObserver()
+        }
+        queueManager.setSession(musicSession)
+    }
+
     fun changeTargetPlayer(
         id: Int?,
         name: String?,
@@ -198,23 +219,9 @@ class MediaPlaybackService : Service() {
             if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
                 SnowEvents.log("MediaPlaybackService->changeTargetPlayer", "id: $id, name: $name")
             }
-            val session = ApiClient.getMusicSession(id, name)
-            if (session == null) {
-                if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
-                    SnowEvents.log("MediaPlaybackService->loadSession", "Failed to retrieve session")
-                }
-                return@launch
-            }
-            musicSession = session
-            SnowEvents.send("sessionChanged", session.toMap())
-            if (id == null) {
-                audioPlaybackManager.setSession(null, musicSession)
-                volumeManager.unregisterObserver()
-            } else {
-                audioPlaybackManager.setSession(id, musicSession)
-                volumeManager.registerObserver()
-            }
-            queueManager.setSession(musicSession)
+            targetPlayerId = id
+            targetPlayerName = name
+            loadMusicSession()
         }
     }
 
@@ -396,19 +403,28 @@ class MediaPlaybackService : Service() {
                 while (isActive) {
                     try {
                         val playerStatus = audioPlaybackManager.getStatus()
-                        if (playerStatus != null) {
-                            val currentStatus =
-                                mapOf<String, Any>(
-                                    "positionSeconds" to (playerStatus.positionSeconds ?: 0L),
-                                    "durationSeconds" to (queueManager.currentSong?.duration ?: 0L),
-                                    "isPlaying" to (playerStatus.isPlaying ?: false),
-                                    "isLoaded" to true,
-                                )
-                            if (currentStatus != lastStatus) {
-                                lastStatus = currentStatus
-                                withContext(Dispatchers.Main) {
-                                    onStatusUpdate?.invoke(currentStatus)
-                                }
+                        val currentStatus =
+                            PlayerStatus(
+                                positionSeconds = (playerStatus.positionSeconds ?: 0L),
+                                durationSeconds = (queueManager.currentSong?.duration?.toLong() ?: 0L),
+                                isPlaying = (playerStatus.isPlaying ?: false),
+                                isLoaded = true,
+                                playerState = (playerStatus.playerState ?: "stopped"),
+                                queueFingerprint = (playerStatus.queueFingerprint ?: ""),
+                                currentSongIndex = (playerStatus.currentSongIndex ?: 0),
+                            )
+                        if (currentStatus != lastStatus) {
+                            if (currentStatus?.currentSongIndex != lastStatus?.currentSongIndex &&
+                                currentStatus?.queueFingerprint == lastStatus?.queueFingerprint
+                            ) {
+                                queueManager.setCurrentIndex(currentStatus?.currentSongIndex ?: 0)
+                            }
+                            if (currentStatus?.queueFingerprint != lastStatus?.queueFingerprint) {
+                                loadMusicSession()
+                            }
+                            lastStatus = currentStatus
+                            withContext(Dispatchers.Main) {
+                                onStatusUpdate?.invoke(currentStatus)
                             }
                         }
                     } catch (ignored: Exception) {

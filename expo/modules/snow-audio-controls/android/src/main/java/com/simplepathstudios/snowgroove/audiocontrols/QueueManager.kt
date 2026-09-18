@@ -246,6 +246,11 @@ class QueueManager {
         return null
     }
 
+    fun setCurrentIndex(index: Int) {
+        musicSession?.musicQueue?.currentSongIndex = index
+        syncQueue()
+    }
+
     fun move(
         oldIndex: Int,
         newIndex: Int,

@@ -18,6 +18,9 @@ class RemotePlayer(
         return PlayerStatus(
             positionSeconds = remotePlayerStatus?.positionSeconds ?: 0L,
             isPlaying = remotePlayerStatus?.isPlaying ?: false,
+            playerState = remotePlayerStatus?.playerState ?: "stopped",
+            queueFingerprint = remotePlayerStatus?.queueFingerprint ?: "",
+            currentSongIndex = remotePlayerStatus?.currentSongIndex ?: 0,
         )
     }
 

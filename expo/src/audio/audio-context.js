@@ -123,9 +123,10 @@ export function AudioContextProvider(props) {
             }),
             SnowAudioControls.addListener('statusUpdate', (event) => {
                 if (config.debugAndroidAudio === 'verbose') util.prettyLog({ owner: 'audio-context', action: 'statusUpdate', event })
-                setPositionSeconds(event.positionSeconds)
-                setDurationSeconds(event.durationSeconds)
-                setIsPlaying(event.isPlaying)
+                console.log({ event })
+                setPositionSeconds(event.position_seconds)
+                setDurationSeconds(event.duration_seconds)
+                setIsPlaying(event.is_playing)
             }),
             SnowAudioControls.addListener('play', () => {
                 if (config.debugAndroidAudio != null) util.prettyLog({ owner: 'audio-context', action: 'play' })
