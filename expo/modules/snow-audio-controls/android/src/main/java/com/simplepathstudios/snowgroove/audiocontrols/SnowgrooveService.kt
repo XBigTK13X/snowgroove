@@ -47,7 +47,8 @@ class SnowgrooveService : Service() {
     private var currentStatus: PlayerStatus? = null
     private var lastStatus: PlayerStatus? = null
 
-    private val isRemote = targetPlayerId == null
+    private val isRemote: Boolean
+        get() = targetPlayerId != null
 
     inner class LocalBinder : Binder() {
         fun getService(): SnowgrooveService = this@SnowgrooveService
@@ -392,7 +393,13 @@ class SnowgrooveService : Service() {
                                 updateMediaSession()
                             }
                         }
-                    } catch (ignored: Exception) {
+                    } catch (exception: Exception) {
+                        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
+                            SnowEvents.log(
+                                "ApiClient->setRemoteVolume",
+                                "Exception setting remote volume: ${exception.javaClass.simpleName} - ${exception.message}",
+                            )
+                        }
                     }
                     delay(SnowConfig.REMOTE_POLLING_DELAY_MILLISECONDS)
                 }

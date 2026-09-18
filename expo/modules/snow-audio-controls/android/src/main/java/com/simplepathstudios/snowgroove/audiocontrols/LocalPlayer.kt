@@ -9,6 +9,8 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class LocalPlayer(
     private val context: Context,
@@ -96,10 +98,12 @@ class LocalPlayer(
     }
 
     override suspend fun getStatus(): PlayerStatus =
-        PlayerStatus(
-            isPlaying = exoPlayer?.isPlaying == true,
-            positionSeconds = ((exoPlayer?.currentPosition ?: 0L) / 1000L) ?: 0L,
-        )
+        withContext(Dispatchers.Main) {
+            PlayerStatus(
+                isPlaying = exoPlayer?.isPlaying == true,
+                positionSeconds = (exoPlayer?.currentPosition ?: 0L) / 1000L,
+            )
+        }
 
     override fun loadAndPlay(
         uri: String?,
@@ -147,7 +151,7 @@ class LocalPlayer(
     }
 
     override fun seek(seconds: Double) {
-        exoPlayer?.seekTo(seconds.toLong())
+        exoPlayer?.seekTo(seconds.toLong() * 1000L)
     }
 
     override fun setVolume(volume: Double) {
