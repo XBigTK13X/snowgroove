@@ -14,6 +14,21 @@ object SnowEvents {
         send("log", mapOf("nativeOwner" to nativeOwner, "message" to message))
     }
 
+    fun error(
+        nativeOwner: String,
+        message: String,
+        exception: Exception,
+    ) {
+        send(
+            "error",
+            mapOf(
+                "nativeOwner" to nativeOwner,
+                "message" to message,
+                "exception" to "${exception.javaClass.simpleName} - ${exception.message}",
+            ),
+        )
+    }
+
     fun send(kind: String) {
         send(kind, emptyMap())
     }

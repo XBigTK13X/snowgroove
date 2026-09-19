@@ -15,7 +15,7 @@ class Player(
     private var musicSession: MusicSession? = null
     private var activePlayer: ISnowPlayer = localPlayer
 
-    suspend fun getStatus() = activePlayer.getStatus()
+    suspend fun getStatus(): PlayerStatus? = activePlayer.getStatus()
 
     fun setSession(
         playerId: Int?,
@@ -38,21 +38,18 @@ class Player(
         }
     }
 
-    fun loadAndPlay(
-        uri: String?,
-        targetVolume: Double?,
-    ) {
+    fun loadAndPlay(uri: String?) {
         if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
-            SnowEvents.log("Player->loadAndPlay", "uri: $uri, targetVolume: $targetVolume")
+            SnowEvents.log("Player->loadAndPlay", "uri: $uri")
         }
-        activePlayer.loadAndPlay(uri, targetVolume)
+        activePlayer.loadAndPlay(uri)
     }
 
-    fun play(targetVolume: Double) {
+    fun play() {
         if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
-            SnowEvents.log("Player->play", "targetVolume: $targetVolume")
+            SnowEvents.log("Player->play", "Playing")
         }
-        activePlayer.play(targetVolume)
+        activePlayer.play()
     }
 
     fun resume() {

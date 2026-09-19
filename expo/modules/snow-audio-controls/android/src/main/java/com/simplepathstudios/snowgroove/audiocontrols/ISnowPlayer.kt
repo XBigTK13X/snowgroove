@@ -1,14 +1,11 @@
 package com.simplepathstudios.snowgroove.audiocontrols
 
 interface ISnowPlayer {
-    fun loadAndPlay(
-        uri: String?,
-        targetVolume: Double?,
-    )
+    fun loadAndPlay(uri: String?)
 
-    suspend fun getStatus(): PlayerStatus
+    suspend fun getStatus(): PlayerStatus?
 
-    fun play(targetVolume: Double?)
+    fun play()
 
     fun pause()
 

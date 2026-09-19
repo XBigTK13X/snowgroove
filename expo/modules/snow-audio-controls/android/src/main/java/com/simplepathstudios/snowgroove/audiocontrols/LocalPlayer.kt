@@ -30,9 +30,9 @@ class LocalPlayer(
             return null
         }
 
-    fun prepare(targetVolume: Double) {
+    fun prepare() {
         if (exoPlayer != null) {
-            exoPlayer?.volume = targetVolume.toFloat()
+            // exoPlayer?.volume = targetVolume.toFloat()
             return
         }
 
@@ -63,7 +63,7 @@ class LocalPlayer(
                 .setWakeMode(C.WAKE_MODE_LOCAL)
                 .build()
                 .apply {
-                    volume = targetVolume.toFloat()
+                    // volume = targetVolume.toFloat()
                     addListener(
                         object : Player.Listener {
                             override fun onPlaybackStateChanged(playbackState: Int) {
@@ -97,7 +97,7 @@ class LocalPlayer(
                 }
     }
 
-    override suspend fun getStatus(): PlayerStatus =
+    override suspend fun getStatus(): PlayerStatus? =
         withContext(Dispatchers.Main) {
             PlayerStatus(
                 isPlaying = exoPlayer?.isPlaying == true,
@@ -105,17 +105,14 @@ class LocalPlayer(
             )
         }
 
-    override fun loadAndPlay(
-        uri: String?,
-        targetVolume: Double?,
-    ) {
+    override fun loadAndPlay(uri: String?) {
         val validUri = uri ?: return
-        val validVolume = targetVolume ?: 1.0
+        // val validVolume = targetVolume ?: 1.0
         hasFiredFinishedForCurrentItem = false
-        prepare(validVolume)
+        prepare()
         exoPlayer?.let { player ->
             player.repeatMode = Player.REPEAT_MODE_OFF
-            player.volume = validVolume.toFloat()
+            // player.volume = validVolume.toFloat()
             player.stop()
             player.clearMediaItems()
             val mediaItem = MediaItem.fromUri(validUri)
@@ -125,9 +122,9 @@ class LocalPlayer(
         }
     }
 
-    override fun play(targetVolume: Double?) {
+    override fun play() {
         exoPlayer?.let { player ->
-            player.volume = targetVolume?.toFloat() ?: 1.0f
+            // player.volume = targetVolume?.toFloat() ?: 1.0f
             player.playWhenReady = true
         }
     }
@@ -145,7 +142,14 @@ class LocalPlayer(
             try {
                 player.stop()
                 player.clearMediaItems()
-            } catch (ignored: Exception) {
+            } catch (exception: Exception) {
+                if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
+                    SnowEvents.error(
+                        "SnowgrooveService->startProgressLoop",
+                        "Exception in the progress loop",
+                        exception,
+                    )
+                }
             }
         }
     }

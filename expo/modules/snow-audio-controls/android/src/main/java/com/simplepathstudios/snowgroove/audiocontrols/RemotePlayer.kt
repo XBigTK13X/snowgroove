@@ -6,25 +6,13 @@ class RemotePlayer(
     val remotePlayerId: Int,
     val musicSessionId: Int,
 ) : ISnowPlayer {
-    override fun loadAndPlay(
-        uri: String?,
-        targetVolume: Double?,
-    ) {
+    override fun loadAndPlay(uri: String?) {
         ApiClient.playMusicSession(musicSessionId)
     }
 
-    override suspend fun getStatus(): PlayerStatus {
-        val remotePlayerStatus = ApiClient.getRemotePlayerStatus(remotePlayerId)
-        return PlayerStatus(
-            positionSeconds = remotePlayerStatus?.positionSeconds ?: 0L,
-            isPlaying = remotePlayerStatus?.isPlaying ?: false,
-            playerState = remotePlayerStatus?.playerState ?: "stopped",
-            queueFingerprint = remotePlayerStatus?.queueFingerprint ?: "",
-            currentSongIndex = remotePlayerStatus?.currentSongIndex ?: 0,
-        )
-    }
+    override suspend fun getStatus(): PlayerStatus? = ApiClient.getRemotePlayerStatus(remotePlayerId)
 
-    override fun play(targetVolume: Double?) {
+    override fun play() {
         ApiClient.playMusicSession(musicSessionId)
     }
 

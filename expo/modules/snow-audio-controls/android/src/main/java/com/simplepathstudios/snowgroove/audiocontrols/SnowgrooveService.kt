@@ -21,24 +21,24 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class SnowgrooveService : Service() {
-    private val binder = LocalBinder()
-    private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
+    inner class LocalBinder : Binder() {
+        fun getService(): SnowgrooveService = this@SnowgrooveService
+    }
 
-    private var targetPlayerId: Int? = null
-    private var targetPlayerName: String? = null
+    override fun onBind(intent: Intent?): IBinder = binder
 
-    lateinit var mediaSession: MediaSessionCompat
-        private set
+    var onStatusUpdate: ((PlayerStatus) -> Unit)? = null
+    var onFinished: (() -> Unit)? = null
 
+    private lateinit var mediaSession: MediaSessionCompat
     private lateinit var notificationManager: PlaybackNotificationManager
     private lateinit var player: Player
     private lateinit var volumeManager: VolumeManager
     private lateinit var queueManager: QueueManager
     private lateinit var musicSession: MusicSession
 
-    var onStatusUpdate: ((PlayerStatus) -> Unit)? = null
-    var onFinished: (() -> Unit)? = null
-
+    private var targetPlayerId: Int? = null
+    private var targetPlayerName: String? = null
     private var currentFingerprint: String? = null
     private var currentArtworkUrl: String? = null
     private var cachedArtworkBitmap: Bitmap? = null
@@ -47,14 +47,11 @@ class SnowgrooveService : Service() {
     private var currentStatus: PlayerStatus? = null
     private var lastStatus: PlayerStatus? = null
 
+    private val binder = LocalBinder()
+    private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
+
     private val isRemote: Boolean
         get() = targetPlayerId != null
-
-    inner class LocalBinder : Binder() {
-        fun getService(): SnowgrooveService = this@SnowgrooveService
-    }
-
-    override fun onBind(intent: Intent?): IBinder = binder
 
     override fun onCreate() {
         super.onCreate()
@@ -99,6 +96,18 @@ class SnowgrooveService : Service() {
         startProgressLoop()
     }
 
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int,
+    ): Int {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
+            SnowEvents.log("SnowgrooveService->onStartCommand", "action: ${intent?.action ?: "[null]"}")
+        }
+        MediaButtonReceiver.handleIntent(mediaSession, intent)
+        return START_STICKY
+    }
+
     // Android notification handlers
     private fun handleMediaCommand(
         action: String,
@@ -124,7 +133,7 @@ class SnowgrooveService : Service() {
         }
     }
 
-    // Used by the Android notification and other system controls
+    // Used by the notification and other system controls
     private fun initMediaSession() {
         if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log("SnowgrooveService->initMediaSession", "Initializing MediaSessionCompat")
@@ -132,11 +141,6 @@ class SnowgrooveService : Service() {
         val mediaButtonReceiver = ComponentName(this, MediaButtonReceiver::class.java)
         mediaSession =
             MediaSessionCompat(this, "SnowgrooveSession", mediaButtonReceiver, null).apply {
-                setFlags(
-                    MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
-                        MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS,
-                )
-
                 val mediaButtonIntent =
                     Intent(Intent.ACTION_MEDIA_BUTTON).apply {
                         setClass(this@SnowgrooveService, MediaButtonReceiver::class.java)
@@ -178,18 +182,6 @@ class SnowgrooveService : Service() {
             }
     }
 
-    override fun onStartCommand(
-        intent: Intent?,
-        flags: Int,
-        startId: Int,
-    ): Int {
-        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
-            SnowEvents.log("SnowgrooveService->onStartCommand", "action: ${intent?.action ?: "[null]"}")
-        }
-        MediaButtonReceiver.handleIntent(mediaSession, intent)
-        return START_STICKY
-    }
-
     suspend fun loadMusicSession() {
         val session = ApiClient.getMusicSession(targetPlayerId, targetPlayerName)
         if (session == null) {
@@ -201,9 +193,9 @@ class SnowgrooveService : Service() {
 
         musicSession = session
         SnowEvents.send("sessionChanged", session.toMap())
+        volumeManager.unregisterObserver()
         if (targetPlayerId == null) {
             player.setSession(null, musicSession)
-            volumeManager.unregisterObserver()
         } else {
             player.setSession(targetPlayerId, musicSession)
             volumeManager.registerObserver()
@@ -229,14 +221,14 @@ class SnowgrooveService : Service() {
         serviceScope.launch(Dispatchers.Main) {
             val currentSong = queueManager.currentSong
             if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
-                SnowEvents.log("SnowgrooveService->loadAndPlay", currentSong?.thumbnailWebPath ?: "[empty]")
+                SnowEvents.log("SnowgrooveService->loadAndPlay", currentSong?.webPath ?: "[empty]")
             }
 
             if (isRemote) {
                 queueManager.syncQueue()?.join()
             }
 
-            player.loadAndPlay(currentSong?.webPath ?: "", volumeManager.targetVolume)
+            player.loadAndPlay(currentSong?.webPath ?: "")
 
             updateMediaSession()
         }
@@ -251,7 +243,7 @@ class SnowgrooveService : Service() {
                 queueManager.addAudioFile(audioFile, playNow = true, playNext = false)?.join()
             }
             val currentSong = queueManager.currentSong
-            player.loadAndPlay(currentSong?.webPath, 1.0)
+            player.loadAndPlay(currentSong?.webPath)
             updateMediaSession()
             currentFingerprint = currentSong?.fingerprint ?: null
         }
@@ -310,8 +302,8 @@ class SnowgrooveService : Service() {
             SnowEvents.log("SnowgrooveService->setVolumeLevel", "percent: $percent")
         }
         serviceScope.launch(Dispatchers.Main) {
-            volumeManager.setLocalVolumeLevel(percent)
-            player.setVolume(volumeManager.targetVolume)
+            player.setVolume(percent)
+            volumeManager.setVolume(percent)
         }
     }
 
@@ -366,38 +358,44 @@ class SnowgrooveService : Service() {
             serviceScope.launch(Dispatchers.IO) {
                 while (isActive) {
                     try {
-                        val playerStatus = player.getStatus()
-                        val computedStatus =
-                            PlayerStatus(
-                                positionSeconds = (playerStatus.positionSeconds ?: 0L),
-                                durationSeconds = (queueManager.currentSong?.duration?.toLong() ?: 0L),
-                                isPlaying = (playerStatus.isPlaying ?: false),
-                                isLoaded = true,
-                                playerState = (playerStatus.playerState ?: "stopped"),
-                                queueFingerprint = (playerStatus.queueFingerprint ?: ""),
-                                currentSongIndex = (playerStatus.currentSongIndex ?: 0),
-                            )
-                        currentStatus = computedStatus
-                        if (currentStatus != lastStatus) {
-                            if (currentStatus?.currentSongIndex != lastStatus?.currentSongIndex &&
-                                currentStatus?.queueFingerprint == lastStatus?.queueFingerprint
-                            ) {
-                                queueManager.setCurrentIndex(currentStatus?.currentSongIndex ?: 0)
-                            }
-                            if (currentStatus?.queueFingerprint != lastStatus?.queueFingerprint) {
-                                loadMusicSession()
-                            }
-                            lastStatus = currentStatus
-                            withContext(Dispatchers.Main) {
-                                onStatusUpdate?.invoke(computedStatus)
-                                updateMediaSession()
+                        player.getStatus()?.let { playerStatus ->
+                            val computedStatus =
+                                PlayerStatus(
+                                    positionSeconds = (playerStatus.positionSeconds ?: 0L),
+                                    durationSeconds = (queueManager.currentSong?.duration?.toLong() ?: 0L),
+                                    isPlaying = (playerStatus.isPlaying ?: false),
+                                    isLoaded = true,
+                                    playerState = (playerStatus.playerState ?: "stopped"),
+                                    queueFingerprint = (playerStatus.queueFingerprint ?: ""),
+                                    currentSongIndex = (playerStatus.currentSongIndex ?: 0),
+                                    volume = (playerStatus.volume ?: 0.0),
+                                )
+                            // Without this, onStatusUpdate freaks out about nullable types
+                            currentStatus = computedStatus
+                            if (currentStatus != lastStatus) {
+                                // TODO Maybe instead of this, have the volumeManager poll the remote device on button press?
+                                volumeManager.setInitialVolume(musicSession.id, playerStatus.volume)
+                                if (currentStatus?.currentSongIndex != lastStatus?.currentSongIndex &&
+                                    currentStatus?.queueFingerprint == lastStatus?.queueFingerprint
+                                ) {
+                                    queueManager.setCurrentIndex(currentStatus?.currentSongIndex ?: 0)
+                                }
+                                if (currentStatus?.queueFingerprint != lastStatus?.queueFingerprint) {
+                                    loadMusicSession()
+                                }
+                                lastStatus = currentStatus
+                                withContext(Dispatchers.Main) {
+                                    onStatusUpdate?.invoke(computedStatus)
+                                    updateMediaSession()
+                                }
                             }
                         }
                     } catch (exception: Exception) {
                         if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
-                            SnowEvents.log(
-                                "ApiClient->setRemoteVolume",
-                                "Exception setting remote volume: ${exception.javaClass.simpleName} - ${exception.message}",
+                            SnowEvents.error(
+                                "SnowgrooveService->startProgressLoop",
+                                "Exception in the progress loop",
+                                exception,
                             )
                         }
                     }
@@ -416,12 +414,12 @@ class SnowgrooveService : Service() {
             return null
         }
         if (artworkUrl == currentArtworkUrl && cachedArtworkBitmap != null) {
-            if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
+            if (SnowConfig.DEBUG_ANDROID_AUDIO == "verbose") {
                 SnowEvents.log("SnowgrooveService->resolveArtworkBitmap", "Returning cached bitmap")
             }
             return cachedArtworkBitmap
         }
-        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO == "verbose") {
             SnowEvents.log("SnowgrooveService->resolveArtworkBitmap", "Fetching bitmap: $artworkUrl")
         }
         val downloaded = ApiClient.fetchBitmap(artworkUrl)
@@ -437,7 +435,7 @@ class SnowgrooveService : Service() {
         val currentSong = queueManager.currentSong
         val isPlaying = currentStatus?.isPlaying ?: false
         val positionSeconds = currentStatus?.positionSeconds ?: 0
-        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO == "verbose") {
             SnowEvents.log(
                 "SnowgrooveService->updateMediaSession",
                 "title: ${currentSong?.title} - ${currentSong?.artist}",

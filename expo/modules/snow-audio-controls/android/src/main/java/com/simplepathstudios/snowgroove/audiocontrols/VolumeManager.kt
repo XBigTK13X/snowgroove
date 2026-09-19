@@ -8,6 +8,9 @@ import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
 
+// This only cares about managing volume keypresses to remote devices
+// Typical Android system volume management works fine for local playback
+
 class VolumeManager(
     private val context: Context,
 ) {
@@ -23,20 +26,21 @@ class VolumeManager(
     private var lastObservedStreamVolume = -1
     private var isProgrammaticVolumeChange = false
 
-    var targetVolume: Double = 1.0
-        private set
+    var musicSessionId: Int? = null
+    var volumePercent: Double? = 0.0
 
-    var remoteVolumePercent: Double = 1.0
-        private set
-
-    var remoteSessionId: Int? = null
-
-    fun setLocalVolumeLevel(percent: Double) {
-        targetVolume = percent.coerceIn(0.0, 1.0)
+    fun setInitialVolume(
+        sessionId: Int?,
+        volume: Double?,
+    ) {
+        if ((volumePercent == 0.0 && volume ?: 0.0 > 0.0) || (musicSessionId != sessionId)) {
+            musicSessionId = sessionId
+            volumePercent = volume
+        }
     }
 
-    fun syncRemoteVolume(percent: Double) {
-        remoteVolumePercent = percent.toDouble().coerceIn(0.0, 1.0)
+    fun setVolume(volume: Double?) {
+        volumePercent = volume?.coerceIn(0.0, 1.0) ?: 0.0
     }
 
     fun registerObserver() {
@@ -56,6 +60,7 @@ class VolumeManager(
 
                     if (isProgrammaticVolumeChange) {
                         isProgrammaticVolumeChange = false
+                        SnowEvents.send("volumeChanged", mapOf("ignored" to volumePercent))
                         return
                     }
 
@@ -63,14 +68,15 @@ class VolumeManager(
                     val delta = currentStreamVolume - lastObservedStreamVolume
                     if (delta != 0) {
                         val volumeStep = if (delta > 0) 0.05 else -0.05
-                        remoteVolumePercent = (remoteVolumePercent + volumeStep).coerceIn(0.0, 1.0)
+                        volumePercent = ((volumePercent ?: 0.0) + volumeStep).coerceIn(0.0, 1.0)
 
                         isProgrammaticVolumeChange = true
                         audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, centerVolume, 0)
                         lastObservedStreamVolume = centerVolume
 
-                        sendRemoteVolume()
-                        SnowEvents.send("volumeChanged", mapOf("percent" to remoteVolumePercent))
+                        val sessionId = musicSessionId ?: return
+                        ApiClient.setRemoteVolume(sessionId, volumePercent ?: 0.0, wakeLock)
+                        SnowEvents.send("volumeChanged", mapOf("percent" to volumePercent, "remoteId" to sessionId))
                     }
                 }
             }
@@ -84,15 +90,12 @@ class VolumeManager(
     }
 
     fun unregisterObserver() {
+        volumePercent = 0.0
+        musicSessionId = null
         volumeObserver?.let {
             context.contentResolver.unregisterContentObserver(it)
             volumeObserver = null
         }
-    }
-
-    private fun sendRemoteVolume() {
-        val sessionId = remoteSessionId ?: return
-        ApiClient.setRemoteVolume(sessionId, remoteVolumePercent, wakeLock)
     }
 
     fun cleanup() {

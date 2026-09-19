@@ -10,7 +10,7 @@ import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
 class SnowAudioControlsModule : Module() {
-    private var playbackService: SnowgrooveService? = null
+    private var service: SnowgrooveService? = null
     private var isBound = false
 
     private fun safeSendEvent(
@@ -29,16 +29,16 @@ class SnowAudioControlsModule : Module() {
         object : ServiceConnection {
             override fun onServiceConnected(
                 name: ComponentName?,
-                service: IBinder?,
+                binderService: IBinder?,
             ) {
-                val binder = service as? SnowgrooveService.LocalBinder
-                playbackService = binder?.getService()
+                val binder = binderService as? SnowgrooveService.LocalBinder
+                service = binder?.getService()
 
-                playbackService?.onStatusUpdate = { status ->
+                service?.onStatusUpdate = { status ->
                     safeSendEvent("statusUpdate", status.toMap())
                 }
 
-                playbackService?.onFinished = {
+                service?.onFinished = {
                     safeSendEvent("finished", emptyMap())
                 }
 
@@ -46,9 +46,9 @@ class SnowAudioControlsModule : Module() {
             }
 
             override fun onServiceDisconnected(name: ComponentName?) {
-                playbackService?.onStatusUpdate = null
-                playbackService?.onFinished = null
-                playbackService = null
+                service?.onStatusUpdate = null
+                service?.onFinished = null
+                service = null
                 isBound = false
             }
         }
@@ -59,18 +59,12 @@ class SnowAudioControlsModule : Module() {
 
             Events(
                 "apiConfigured",
+                "error",
                 "finished",
                 "log",
-                "next",
-                "pause",
-                "play",
-                "previous",
-                "progressUpdated",
-                "seek",
                 "statusUpdate",
                 "sessionChanged",
-                "trackChanged",
-                "volumeAdjust",
+                "volumeChanged",
             )
 
             OnCreate {
@@ -90,58 +84,58 @@ class SnowAudioControlsModule : Module() {
             }
 
             Function("changeTargetPlayer") { id: Int?, name: String? ->
-                playbackService?.changeTargetPlayer(id, name)
+                service?.changeTargetPlayer(id, name)
             }
 
             Function("play") { audioFile: AudioFile ->
-                playbackService?.play(audioFile)
+                service?.play(audioFile)
             }
 
             Function("resume") {
-                playbackService?.resume()
+                service?.resume()
             }
 
             Function("pause") {
-                playbackService?.pause()
+                service?.pause()
             }
 
             Function("stop") {
-                playbackService?.stop()
+                service?.stop()
             }
 
             Function("seek") { seconds: Double ->
-                playbackService?.seek(seconds)
+                service?.seek(seconds)
             }
 
             Function("setVolume") { volume: Double ->
-                playbackService?.setVolumeLevel(volume)
+                service?.setVolumeLevel(volume)
             }
 
             Function("moveCurrentIndex") { amount: Int ->
-                playbackService?.moveCurrentIndex(amount)
+                service?.moveCurrentIndex(amount)
             }
 
             Function("clearQueue") {
-                playbackService?.clearQueue()
+                service?.clearQueue()
             }
 
             Function("shuffleQueue") {
-                playbackService?.shuffleQueue()
+                service?.shuffleQueue()
             }
 
             // If these AudioFile methods fail to be called
             // It is likely a new property hanging off the server api model.
             // Those all need to be mapped in SnowModels, or else it fails without warning
             Function("addToQueue") { audioFiles: List<AudioFile> ->
-                playbackService?.addToQueue(audioFiles)
+                service?.addToQueue(audioFiles)
             }
 
             Function("removeFromQueue") { audioFiles: List<AudioFile> ->
-                playbackService?.removeFromQueue(audioFiles)
+                service?.removeFromQueue(audioFiles)
             }
 
             Function("moveQueueItem") { oldIndex: Int, newIndex: Int ->
-                playbackService?.moveQueueItem(oldIndex, newIndex)
+                service?.moveQueueItem(oldIndex, newIndex)
             }
 
             OnDestroy {

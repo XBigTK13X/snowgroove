@@ -177,10 +177,9 @@ data class PlayerStatus(
     @Field("is_playing")
     @SerialName("is_playing")
     var isPlaying: Boolean? = false,
-    var volume: Double? = 0.0,
     @Field("player_state")
     @SerialName("player_state")
-    var playerState: String? = "",
+    var playerState: String? = "stopped",
     @Field("queue_fingerprint")
     @SerialName("queue_fingerprint")
     var queueFingerprint: String? = "",
@@ -190,4 +189,7 @@ data class PlayerStatus(
     @Field("is_loaded")
     @SerialName("is_loaded")
     var isLoaded: Boolean? = false,
+    @Field("volume")
+    @SerialName("volume")
+    var volume: Double? = 0.0,
 ) : Record

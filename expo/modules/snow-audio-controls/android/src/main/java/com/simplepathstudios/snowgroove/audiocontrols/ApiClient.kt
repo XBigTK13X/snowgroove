@@ -65,7 +65,7 @@ interface SnowgrooveApiService {
     @GET("remote-player/status")
     suspend fun getRemotePlayerStatus(
         @Query("remote_player_id") remotePlayerId: Int,
-    ): Response<PlayerStatus>
+    ): Response<PlayerStatus?>
 
     @GET
     @Headers("User-Agent: Snowgroove/1.0")
@@ -256,9 +256,10 @@ object ApiClient {
                     }
                 } catch (exception: Exception) {
                     if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
-                        SnowEvents.log(
+                        SnowEvents.error(
                             "ApiClient->setRemoteVolume",
-                            "Exception setting remote volume: ${exception.javaClass.simpleName} - ${exception.message}",
+                            "Exception setting remote volume",
+                            exception,
                         )
                     }
                     null
@@ -300,9 +301,10 @@ object ApiClient {
             }
         } catch (exception: Exception) {
             if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
-                SnowEvents.log(
+                SnowEvents.error(
                     "ApiClient->getMusicSession",
-                    "Exception fetching music session: ${exception.javaClass.simpleName} - ${exception.message}",
+                    "Error fetching music session",
+                    exception,
                 )
             }
             null
@@ -322,9 +324,10 @@ object ApiClient {
             response.isSuccessful
         } catch (exception: Exception) {
             if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
-                SnowEvents.log(
+                SnowEvents.error(
                     "ApiClient->updateMusicSession",
-                    "Exception updating queue: ${exception.javaClass.simpleName} - ${exception.message}",
+                    "Exception updating queue",
+                    exception,
                 )
             }
             false
@@ -360,9 +363,10 @@ object ApiClient {
             }
         } catch (exception: Exception) {
             if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
-                SnowEvents.log(
+                SnowEvents.error(
                     "ApiClient->getRemotePlayerStatus",
-                    "Exception fetching remote player: ${exception.javaClass.simpleName} - ${exception.message}",
+                    "Exception fetching remote player",
+                    exception,
                 )
             }
             null
@@ -376,9 +380,10 @@ object ApiClient {
             }
         } catch (exception: Exception) {
             if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
-                SnowEvents.log(
+                SnowEvents.error(
                     "ApiClient->fetchBitmap",
-                    "Exception fetching bitmap: ${exception.javaClass.simpleName} - ${exception.message}",
+                    "Exception fetching bitmap",
+                    exception,
                 )
             }
             null
