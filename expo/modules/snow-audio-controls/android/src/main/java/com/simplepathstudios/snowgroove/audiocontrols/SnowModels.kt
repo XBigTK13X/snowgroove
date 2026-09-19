@@ -114,7 +114,7 @@ data class AudioFile(
     @SerialName("created_at")
     var createdAt: String? = null,
     @Field
-    var disc: String? = null,
+    var disc: Int? = null,
     @Field
     var duration: Double = 0.0,
     @Field("ffprobe_raw_json")
