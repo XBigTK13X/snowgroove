@@ -240,7 +240,7 @@ class SnowgrooveService : Service() {
         }
         serviceScope.launch(Dispatchers.Main) {
             if (audioFile != null) {
-                queueManager.addAudioFile(audioFile, playNow = true, playNext = false)?.join()
+                queueManager.addAudioFile(audioFile, playNow = true)?.join()
             }
             val currentSong = queueManager.currentSong
             player.loadAndPlay(currentSong?.webPath)

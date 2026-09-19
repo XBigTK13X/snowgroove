@@ -113,7 +113,7 @@ export function AudioContextProvider(props) {
     React.useEffect(() => {
         const listeners = [
             SnowAudioControls.addListener('apiConfigured', () => {
-                if (config.debugAndroidAudio != null) util.prettyLog({ owner: 'audio-context', action: 'apiConfigured' })
+                if (config.debugAndroidAudio !== false) util.prettyLog({ owner: 'audio-context', action: 'apiConfigured' })
             }),
             SnowAudioControls.addListener('sessionChanged', (session) => {
                 if (config.debugAndroidAudio === 'verbose') util.prettyLog({ owner: 'audio-context', action: 'sessionChanged', session })
@@ -128,13 +128,13 @@ export function AudioContextProvider(props) {
                 setIsPlaying(event.is_playing)
             }),
             SnowAudioControls.addListener('volumeChanged', (event) => {
-                if (config.debugAndroidAudio != null) util.prettyLog({ owner: 'audio-context', action: 'volumeChanged', event })
+                if (config.debugAndroidAudio !== false) util.prettyLog({ owner: 'audio-context', action: 'volumeChanged', event })
             }),
             SnowAudioControls.addListener('log', (event) => {
-                if (config.debugAndroidAudio != null) util.prettyLog({ owner: 'audio-context', action: 'log', event })
+                if (config.debugAndroidAudio !== false) util.prettyLog({ owner: 'audio-context', action: 'log', event })
             }),
             SnowAudioControls.addListener('error', (event) => {
-                if (config.debugAndroidAudio != null) util.prettyLog({ owner: 'audio-context', action: 'error', event })
+                if (config.debugAndroidAudio !== false) util.prettyLog({ owner: 'audio-context', action: 'error', event })
             })
         ]
         return () => {
