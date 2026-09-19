@@ -10,28 +10,35 @@ export class CrossAudioControls {
         this.player = null
         this.localPlayer = null
         this.remotePlayer = null
+        this.playerState = { is_playing: false, position_seconds: 0, duration_seconds: 0, volume: 0.0 }
     }
 
     setEventEmitter(emitter) {
         this.eventEmitter = emitter
-        this.localPlayer = new LocalPlayer({
-            onStateChange: ({ currentAudioFile, positionSeconds, isPlaying }) => {
+    }
 
+    configure(apiClient, appConfig) {
+        this.apiClient = apiClient
+        this.config = appConfig
+        this.eventEmitter.emit('apiConfigured')
+        this.localPlayer = new LocalPlayer({
+            eventEmitter: this.eventEmitter,
+            onStateChange: (playerState) => {
+                this.playerState = { ...this.playerState, ...playerState }
+                this.eventEmitter.emit('statusUpdate', this.playerState)
             },
             onTrackFinished: () => {
 
             }
         })
         this.remotePlayer = new RemotePlayer({
-            onStateChange: ({ currentAudioFile, positionSeconds, isPlaying }) => {
-
+            eventEmitter: this.eventEmitter,
+            onStateChange: (playerState) => {
+                this.playerState = { ...this.playerState, ...playerState }
+                this.eventEmitter.emit('statusUpdate', this.playerState)
             },
-            apiClient: null
+            apiClient: this.apiClient
         })
-    }
-
-    configureApi(apiClient) {
-        this.apiClient = apiClient
     }
 
     changeTargetPlayer(id, name) {
@@ -46,32 +53,41 @@ export class CrossAudioControls {
         } else {
             this.player = this.remotePlayer
         }
+        this.player.activate({ id, name })
         this.apiClient.getMusicSession(this.targetPlayerId, this.targetPlayerName).then((session) => {
+            this.localPlayer.setMusicSession(session)
+            this.remotePlayer.setMusicSession(session)
             this.eventEmitter.emit('sessionChanged', session)
         })
     }
 
     play(audioFile) {
+        if (this.config.debugAudioContext) this.eventEmitter.emit('log', { nativeOwner: 'CrossAudioControls->play', message: audioFile.web_path })
         this.player.play(audioFile)
     }
 
     pause() {
+        if (this.config.debugAudioContext) this.eventEmitter.emit('log', { nativeOwner: 'CrossAudioControls->pause' })
         this.player.pause()
     }
 
     resume() {
+        if (this.config.debugAudioContext) this.eventEmitter.emit('log', { nativeOwner: 'CrossAudioControls->resume' })
         this.player.resume()
     }
 
     stop() {
+        if (this.config.debugAudioContext) this.eventEmitter.emit('log', { nativeOwner: 'CrossAudioControls->stop' })
         this.player.resume()
     }
 
     seek(seconds) {
+        if (this.config.debugAudioContext) this.eventEmitter.emit('log', { nativeOwner: 'CrossAudioControls->seek', seconds })
         this.player.seek(seconds)
     }
 
     setVolume(percent) {
+        if (this.config.debugAudioContext) this.eventEmitter.emit('log', { nativeOwner: 'CrossAudioControls->setVolume', percent })
         this.player.setVolume(percent)
     }
 }

@@ -45,7 +45,7 @@ const initializeDriver = () => {
         return {
             backend: nativeAudio,
             emitter: nativeAudio,
-            configureApi: (apiClient) => nativeAudio.configureApi(apiClient.baseURL, apiClient.authToken)
+            configure: (apiClient, appConfig) => nativeAudio.configureApi(apiClient.baseURL, apiClient.authToken),
         }
     }
 
@@ -56,7 +56,7 @@ const initializeDriver = () => {
     return {
         backend: crossAudio,
         emitter: crossEmitter,
-        configureApi: (apiClient) => crossAudio.configureApi(apiClient)
+        configure: (apiClient, appConfig) => crossAudio.configure(apiClient, appConfig)
     }
 }
 
@@ -86,8 +86,8 @@ export class SnowAudioControls {
         return driver.emitter.addListener(eventName, listener)
     }
 
-    static configureApi(apiClient) {
-        driver.configureApi(apiClient)
+    static configure(apiClient, appConfig) {
+        driver.configure(apiClient, appConfig)
     }
 }
 

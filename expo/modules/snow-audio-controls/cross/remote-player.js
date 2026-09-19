@@ -7,18 +7,10 @@ export class RemotePlayer {
         this.volume = initialVolume
 
         this.targetPlayer = null
-        this.currentSession = null
         this.pollInterval = null
         this.pendingVolumeTimeout = null
-        this.appStateSubscription = null
     }
 
-
-
-    updateConfig({ apiClient, targetPlayer }) {
-        this.apiClient = apiClient
-        this.targetPlayer = targetPlayer
-    }
 
     activate({ targetPlayer }) {
         const targetChanged = this.targetPlayer?.id !== targetPlayer?.id
@@ -27,30 +19,16 @@ export class RemotePlayer {
         if (targetChanged) {
             this.currentSession = null
             this.onStateChange?.({
-                isPlaying: false,
-                currentAudioFile: null,
-                positionSeconds: 0,
-                musicSession: null
+                is_playing: false,
+                position_seconds: 0
             })
         }
 
         this.startPolling()
-
-        this.appStateSubscription = AppState.addEventListener('change', (nextAppState) => {
-            if (nextAppState === 'active') {
-                this.refreshSession()
-            }
-        })
-
-        this.refreshSession()
     }
 
     deactivate() {
         this.stopPolling()
-        if (this.appStateSubscription) {
-            this.appStateSubscription.remove()
-            this.appStateSubscription = null
-        }
     }
 
     startPolling() {
@@ -86,23 +64,15 @@ export class RemotePlayer {
         }
     }
 
-    handleStateSync(response) {
-        if (!response) return
-        this.currentSession = response
-
-        const patch = { musicSession: response }
-
-        if (response.music_queue?.songs?.length) {
-            const currentSong = response.music_queue.songs[response.music_queue.current_song_index]
-            patch.currentAudioFile = currentSong
-        }
+    handleStateSync() {
+        const patch = {}
 
         if (response.status?.position_seconds !== undefined) {
             patch.positionSeconds = response.status.position_seconds
         }
 
-        if (response.status?.isPlaying !== undefined) {
-            patch.isPlaying = response.status.isPlaying
+        if (response.status?.is_playing !== undefined) {
+            patch.is_playing = response.status.is_playing
         }
 
         if (response.status?.volume !== undefined && response.status?.volume !== null) {
@@ -111,16 +81,6 @@ export class RemotePlayer {
         }
 
         this.onStateChange?.(patch)
-    }
-
-    async refreshSession() {
-        if (!this.apiClient || !this.apiClient.isAuthenticated() || !this.targetPlayer?.id) return null
-
-        const response = await this.apiClient.getMusicSession(this.targetPlayer.id, this.targetPlayer.name)
-        if (response) {
-            this.handleStateSync(response)
-        }
-        return response
     }
 
     getSessionId() {

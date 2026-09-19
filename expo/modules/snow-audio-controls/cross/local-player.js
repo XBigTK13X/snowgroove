@@ -1,12 +1,11 @@
 import { createAudioPlayer } from 'expo-audio'
 
 export class LocalPlayer {
-    constructor({ onStateChange, onTrackFinished, initialVolume = 1.0 }) {
+    constructor({ onStateChange, onTrackFinished, initialVolume = 1.0, eventEmitter }) {
         this.onStateChange = onStateChange
         this.onTrackFinished = onTrackFinished
         this.volume = initialVolume
 
-        this.appStateSubscription = null
         this.seekLockTimeout = null
 
         this.player = null
@@ -15,9 +14,11 @@ export class LocalPlayer {
         this.positionSeconds = 0
     }
 
+    activate({ targetPlayer }) {
+
+    }
 
     deactivate() {
-
         if (this.seekLockTimeout) {
             clearTimeout(this.seekLockTimeout)
             this.seekLockTimeout = null
@@ -45,8 +46,8 @@ export class LocalPlayer {
             if (!this.seekLockTimeout && status.currentTime !== undefined) {
                 this.positionSeconds = status.currentTime
                 this.onStateChange?.({
-                    positionSeconds: status.currentTime,
-                    isPlaying: status.playing
+                    position_seconds: status.currentTime,
+                    is_playing: status.playing
                 })
             }
 
@@ -68,9 +69,8 @@ export class LocalPlayer {
         this.positionSeconds = 0
 
         this.onStateChange?.({
-            currentAudioFile: audioFile,
-            positionSeconds: 0,
-            isPlaying: true
+            position_seconds: 0,
+            is_playing: true
         })
 
         const rawUri = audioFile.web_path
@@ -82,7 +82,7 @@ export class LocalPlayer {
 
     async pause() {
         this.player?.pause()
-        this.onStateChange?.({ isPlaying: false })
+        this.onStateChange?.({ is_playing: false })
     }
 
     async resume() {
@@ -92,7 +92,7 @@ export class LocalPlayer {
             await this.play(this.currentAudioFile)
         } else {
             this.player.play()
-            this.onStateChange?.({ isPlaying: true })
+            this.onStateChange?.({ is_playing: true })
         }
     }
 
@@ -106,14 +106,14 @@ export class LocalPlayer {
             this.player.release()
             this.player = null
         }
-        this.onStateChange?.({ isPlaying: false })
+        this.onStateChange?.({ is_playing: false })
     }
 
     async seek(seconds) {
         const duration = this.currentAudioFile?.duration || 0
         const targetSeconds = Math.max(0, Math.min(seconds, duration))
         this.positionSeconds = targetSeconds
-        this.onStateChange?.({ positionSeconds: targetSeconds })
+        this.onStateChange?.({ position_seconds: targetSeconds })
 
         if (this.seekLockTimeout) clearTimeout(this.seekLockTimeout)
         this.seekLockTimeout = setTimeout(() => {
