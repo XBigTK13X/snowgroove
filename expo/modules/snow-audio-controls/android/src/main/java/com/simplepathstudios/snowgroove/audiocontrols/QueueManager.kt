@@ -56,7 +56,6 @@ class QueueManager {
     fun addAudioFile(
         audioFile: AudioFile,
         playNow: Boolean = false,
-        playNext: Boolean = false,
     ): Job? {
         val queue = getOrCreateQueue() ?: return null
         val isNewSong = audioFile.fingerprint !in queue.dedupe
@@ -64,24 +63,6 @@ class QueueManager {
         if (isNewSong) {
             queue.dedupe = queue.dedupe + (audioFile.fingerprint to true)
             queue.songs = queue.songs + audioFile
-        }
-
-        if (playNext && queue.songs.size > 1) {
-            val mutableSongs = queue.songs.toMutableList()
-            val foundIndex =
-                mutableSongs.indexOf(audioFile).takeIf { it != -1 }
-                    ?: mutableSongs.indexOfFirst { candidate -> candidate.fingerprint == audioFile.fingerprint }
-
-            if (foundIndex != -1) {
-                mutableSongs.removeAt(foundIndex)
-                val targetIndex = (queue.currentSongIndex + 1).coerceAtMost(mutableSongs.size)
-                mutableSongs.add(targetIndex, audioFile)
-
-                if (queue.currentSongIndex > foundIndex) {
-                    queue.currentSongIndex -= 1
-                }
-                queue.songs = mutableSongs
-            }
         }
 
         if (playNow) {
@@ -160,6 +141,34 @@ class QueueManager {
             queue.currentSongIndex = adjustedIndex.coerceIn(0, queue.songs.lastIndex)
         }
 
+        return syncQueue()
+    }
+
+    fun playNext(audioFile: AudioFile): Job? {
+        val queue = getOrCreateQueue() ?: return null
+        if (queue.songs.size <= 1) return null
+
+        val mutableSongs = queue.songs.toMutableList()
+        val foundIndex =
+            mutableSongs.indexOf(audioFile).takeIf { it != -1 }
+                ?: mutableSongs.indexOfFirst { candidate -> candidate.fingerprint == audioFile.fingerprint }
+
+        if (foundIndex == -1) return null
+
+        val currentIndex = queue.currentSongIndex
+        if (foundIndex == currentIndex || foundIndex == currentIndex + 1) {
+            return null
+        }
+
+        val targetSong = mutableSongs.removeAt(foundIndex)
+        val targetIndex = (if (foundIndex < currentIndex) currentIndex else currentIndex + 1).coerceAtMost(mutableSongs.size)
+        mutableSongs.add(targetIndex, targetSong)
+
+        if (foundIndex < currentIndex) {
+            queue.currentSongIndex -= 1
+        }
+
+        queue.songs = mutableSongs
         return syncQueue()
     }
 

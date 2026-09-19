@@ -138,6 +138,10 @@ class SnowAudioControlsModule : Module() {
                 service?.moveQueueItem(oldIndex, newIndex)
             }
 
+            Function("playNext") { audioFile: AudioFile ->
+                service?.playNext(audioFile)
+            }
+
             OnDestroy {
                 SnowEvents.setEventEmitter(null)
                 val context = appContext.reactContext

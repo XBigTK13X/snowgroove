@@ -351,6 +351,13 @@ class SnowgrooveService : Service() {
         queueManager.move(oldIndex, newIndex)
     }
 
+    fun playNext(audioFile: AudioFile) {
+        if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
+            SnowEvents.log("SnowgrooveService->playNext", "${audioFile.fingerprint}")
+        }
+        queueManager.playNext(audioFile)
+    }
+
     private fun startProgressLoop() {
         progressJob?.cancel()
         lastStatus = null

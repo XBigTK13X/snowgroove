@@ -70,6 +70,7 @@ const forwardMethods = [
     'moveQueueItem',
     'pause',
     'play',
+    'playNext',
     'removeFromQueue',
     'resume',
     'seek',

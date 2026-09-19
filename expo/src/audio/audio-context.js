@@ -63,7 +63,7 @@ export function AudioContextProvider(props) {
         addAudioFileToQueue: (audioFile, playNext) => {
             SnowAudioControls.addToQueue([audioFile])
             if (playNext) {
-                // TODO Queue it up else play
+                SnowAudioControls.playNext(audioFile)
             }
         },
         addAudioFileListToQueue: (audioFiles) => {
