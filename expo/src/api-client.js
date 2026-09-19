@@ -314,6 +314,10 @@ export class ApiClient {
         return this.get(`/remote-player?remote_player_id=${remotePlayerId}`)
     }
 
+    getRemotePlayerStatus = (remotePlayerId) => {
+        return this.get(`/remote-player/status?remote_player_id=${remotePlayerId}`)
+    }
+
     stopAllRemotePlayers = () => {
         return this.post(`/remote-player/stop/all`)
     }

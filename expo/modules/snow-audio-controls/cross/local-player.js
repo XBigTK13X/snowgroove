@@ -1,134 +1,162 @@
 import { createAudioPlayer } from 'expo-audio'
 
-export class LocalPlayer {
-    constructor({ onStateChange, onTrackFinished, initialVolume = 1.0, eventEmitter }) {
+export default class LocalPlayer {
+    constructor({ eventEmitter, onStateChange, onTrackFinished, config }) {
+        this.eventEmitter = eventEmitter
         this.onStateChange = onStateChange
         this.onTrackFinished = onTrackFinished
-        this.volume = initialVolume
-
-        this.seekLockTimeout = null
-
-        this.player = null
-        this.playerListener = null
-        this.currentAudioFile = null
-        this.positionSeconds = 0
+        this.config = config
+        this.audioPlayer = null
+        this.statusSubscription = null
+        this.hasFiredFinishedForCurrentItem = false
+        this.targetVolume = 1.0
+        this.musicSession = null
+        this.isActive = false
     }
 
-    activate({ targetPlayer }) {
+    setMusicSession(session) {
+        this.musicSession = session
+    }
 
+    activate() {
+        this.isActive = true
     }
 
     deactivate() {
-        if (this.seekLockTimeout) {
-            clearTimeout(this.seekLockTimeout)
-            this.seekLockTimeout = null
-        }
+        this.isActive = false
         this.pause()
     }
 
-    setupWebPlayer(uri) {
-        if (this.playerListener) {
-            this.playerListener.remove()
-            this.playerListener = null
+    prepare() {
+        if (this.audioPlayer) {
+            return
         }
 
-        if (this.player) {
-            this.player.release()
-            this.player = null
+        this.audioPlayer = createAudioPlayer()
+        this.audioPlayer.volume = this.targetVolume
+
+        this.statusSubscription = this.audioPlayer.addListener('playbackStatusUpdate', (status) => {
+            if (!this.isActive) return
+
+            if (status.didJustFinish) {
+                if (!this.hasFiredFinishedForCurrentItem) {
+                    this.hasFiredFinishedForCurrentItem = true
+                    this.onTrackFinished()
+                }
+            }
+
+            if (status.isLoaded && !status.didJustFinish) {
+                this.hasFiredFinishedForCurrentItem = false
+            }
+
+            this.onStateChange({
+                is_playing: Boolean(this.audioPlayer.playing),
+                position_seconds: Math.floor(this.audioPlayer.currentTime || 0),
+                duration_seconds: Math.floor(this.audioPlayer.duration || 0),
+                volume: this.targetVolume,
+                player_state: this.audioPlayer.playing ? 'playing' : 'paused'
+            })
+        })
+    }
+
+    async getStatus() {
+        if (!this.audioPlayer) {
+            return {
+                is_playing: false,
+                position_seconds: 0,
+                duration_seconds: 0,
+                volume: this.targetVolume,
+                player_state: 'stopped'
+            }
         }
+        return {
+            is_playing: Boolean(this.audioPlayer.playing),
+            position_seconds: Math.floor(this.audioPlayer.currentTime || 0),
+            duration_seconds: Math.floor(this.audioPlayer.duration || 0),
+            volume: this.targetVolume,
+            player_state: this.audioPlayer.playing ? 'playing' : 'paused'
+        }
+    }
 
-        this.player = createAudioPlayer(uri)
-        this.player.volume = this.volume
+    loadAndPlay(uri) {
+        if (!uri) return
+        this.hasFiredFinishedForCurrentItem = false
+        this.prepare()
 
-        this.playerListener = this.player.addListener('playbackStatusUpdate', (status) => {
-            if (!status.isLoaded) return
-
-            if (!this.seekLockTimeout && status.currentTime !== undefined) {
-                this.positionSeconds = status.currentTime
-                this.onStateChange?.({
-                    position_seconds: status.currentTime,
-                    is_playing: status.playing
+        try {
+            this.audioPlayer.replace({ uri })
+            this.audioPlayer.volume = this.targetVolume
+            this.audioPlayer.play()
+        } catch (exception) {
+            if (this.config?.debugAudioContext) {
+                this.eventEmitter.emit('error', {
+                    nativeOwner: 'LocalPlayer->loadAndPlay',
+                    message: 'Failed to load audio source',
+                    exception: `${exception?.name || 'Error'} - ${exception?.message || String(exception)}`
                 })
             }
+        }
+    }
 
-            if (status.playbackState === 'ended') {
-                this.handleSongEnded()
+    play(audioFile) {
+        const uri = audioFile?.web_path || audioFile?.webPath
+        if (uri) {
+            this.loadAndPlay(uri)
+        } else if (this.audioPlayer) {
+            this.audioPlayer.play()
+        }
+    }
+
+    pause() {
+        if (this.audioPlayer) {
+            this.audioPlayer.pause()
+        }
+    }
+
+    resume() {
+        if (this.audioPlayer) {
+            this.audioPlayer.play()
+        }
+    }
+
+    stop() {
+        if (this.audioPlayer) {
+            try {
+                this.audioPlayer.pause()
+                this.audioPlayer.seekTo(0)
+            } catch (exception) {
+                if (this.config?.debugAudioContext) {
+                    this.eventEmitter.emit('error', {
+                        nativeOwner: 'LocalPlayer->stop',
+                        message: 'Failed to stop player',
+                        exception: `${exception?.name || 'Error'} - ${exception?.message || String(exception)}`
+                    })
+                }
             }
-        })
-    }
-
-    async handleSongEnded() {
-        if (this.onTrackFinished) {
-            await this.onTrackFinished()
         }
     }
 
-    async play(audioFile) {
-        if (!audioFile) return
-        this.currentAudioFile = audioFile
-        this.positionSeconds = 0
-
-        this.onStateChange?.({
-            position_seconds: 0,
-            is_playing: true
-        })
-
-        const rawUri = audioFile.web_path
-        const formattedUri = rawUri.includes('%') ? rawUri : encodeURI(rawUri)
-
-        this.setupWebPlayer(formattedUri)
-        this.player.play()
-    }
-
-    async pause() {
-        this.player?.pause()
-        this.onStateChange?.({ is_playing: false })
-    }
-
-    async resume() {
-        if (!this.currentAudioFile) return
-
-        if (!this.player) {
-            await this.play(this.currentAudioFile)
-        } else {
-            this.player.play()
-            this.onStateChange?.({ is_playing: true })
+    seek(seconds) {
+        if (this.audioPlayer) {
+            this.audioPlayer.seekTo(seconds)
         }
     }
 
-    async stop() {
-        if (this.playerListener) {
-            this.playerListener.remove()
-            this.playerListener = null
+    setVolume(volume) {
+        this.targetVolume = volume
+        if (this.audioPlayer) {
+            this.audioPlayer.volume = volume
         }
-        if (this.player) {
-            this.player.pause()
-            this.player.release()
-            this.player = null
-        }
-        this.onStateChange?.({ is_playing: false })
     }
 
-    async seek(seconds) {
-        const duration = this.currentAudioFile?.duration || 0
-        const targetSeconds = Math.max(0, Math.min(seconds, duration))
-        this.positionSeconds = targetSeconds
-        this.onStateChange?.({ position_seconds: targetSeconds })
-
-        if (this.seekLockTimeout) clearTimeout(this.seekLockTimeout)
-        this.seekLockTimeout = setTimeout(() => {
-            this.seekLockTimeout = null
-        }, 1200)
-
-        if (this.player) await this.player.seekTo(targetSeconds)
-    }
-
-    async setVolume(percent) {
-        this.volume = Math.max(0, Math.min(1, percent))
-        this.onStateChange?.({ volume: this.volume })
-
-        if (this.player) this.player.volume = this.volume
+    cleanup() {
+        if (this.statusSubscription) {
+            this.statusSubscription.remove()
+            this.statusSubscription = null
+        }
+        if (this.audioPlayer) {
+            this.audioPlayer.remove()
+            this.audioPlayer = null
+        }
     }
 }
-
-export default LocalPlayer
