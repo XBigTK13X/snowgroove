@@ -1,12 +1,10 @@
 #! /bin/bash
 
-source script/variables.sh
-
 echo "Docker services working dir"
 
 pwd
 
-docker pull $SNOWGROOVE_DOCKER_IMAGE
+docker pull gitea.9914.us/xbigtk13x/snowgroove
 
 docker rm -f snowgroove || true
 
@@ -44,10 +42,19 @@ docker run -d \
     -v $(pwd)/web-server/.snowgroove:/mnt/.snowgroove \
     -v /mnt/test-data:/mnt/test-data \
     -v /mnt/j-media/music:/mnt/j-media/music \
-    $SNOWGROOVE_DOCKER_IMAGE
+    gitea.9914.us/xbigtk13x/snowgroove
 
-sleep 12
+target_phrase="database system is ready to accept connections"
+timeout_seconds=60
+elapsed_seconds=0
 
-if [ -z "$1" ]; then
-    script/db-migrate.sh
-fi
+until docker logs snowstream 2>&1 | grep -q "$target_phrase"; do
+    if [ "$elapsed_seconds" -ge "$timeout_seconds" ]; then
+        echo "Timed out waiting for database to be ready" >&2
+        exit 1
+    fi
+    sleep 1
+    elapsed_seconds=$((elapsed_seconds + 1))
+done
+
+echo "DB is online"
