@@ -18,7 +18,7 @@ class TrackCompletionListener:
         self.on_finished_callback = on_finished_callback
         self._was_playing = False
         if config.debug_remote_players:
-            log.info(
+            log.player(
                 f'[Chromecast-DEBUG] TrackCompletionListener initialized for cast target UUID: {cast_device.cast_info.uuid}'
             )
 
@@ -39,7 +39,7 @@ class TrackCompletionListener:
 
 
 def scan_remote_players():
-    log.info('Starting remote player scan...')
+    log.player('Starting remote player scan...')
     devices, browser = pychromecast.get_chromecasts()
     browser.stop_discovery()
 
@@ -62,7 +62,7 @@ def scan_remote_players():
         }
         remote_players.append(remote_player)
 
-    log.info(f'Scan complete. Found {len(remote_players)} players.')
+    log.player(f'Scan complete. Found {len(remote_players)} players.')
     return remote_players
 
 
@@ -93,7 +93,7 @@ def _get_cached_cast(connection_info, force_refresh=False):
 
         try:
             if config.debug_remote_players:
-                log.info(
+                log.player(
                     '[Chromecast-DEBUG] Requesting cast client from shared cache layer...'
                 )
             cast_device = _connect(connection_info)
@@ -148,7 +148,7 @@ def attach_listener(connection_info, on_track_finished):
                 pass
 
         if config.debug_remote_players:
-            log.info(
+            log.player(
                 f'[Chromecast-DEBUG] Re-attaching track completion listener for cast target UUID: {cast_device.cast_info.uuid}'
             )
 
@@ -246,10 +246,10 @@ def play(connection_info, audio_file, on_track_finished=None):
     album = audio_file.get('album', 'Unknown Album')
 
     if config.debug_remote_players:
-        log.info(
+        log.player(
             f'[Chromecast-DEBUG] Play invocation initiated. Target IP: {connection_info["host"]}'
         )
-        log.info(
+        log.player(
             f'[Chromecast-DEBUG] Payload resolved -> title: "{title}", url: "{encoded_audio_url}"'
         )
 
@@ -272,7 +272,7 @@ def play(connection_info, audio_file, on_track_finished=None):
                     'BUFFERING',
                 ):
                     if config.debug_remote_players:
-                        log.info(
+                        log.player(
                             '[Chromecast-DEBUG] Target file is already active on device. Updating tracking listener and skipping redundant initialization.'
                         )
                     if on_track_finished:
@@ -286,7 +286,7 @@ def play(connection_info, audio_file, on_track_finished=None):
                 pass
 
         if config.debug_remote_players:
-            log.info(
+            log.player(
                 f'[Chromecast-DEBUG] Acquired cast connection. Initializing Default Media Receiver application (App ID: {pychromecast.config.APP_MEDIA_RECEIVER})'
             )
         cast_device.start_app(pychromecast.config.APP_MEDIA_RECEIVER)
@@ -294,7 +294,7 @@ def play(connection_info, audio_file, on_track_finished=None):
 
         try:
             if config.debug_remote_players:
-                log.info(
+                log.player(
                     '[Chromecast-DEBUG] Blocking thread until media controller channel is active...'
                 )
             media_controller.block_until_active(timeout=5.0)
@@ -303,7 +303,7 @@ def play(connection_info, audio_file, on_track_finished=None):
             if media_controller.is_active:
                 status = media_controller.status
                 if config.debug_remote_players:
-                    log.info(
+                    log.player(
                         f'[Chromecast-DEBUG] Media channel verified active. Existing app player state: {status.player_state}'
                     )
                 if (
@@ -335,7 +335,7 @@ def play(connection_info, audio_file, on_track_finished=None):
 
         if on_track_finished:
             if config.debug_remote_players:
-                log.info(
+                log.player(
                     '[Chromecast-DEBUG] Registering push event listener class onto hardware media controller channel.'
                 )
             media_controller._status_listeners = []

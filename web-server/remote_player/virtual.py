@@ -7,7 +7,7 @@ from settings import config
 
 def _log_debug(message):
     if config.debug_remote_players:
-        log.info(f'[Virtual-DEBUG] {message}')
+        log.player(f'[Virtual-DEBUG] {message}')
 
 
 class VirtualPlayerState:

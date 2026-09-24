@@ -14,7 +14,7 @@ _active_subscriptions = {}
 
 def _log_debug(message):
     if config.debug_remote_players:
-        log.info(f'[Sonos-DEBUG] {message}')
+        log.player(f'[Sonos-DEBUG] {message}')
 
 
 class SonosTrackCompletionListener:
@@ -75,9 +75,9 @@ class SonosTrackCompletionListener:
             dur_sec = self._parse_seconds(track_info.get('duration'))
             current_uri = track_info.get('uri')
 
-            _log_debug(
-                f'[Sonos-Check] State: {state}, Pos: {pos_sec}/{dur_sec}, LastPos: {self._last_pos_sec}, WasPlaying: {self._was_playing}'
-            )
+            # _log_debug(
+            #    f'[Sonos-Check] State: {state}, Pos: {pos_sec}/{dur_sec}, LastPos: {self._last_pos_sec}, WasPlaying: {self._was_playing}'
+            # )
 
             if state == 'PLAYING':
                 self._was_playing = True

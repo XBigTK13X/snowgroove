@@ -47,7 +47,7 @@ class RemotePlayers:
 
     def _log_debug(self, message):
         if config.debug_remote_players:
-            log.info(f'[RemotePlayers-DEBUG] {message}')
+            log.player(f'[RemotePlayers-DEBUG] {message}')
 
     def recover_active_sessions(self):
         recovery_thread = threading.Thread(
@@ -111,7 +111,7 @@ class RemotePlayers:
                         on_track_finished=lambda: message_queue.put('track_finished'),
                     )
 
-            log.info(
+            log.player(
                 f'Recovered remote player connection for {remote_player.name} on startup'
             )
 
@@ -326,7 +326,7 @@ class RemotePlayers:
             else:
                 virtual.act(remote_player, remote_action, music_session)
         else:
-            log.info(f'Unhandled remote_player kind [{remote_player.kind}]')
+            log.player(f'Unhandled remote_player kind [{remote_player.kind}]')
 
     def dispatch(self, remote_player, remote_action):
         self._log_debug(
