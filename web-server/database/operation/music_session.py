@@ -153,3 +153,14 @@ def get_remote_music_session_list():
             .options(dbi.orm.joinedload(dbi.dm.MusicSession.remote_player))
             .all()
         )
+
+
+def delete_music_session(remote_player_id: int):
+    with dbi.session() as db:
+        deleted_count = (
+            db.query(dbi.dm.MusicSession)
+            .filter(dbi.dm.MusicSession.remote_player_id == remote_player_id)
+            .delete(synchronize_session=False)
+        )
+        db.commit()
+        return deleted_count > 0

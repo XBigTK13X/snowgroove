@@ -3,12 +3,14 @@ import Snow from 'expo-snowui'
 
 export default function DeviceDetailsPage(props) {
     const { apiClient, changeTargetPlayer, routes } = useAppContext()
-    const { SnowStyle, navPush, currentRoute } = C.useSnowContext(props)
+    const { navPush, currentRoute } = C.useSnowContext(props)
     const [remotePlayer, setRemotePlayer] = C.React.useState(null)
+    const [canKill, setCanKill] = C.React.useState(null)
 
     C.React.useEffect(() => {
         apiClient.getRemotePlayer(currentRoute?.routeParams?.remotePlayerId).then((response) => {
-            setRemotePlayer(response)
+            setRemotePlayer(response.player)
+            setCanKill(response.can_kill)
         })
     }, [])
 
@@ -46,6 +48,14 @@ export default function DeviceDetailsPage(props) {
                         navPush({
                             path: routes.musicSessionDetails,
                             func: false
+                        })
+                    })
+                }} />
+                <C.SnowTextButton focusStart title="Kill Session" onPress={() => {
+                    apiClient.killRemotePlayer(currentRoute?.routeParams?.remotePlayerId).then(() => {
+                        apiClient.getRemotePlayer(currentRoute?.routeParams?.remotePlayerId).then((response) => {
+                            setRemotePlayer(response.player)
+                            setCanKill(response.can_kill)
                         })
                     })
                 }} />

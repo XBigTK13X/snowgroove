@@ -449,10 +449,15 @@ class RemotePlayers:
             )
             return DEFAULT_STATUS
 
-    def stop_all_players(self, ticket):
-        self._log_debug('Stopping playback on all known remote players...')
+    def stop_players(self, ticket, remote_player_id=None):
+        if remote_player_id == None:
+            self._log_debug('Stopping playback on all known remote players...')
+        else:
+            self._log_debug(f'Stopping playback on [{remote_player_id}]...')
         remote_players = db.op.get_remote_player_list(ticket=ticket)
         for remote_player in remote_players:
+            if remote_player_id != None and remote_player_id != remote_player.id:
+                continue
             try:
                 self._log_debug(
                     f'Dispatching "stop" action to player [{remote_player.name}] (ID: {remote_player.id})'

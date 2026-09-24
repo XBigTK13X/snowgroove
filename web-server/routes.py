@@ -319,7 +319,10 @@ def music_session_routes(router):
         if player.music_session:
             player.music_queue = json.loads(player.music_session.music_queue_json)
         player.status = remote_players.get_status(remote_player=player)
-        return player
+        return {
+            'player': player,
+            'can_kill': not auth_user.ticket.has_restrictions(),
+        }
 
     @router.get('/remote-player/status', tags=['Music Session'])
     def get_remote_player_by_id(
@@ -344,7 +347,22 @@ def music_session_routes(router):
     ):
         if auth_user.ticket.has_restrictions():
             return None
-        remote_players.stop_all_players(ticket=auth_user.ticket)
+        remote_players.stop_players(ticket=auth_user.ticket)
+        return True
+
+    @router.post('/remote-player/kill', tags=['Music Session'])
+    def kill_remote_player(
+        auth_user: Annotated[am.User, Security(get_current_user, scopes=[])],
+        remote_player_id: int = Body(embed=True),
+    ):
+        if auth_user.ticket.has_restrictions():
+            return None
+        if remote_player_id == None:
+            return None
+        remote_players.stop_players(
+            ticket=auth_user.ticket, remote_player_id=remote_player_id
+        )
+        db.op.delete_music_session(remote_player_id=remote_player_id)
         return True
 
     @router.get('/music-session', tags=['Music Session'])

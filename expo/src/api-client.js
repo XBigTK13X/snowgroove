@@ -321,6 +321,10 @@ export class ApiClient {
         return this.post(`/remote-player/stop/all`)
     }
 
+    killRemotePlayer = (remotePlayerId) => {
+        return this.post(`/remote-player/kill`, { remote_player_id: remotePlayerId })
+    }
+
     getMusicSession = (remotePlayerId, remotePlayerName) => {
         let url = `/music-session?p=1`
         if (remotePlayerId) {
