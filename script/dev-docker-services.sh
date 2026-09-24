@@ -48,7 +48,7 @@ target_phrase="database system is ready to accept connections"
 timeout_seconds=60
 elapsed_seconds=0
 
-until docker logs snowstream 2>&1 | grep -q "$target_phrase"; do
+until docker logs snowgroove 2>&1 | grep -q "$target_phrase"; do
     if [ "$elapsed_seconds" -ge "$timeout_seconds" ]; then
         echo "Timed out waiting for database to be ready" >&2
         exit 1

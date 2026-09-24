@@ -3,7 +3,12 @@ import datetime
 
 
 def upsert_remote_player(
-    name: str, kind: str, device_make: str, connection_info_json: str
+    name: str,
+    kind: str,
+    device_make: str,
+    connection_info_json: str,
+    is_online: bool,
+    last_seen: float,
 ):
     with dbi.session() as db:
         remote_player = (
@@ -17,6 +22,15 @@ def upsert_remote_player(
             dbm.kind = kind
             dbm.device_make = device_make
             dbm.connection_info_json = connection_info_json
+            dbm.is_online = is_online
+            dbm.last_seen = last_seen
+            if last_seen is not None:
+                if isinstance(last_seen, (int, float)):
+                    dbm.last_seen = datetime.datetime.fromtimestamp(
+                        last_seen, tz=datetime.timezone.utc
+                    )
+                else:
+                    dbm.last_seen = last_seen
 
             db.add(dbm)
             db.commit()
@@ -26,6 +40,15 @@ def upsert_remote_player(
         remote_player.kind = kind
         remote_player.device_make = device_make
         remote_player.connection_info_json = connection_info_json
+        remote_player.is_online = is_online
+        remote_player.last_seen = last_seen
+        if last_seen is not None:
+            if isinstance(last_seen, (int, float)):
+                remote_player.last_seen = datetime.datetime.fromtimestamp(
+                    last_seen, tz=datetime.timezone.utc
+                )
+            else:
+                remote_player.last_seen = last_seen
         db.commit()
         db.refresh(remote_player)
         return remote_player
@@ -56,13 +79,24 @@ def get_remote_player_by_name(name: str):
 
 def get_remote_player_list(ticket: dbi.dm.Ticket):
     with dbi.session() as db:
-        query = db.query(dbi.dm.RemotePlayer)
+        query = db.query(dbi.dm.RemotePlayer).options(
+            dbi.orm.joinedload(dbi.dm.RemotePlayer.music_session)
+        )
         if ticket.has_remote_player_restrictions():
             query = query.filter(dbi.dm.RemotePlayer.id.in_(ticket.remote_player_ids))
         results = query.order_by(dbi.dm.RemotePlayer.name).all()
+
+        for player in results:
+            session = player.music_session
+            player.has_session = False
+            if session and session.client_device_user_id is None:
+                queue_raw = getattr(session, 'music_queue_json', None)
+                if queue_raw:
+                    player.has_session = '[]' not in queue_raw
+
         if ticket.is_admin:
             return results
-        return [xx for xx in results if not xx.kind == 'virtual']
+        return [player for player in results if not player.kind == 'virtual']
 
 
 def update_remote_player_status(

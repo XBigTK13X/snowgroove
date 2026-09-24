@@ -152,9 +152,8 @@ export class ApiClient {
     }
 
     createScopedJob = (name, details) => {
-        let payload = { name }
+        let payload = { name, input: {} }
         if (details) {
-            payload.input = {}
             for (const prop of JOB_PROPERTIES) {
                 if (details.hasOwnProperty(prop[0])) {
                     payload.input[prop[1]] = details[prop[0]]
