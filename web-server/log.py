@@ -1,7 +1,37 @@
-import pprint
+import os
 import sys
+import fcntl
+import pprint
 import logging
 from settings import config
+
+for stream_fd in (sys.stdout.fileno(), sys.stderr.fileno()):
+    flags = fcntl.fcntl(stream_fd, fcntl.F_GETFL)
+    fcntl.fcntl(stream_fd, fcntl.F_SETFL, flags | os.O_APPEND)
+
+sys.stdout.reconfigure(line_buffering=True, write_through=True)
+sys.stderr.reconfigure(line_buffering=True, write_through=True)
+
+
+class DirectAppendFileHandler(logging.FileHandler):
+    def _open(self):
+        file_descriptor = os.open(
+            self.baseFilename,
+            os.O_WRONLY | os.O_CREAT | os.O_APPEND,
+            0o666,
+        )
+        return open(
+            file_descriptor,
+            mode='a',
+            encoding=self.encoding,
+            buffering=1,
+            closefd=True,
+        )
+
+    def emit(self, record: logging.LogRecord):
+        super().emit(record)
+        self.flush()
+
 
 LOG_FORMAT = '%(asctime)s %(levelname)-8s %(name)s: %(message)s'
 TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
@@ -21,7 +51,7 @@ player_logger.handlers.clear()
 player_logger.setLevel(logging.INFO)
 player_logger.propagate = False
 
-player_file_handler = logging.FileHandler(config.player_log_path, encoding='utf-8')
+player_file_handler = DirectAppendFileHandler(config.player_log_path, encoding='utf-8')
 player_file_handler.setFormatter(logging.Formatter(LOG_FORMAT, TIME_FORMAT))
 player_logger.addHandler(player_file_handler)
 
@@ -88,7 +118,7 @@ access_filter = AccessLogFilter(
     redirect_logger=player_logger,
 )
 
-file_handler = logging.FileHandler(config.log_file_path, encoding='utf-8')
+file_handler = DirectAppendFileHandler(config.log_file_path, encoding='utf-8')
 file_handler.setFormatter(logging.Formatter(LOG_FORMAT, TIME_FORMAT))
 root.addHandler(file_handler)
 
