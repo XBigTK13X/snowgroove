@@ -3,10 +3,14 @@ package com.simplepathstudios.snowgroove.audiocontrols
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class QueueManager {
     private val scope = CoroutineScope(Dispatchers.IO + Job())
+
+    private var debounceJob: Job? = null
+    private val debounceDelayMs = 350L
 
     var musicSession: MusicSession? = null
         private set
@@ -193,6 +197,8 @@ class QueueManager {
     }
 
     fun clearQueue(): Job? {
+        debounceJob?.cancel()
+
         val queue = musicSession?.musicQueue ?: return null
         queue.currentSongIndex = 0
         queue.songs = emptyList()
@@ -202,6 +208,8 @@ class QueueManager {
     }
 
     fun shuffleQueue(): AudioFile? {
+        debounceJob?.cancel()
+
         val queue = musicSession?.musicQueue ?: return null
         if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
             SnowEvents.log("QueueManager->shuffleQueue", "Queue is not null")
@@ -233,7 +241,12 @@ class QueueManager {
         queue.currentSongIndex = (queue.currentSongIndex + amount).mod(queueSize)
         val nextSong = queue.songs.getOrNull(queue.currentSongIndex)
 
-        syncQueue()
+        debounceJob?.cancel()
+        debounceJob =
+            scope.launch {
+                delay(debounceDelayMs)
+                syncQueue()
+            }
 
         if (SnowConfig.DEBUG_ANDROID_AUDIO != null && nextSong != null) {
             SnowEvents.log(
@@ -246,6 +259,7 @@ class QueueManager {
     }
 
     fun setQueueIndexBySongId(songId: Int): Job? {
+        debounceJob?.cancel()
         val queue = musicSession?.musicQueue ?: return null
         val targetIndex = queue.songs.indexOfFirst { candidate -> candidate.id == songId }
         if (targetIndex != -1) {
@@ -256,6 +270,7 @@ class QueueManager {
     }
 
     fun setCurrentIndex(index: Int) {
+        debounceJob?.cancel()
         musicSession?.musicQueue?.currentSongIndex = index
         syncQueue()
     }
@@ -264,6 +279,7 @@ class QueueManager {
         oldIndex: Int,
         newIndex: Int,
     ): Job? {
+        debounceJob?.cancel()
         val queue = getOrCreateQueue() ?: return null
         if (queue.songs.isEmpty()) return null
         if (oldIndex !in queue.songs.indices) return null
