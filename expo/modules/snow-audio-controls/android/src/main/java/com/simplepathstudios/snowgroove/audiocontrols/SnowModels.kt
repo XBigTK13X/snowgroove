@@ -15,12 +15,6 @@ import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.longOrNull
 
-val sharedJson =
-    Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = true
-    }
-
 fun JsonElement.toAny(): Any? =
     when (this) {
         is JsonNull -> {
@@ -45,7 +39,7 @@ fun JsonElement.toAny(): Any? =
     }
 
 inline fun <reified T> T.toMap(): Map<String, Any?> {
-    val element = sharedJson.encodeToJsonElement(this)
+    val element = SnowConfig.JSON_RULES.encodeToJsonElement(this)
     if (element is JsonObject) {
         return element.mapValues { it.value.toAny() }
     }

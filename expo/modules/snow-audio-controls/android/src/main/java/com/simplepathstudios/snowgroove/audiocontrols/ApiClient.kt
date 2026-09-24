@@ -84,12 +84,6 @@ object ApiClient {
     @Volatile
     private var authToken: String? = null
 
-    private val json =
-        Json {
-            ignoreUnknownKeys = true
-            isLenient = true
-        }
-
     fun configure(
         baseUrl: String,
         token: String,
@@ -126,7 +120,7 @@ object ApiClient {
                 .Builder()
                 .baseUrl(sanitizedBaseUrl)
                 .client(httpClient)
-                .addConverterFactory(json.asConverterFactory(contentType))
+                .addConverterFactory(SnowConfig.JSON_RULES.asConverterFactory(contentType))
                 .build()
                 .create(SnowgrooveApiService::class.java)
     }

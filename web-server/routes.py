@@ -445,8 +445,6 @@ def music_session_routes(router):
         music_session_id: int = Body(embed=True),
         volume_percent: float = Body(embed=True),  # 0.0->1.0
     ):
-        log.info(music_session_id)
-        log.info(volume_percent)
         music_session = db.op.get_music_session_by_id(id=music_session_id)
         remote_players.dispatch(
             remote_player=music_session.remote_player,
