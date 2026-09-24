@@ -18,16 +18,18 @@ def scan_remote_players(job_id: int):
     db.op.update_job(job_id=job_id, message='Creating Virtual devices')
     virtual_players = virtual.scan_remote_players()
     remote_players = chromecast_players + sonos_players + virtual_players
-    for remote_player in remote_players:
+    for player in remote_players:
         db.op.update_job(
             job_id=job_id,
-            message=f'Discovered remote_player [{remote_player["kind"]}] [{remote_player["name"]}]',
+            message=f'Discovered remote_player [{player["kind"]}] [{player["name"]}]',
         )
         db.op.upsert_remote_player(
-            name=remote_player['name'],
-            kind=remote_player['kind'],
-            device_make=remote_player['device_make'],
-            connection_info_json=remote_player['connection_info_json'],
+            name=player['name'],
+            kind=player['kind'],
+            device_make=player['device_make'],
+            connection_info_json=player['connection_info_json'],
+            is_online=True,
+            last_seen=time.time(),
         )
     return remote_players
 
@@ -156,6 +158,11 @@ class RemotePlayers:
                     )
                 except Exception as execute_error:
                     log.error(f'Initial action execution failed: {execute_error}')
+                    db.op.update_remote_player_status(
+                        remote_player_id=remote_player.id,
+                        is_online=False,
+                        last_seen=time.time(),
+                    )
 
         try:
             while True:
@@ -207,6 +214,11 @@ class RemotePlayers:
                                 log.error(
                                     f'Debounced seek execution failed: {seek_error}'
                                 )
+                                db.op.update_remote_player_status(
+                                    remote_player_id=remote_player.id,
+                                    is_online=False,
+                                    last_seen=time.time(),
+                                )
                             pending_seek = None
 
                         update_playback_intent(remote_action)
@@ -218,6 +230,11 @@ class RemotePlayers:
                             )
                         except Exception as action_error:
                             log.error(f'Action execution failed: {action_error}')
+                            db.op.update_remote_player_status(
+                                remote_player_id=remote_player.id,
+                                is_online=False,
+                                last_seen=time.time(),
+                            )
 
                     message_queue.task_done()
 
@@ -234,11 +251,21 @@ class RemotePlayers:
                             )
                         except Exception as seek_error:
                             log.error(f'Debounced seek execution failed: {seek_error}')
+                            db.op.update_remote_player_status(
+                                remote_player_id=remote_player.id,
+                                is_online=False,
+                                last_seen=time.time(),
+                            )
                         pending_seek = None
 
         except Exception as terminal_error:
             log.critical(
                 f'Fatal error encountered in device worker loop for player {remote_player.id}: {terminal_error}'
+            )
+            db.op.update_remote_player_status(
+                remote_player_id=remote_player.id,
+                is_online=False,
+                last_seen=time.time(),
             )
         finally:
             with self.registry_lock:
@@ -328,6 +355,31 @@ class RemotePlayers:
         else:
             log.player(f'Unhandled remote_player kind [{remote_player.kind}]')
 
+        if remote_action in ['play', 'next', 'previous']:
+            db.op.update_remote_player_status(
+                remote_player_id=remote_player.id,
+                is_online=True,
+                is_playing=True,
+                player_state='playing',
+                last_seen=time.time(),
+            )
+        elif remote_action == 'pause':
+            db.op.update_remote_player_status(
+                remote_player_id=remote_player.id,
+                is_online=True,
+                is_playing=False,
+                player_state='paused',
+                last_seen=time.time(),
+            )
+        elif remote_action == 'stop':
+            db.op.update_remote_player_status(
+                remote_player_id=remote_player.id,
+                is_online=True,
+                is_playing=False,
+                player_state='stopped',
+                last_seen=time.time(),
+            )
+
     def dispatch(self, remote_player, remote_action):
         self._log_debug(
             f'Dispatching remote action request: Player={remote_player.name}, Action={remote_action}'
@@ -367,17 +419,33 @@ class RemotePlayers:
         )
         try:
             if remote_player.kind == 'sonos':
-                return sonos.get_status(remote_player)
+                status = sonos.get_status(remote_player)
             elif remote_player.kind == 'chromecast':
-                return chromecast.get_status(remote_player)
+                status = chromecast.get_status(remote_player)
             elif remote_player.kind == 'virtual':
-                return virtual.get_status(remote_player)
+                status = virtual.get_status(remote_player)
             else:
                 log.warning(f'Unhandled status lookup for kind [{remote_player.kind}]')
                 return DEFAULT_STATUS
+
+            db.op.update_remote_player_status(
+                remote_player_id=remote_player.id,
+                is_online=True,
+                is_playing=status.get('is_playing', False),
+                volume=status.get('volume', 0.0),
+                player_state=status.get('player_state', 'stopped'),
+                last_seen=time.time(),
+            )
+            return status
+
         except Exception as hardware_error:
             log.error(
                 f'Failed to fetch hardware status for player {remote_player.id}: {hardware_error}'
+            )
+            db.op.update_remote_player_status(
+                remote_player_id=remote_player.id,
+                is_online=False,
+                last_seen=time.time(),
             )
             return DEFAULT_STATUS
 

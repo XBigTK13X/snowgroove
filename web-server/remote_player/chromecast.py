@@ -1,15 +1,56 @@
 import json
+import threading
+import time
 import urllib.parse
+import uuid
+
+import pychromecast
+from pychromecast.discovery import HostServiceInfo
+from pychromecast.models import CastInfo
+from pychromecast.socket_client import (
+    CONNECTION_STATUS_CONNECTED,
+    CONNECTION_STATUS_CONNECTING,
+    CONNECTION_STATUS_DISCONNECTED,
+    CONNECTION_STATUS_FAILED,
+    CONNECTION_STATUS_LOST,
+)
+
+from db import db
 from log import log
 from settings import config
-import pychromecast
-from pychromecast.models import CastInfo
-from pychromecast.discovery import HostServiceInfo
-import threading
-import uuid
 
 _cast_cache = {}
 _cache_lock = threading.Lock()
+
+
+class ConnectionStatusListener:
+    def __init__(self, remote_player_id):
+        self.remote_player_id = remote_player_id
+
+    def new_connection_status(self, status):
+        status_code = getattr(status, 'status', None) or str(status)
+        if config.debug_remote_players:
+            log.player(
+                f'[Chromecast-DEBUG] Connection status change for player {self.remote_player_id}: {status_code}'
+            )
+
+        if status_code == CONNECTION_STATUS_CONNECTED:
+            db.op.update_remote_player_status(
+                remote_player_id=self.remote_player_id,
+                is_online=True,
+                last_seen=time.time(),
+            )
+        elif status_code in (
+            CONNECTION_STATUS_DISCONNECTED,
+            CONNECTION_STATUS_FAILED,
+            CONNECTION_STATUS_LOST,
+            CONNECTION_STATUS_CONNECTING,
+        ):
+            db.op.update_remote_player_status(
+                remote_player_id=self.remote_player_id,
+                is_online=False,
+                last_seen=time.time(),
+            )
 
 
 class TrackCompletionListener:
@@ -66,7 +107,7 @@ def scan_remote_players():
     return remote_players
 
 
-def _get_cached_cast(connection_info, force_refresh=False):
+def _get_cached_cast(connection_info, remote_player_id=None, force_refresh=False):
     player_uuid = connection_info.get('uuid')
     if not player_uuid:
         return None
@@ -91,23 +132,35 @@ def _get_cached_cast(connection_info, force_refresh=False):
                 pass
             _cast_cache.pop(player_uuid, None)
 
-        try:
-            if config.debug_remote_players:
-                log.player(
-                    '[Chromecast-DEBUG] Requesting cast client from shared cache layer...'
-                )
-            cast_device = _connect(connection_info)
-        except Exception as connection_error:
-            log.warning(
-                f'Direct connection to host {connection_info["host"]} failed: {connection_error}'
+    try:
+        if config.debug_remote_players:
+            log.player(
+                '[Chromecast-DEBUG] Requesting cast client from shared cache layer...'
             )
-            raise connection_error
+        cast_device = _connect(
+            connection_info=connection_info,
+            remote_player_id=remote_player_id,
+            timeout=3.0,
+        )
+    except Exception as connection_error:
+        log.player(
+            f'Direct connection to host {connection_info["host"]} failed: {connection_error}'
+        )
+        if remote_player_id is not None:
+            db.op.update_remote_player_status(
+                remote_player_id=remote_player_id,
+                is_online=False,
+                last_seen=time.time(),
+            )
+        raise connection_error
 
+    with _cache_lock:
         _cast_cache[player_uuid] = cast_device
-        return cast_device
+
+    return cast_device
 
 
-def _connect(connection_info):
+def _connect(connection_info, remote_player_id=None, timeout=3.0):
     device_ip = str(connection_info['host'])
     device_port = int(connection_info.get('port', 8009))
 
@@ -125,17 +178,42 @@ def _connect(connection_info):
     )
 
     cast_device = pychromecast.Chromecast(cast_info=cast_info)
-    cast_device.wait()
+
+    if remote_player_id is not None:
+        listener = ConnectionStatusListener(remote_player_id=remote_player_id)
+        cast_device.register_connection_listener(listener)
+
+    cast_device.wait(timeout=timeout)
+
+    if not cast_device.socket_client or not cast_device.socket_client.is_connected:
+        try:
+            cast_device.disconnect()
+        except Exception:
+            pass
+        raise pychromecast.error.PyChromecastError(
+            f'Timed out connecting to {device_ip}:{device_port} after {timeout}s'
+        )
+
+    if remote_player_id is not None:
+        db.op.update_remote_player_status(
+            remote_player_id=remote_player_id,
+            is_online=True,
+            last_seen=time.time(),
+        )
 
     return cast_device
 
 
-def attach_listener(connection_info, on_track_finished):
+def attach_listener(connection_info, on_track_finished, remote_player_id=None):
     if not on_track_finished:
         return
 
     try:
-        cast_device = _get_cached_cast(connection_info, force_refresh=False)
+        cast_device = _get_cached_cast(
+            connection_info=connection_info,
+            remote_player_id=remote_player_id,
+            force_refresh=False,
+        )
         if not cast_device:
             return
 
@@ -156,9 +234,15 @@ def attach_listener(connection_info, on_track_finished):
         listener = TrackCompletionListener(cast_device, on_track_finished)
         media_controller.register_status_listener(listener)
     except Exception as error_message:
-        log.error(
+        log.player(
             f'Failed to re-attach Chromecast completion listener: {error_message}'
         )
+        if remote_player_id is not None:
+            db.op.update_remote_player_status(
+                remote_player_id=remote_player_id,
+                is_online=False,
+                last_seen=time.time(),
+            )
 
 
 def act(remote_player, remote_action, music_session):
@@ -168,11 +252,18 @@ def act(remote_player, remote_action, music_session):
         current_audio_file = music_session.music_queue['songs'][
             music_session.music_queue['current_song_index']
         ]
-        play(connection_info=connection_info, audio_file=current_audio_file)
+        play(
+            connection_info=connection_info,
+            audio_file=current_audio_file,
+            remote_player_id=remote_player.id,
+        )
         return
 
     try:
-        cast_device = _get_cached_cast(connection_info)
+        cast_device = _get_cached_cast(
+            connection_info=connection_info,
+            remote_player_id=remote_player.id,
+        )
         if not cast_device:
             return
 
@@ -183,7 +274,7 @@ def act(remote_player, remote_action, music_session):
                 media_controller.block_until_active(timeout=2.0)
                 media_controller.update_status()
             except pychromecast.error.PyChromecastError as block_err:
-                log.warning(f'Action controller initialization timed out: {block_err}')
+                log.player(f'Action controller initialization timed out: {block_err}')
 
         current_state = media_controller.status.player_state
         has_active_session = current_state not in (None, 'UNKNOWN', 'IDLE')
@@ -207,12 +298,17 @@ def act(remote_player, remote_action, music_session):
                 scaled_volume = volume_level * 0.7
                 cast_device.set_volume(scaled_volume)
     except Exception as error_message:
-        log.error(
+        log.player(
             f'Failed to execute action {remote_action} on {remote_player.name}: {error_message}'
+        )
+        db.op.update_remote_player_status(
+            remote_player_id=remote_player.id,
+            is_online=False,
+            last_seen=time.time(),
         )
 
 
-def play(connection_info, audio_file, on_track_finished=None):
+def play(connection_info, audio_file, on_track_finished=None, remote_player_id=None):
     audio_url = audio_file['web_path']
 
     def encode_url(url):
@@ -254,14 +350,18 @@ def play(connection_info, audio_file, on_track_finished=None):
         )
 
     try:
-        cast_device = _get_cached_cast(connection_info, force_refresh=False)
+        cast_device = _get_cached_cast(
+            connection_info=connection_info,
+            remote_player_id=remote_player_id,
+            force_refresh=False,
+        )
         if not cast_device:
             return
 
         try:
             cast_device.set_volume_muted(False)
         except Exception as mute_err:
-            log.warning(f'Failed to un-mute Chromecast target device: {mute_err}')
+            log.player(f'Failed to un-mute Chromecast target device: {mute_err}')
 
         if cast_device.app_id == pychromecast.config.APP_MEDIA_RECEIVER:
             try:
@@ -319,7 +419,7 @@ def play(connection_info, audio_file, on_track_finished=None):
                     media_controller.play()
                     return
         except pychromecast.error.PyChromecastError as block_err:
-            log.warning(
+            log.player(
                 f'Pre-play media controller active block timed out/failed: {block_err}'
             )
 
@@ -355,18 +455,32 @@ def play(connection_info, audio_file, on_track_finished=None):
             media_controller.block_until_active(timeout=5.0)
             media_controller.update_status()
         except pychromecast.error.PyChromecastError as block_err:
-            log.error(
+            log.player(
                 f'Post-play media controller active block failed to resolve: {block_err}'
             )
     except Exception as error_message:
-        log.error(f'Play routine failed with exception: {error_message}')
+        log.player(f'Play routine failed with exception: {error_message}')
+        if remote_player_id is not None:
+            db.op.update_remote_player_status(
+                remote_player_id=remote_player_id,
+                is_online=False,
+                last_seen=time.time(),
+            )
 
 
 def get_status(remote_player):
     try:
         connection_info = json.loads(remote_player.connection_info_json)
-        cast_device = _get_cached_cast(connection_info)
+        cast_device = _get_cached_cast(
+            connection_info=connection_info,
+            remote_player_id=remote_player.id,
+        )
         if not cast_device:
+            db.op.update_remote_player_status(
+                remote_player_id=remote_player.id,
+                is_online=False,
+                last_seen=time.time(),
+            )
             return {
                 'position_seconds': 0,
                 'is_playing': False,
@@ -427,6 +541,15 @@ def get_status(remote_player):
         else:
             media_status = 'stopped'
 
+        db.op.update_remote_player_status(
+            remote_player_id=remote_player.id,
+            is_online=True,
+            is_playing=is_playing,
+            volume=normalized_volume,
+            player_state=media_status,
+            last_seen=time.time(),
+        )
+
         return {
             'position_seconds': position_seconds,
             'is_playing': is_playing,
@@ -439,8 +562,13 @@ def get_status(remote_player):
             with _cache_lock:
                 _cast_cache.pop(player_uuid, None)
 
-        log.error(
+        log.player(
             f'Failed to fetch status from Chromecast device {remote_player.name}: {error_message}'
+        )
+        db.op.update_remote_player_status(
+            remote_player_id=remote_player.id,
+            is_online=False,
+            last_seen=time.time(),
         )
         return {
             'position_seconds': 0,

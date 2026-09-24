@@ -442,6 +442,11 @@ class RemotePlayer(BaseModel):
     music_session: orm.Mapped['MusicSession'] = orm.relationship(
         back_populates='remote_player'
     )
+    is_online = sa.Column(sa.Boolean)
+    is_playing = sa.Column(sa.Boolean)
+    volume = sa.Column(sa.Float)
+    player_state = sa.Column(sa.Text)
+    last_seen = sa.Column(sa.DateTime)
 
 
 class MusicSession(BaseModel):

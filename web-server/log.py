@@ -109,7 +109,6 @@ class AccessLogFilter(logging.Filter):
 
 access_filter = AccessLogFilter(
     player_routes=[
-        '/api/music-session',
         '/api/remote-player',
     ],
     ignored_routes=[

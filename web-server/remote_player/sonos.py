@@ -1,13 +1,15 @@
+import html
+import json
+import queue
+import threading
 import time
 import urllib.parse
-import json
+
 import soco
-import threading
-import queue
+
 from db import db
 from log import log
 from settings import config
-import html
 
 _active_subscriptions = {}
 
@@ -18,9 +20,10 @@ def _log_debug(message):
 
 
 class SonosTrackCompletionListener:
-    def __init__(self, sonos_player, on_finished_callback):
+    def __init__(self, sonos_player, on_finished_callback, remote_player_id=None):
         self.sonos_player = sonos_player
         self.on_finished_callback = on_finished_callback
+        self.remote_player_id = remote_player_id
         self._was_playing = False
         self.subscription = None
         self._event_thread = None
@@ -75,10 +78,6 @@ class SonosTrackCompletionListener:
             dur_sec = self._parse_seconds(track_info.get('duration'))
             current_uri = track_info.get('uri')
 
-            # _log_debug(
-            #    f'[Sonos-Check] State: {state}, Pos: {pos_sec}/{dur_sec}, LastPos: {self._last_pos_sec}, WasPlaying: {self._was_playing}'
-            # )
-
             if state == 'PLAYING':
                 self._was_playing = True
 
@@ -113,6 +112,12 @@ class SonosTrackCompletionListener:
                 return True
         except Exception as check_err:
             _log_debug(f'Error during completion check: {check_err}')
+            if self.remote_player_id is not None:
+                db.op.update_remote_player_status(
+                    remote_player_id=self.remote_player_id,
+                    is_online=False,
+                    last_seen=time.time(),
+                )
         return False
 
     def _event_loop(self):
@@ -133,6 +138,12 @@ class SonosTrackCompletionListener:
                 continue
             except Exception as loop_err:
                 _log_debug(f'Exception inside Sonos event listener loop: {loop_err}')
+                if self.remote_player_id is not None:
+                    db.op.update_remote_player_status(
+                        remote_player_id=self.remote_player_id,
+                        is_online=False,
+                        last_seen=time.time(),
+                    )
                 break
 
     def _poll_loop(self):
@@ -199,30 +210,40 @@ def act(remote_player, remote_action, music_session):
     connection_info = json.loads(remote_player.connection_info_json)
     sonos_player = soco.SoCo(connection_info['host'])
 
-    if remote_action == 'pause':
-        uid = connection_info.get('uid')
-        if uid in _active_subscriptions:
-            _active_subscriptions[uid].unsubscribe()
-        sonos_player.pause()
-    elif remote_action == 'stop':
-        uid = connection_info.get('uid')
-        if uid in _active_subscriptions:
-            _active_subscriptions[uid].unsubscribe()
-        sonos_player.stop()
-    elif remote_action.startswith('seek--'):
-        seek_target = remote_action.split('seek--')[-1]
-        if seek_target.isdigit():
-            seek_seconds = int(seek_target)
-            formatted_time = time.strftime('%H:%M:%S', time.gmtime(seek_seconds))
-            sonos_player.seek(formatted_time)
-    elif remote_action.startswith('volume--'):
-        volume_target = remote_action.split('volume--')[-1]
-        volume_level = float(volume_target)
-        if 0.0 <= volume_level <= 1.0:
-            sonos_player.volume = volume_level * 100
+    try:
+        if remote_action == 'pause':
+            uid = connection_info.get('uid')
+            if uid in _active_subscriptions:
+                _active_subscriptions[uid].unsubscribe()
+            sonos_player.pause()
+        elif remote_action == 'stop':
+            uid = connection_info.get('uid')
+            if uid in _active_subscriptions:
+                _active_subscriptions[uid].unsubscribe()
+            sonos_player.stop()
+        elif remote_action.startswith('seek--'):
+            seek_target = remote_action.split('seek--')[-1]
+            if seek_target.isdigit():
+                seek_seconds = int(seek_target)
+                formatted_time = time.strftime('%H:%M:%S', time.gmtime(seek_seconds))
+                sonos_player.seek(formatted_time)
+        elif remote_action.startswith('volume--'):
+            volume_target = remote_action.split('volume--')[-1]
+            volume_level = float(volume_target)
+            if 0.0 <= volume_level <= 1.0:
+                sonos_player.volume = volume_level * 100
+    except Exception as action_error:
+        log.player(f'Sonos action failed for {remote_player.name}: {action_error}')
+        db.op.update_remote_player_status(
+            remote_player_id=remote_player.id,
+            is_online=False,
+            last_seen=time.time(),
+        )
 
 
-def attach_listener(device_ip, on_track_finished, device_uid=None):
+def attach_listener(
+    device_ip, on_track_finished, device_uid=None, remote_player_id=None
+):
     if not on_track_finished:
         return
 
@@ -234,15 +255,29 @@ def attach_listener(device_ip, on_track_finished, device_uid=None):
 
     try:
         _log_debug(f'Re-attaching UPnP event listener for restored speaker {uid}...')
-        listener = SonosTrackCompletionListener(sonos_player, on_track_finished)
+        listener = SonosTrackCompletionListener(
+            sonos_player, on_track_finished, remote_player_id=remote_player_id
+        )
         sub = sonos_player.avTransport.subscribe()
         listener.start(sub)
         _active_subscriptions[uid] = listener
     except Exception as err:
-        log.error(f'Failed to re-attach Sonos completion listener: {err}')
+        log.player(f'Failed to re-attach Sonos completion listener: {err}')
+        if remote_player_id is not None:
+            db.op.update_remote_player_status(
+                remote_player_id=remote_player_id,
+                is_online=False,
+                last_seen=time.time(),
+            )
 
 
-def play(device_ip, audio_file, on_track_finished=None, device_uid=None):
+def play(
+    device_ip,
+    audio_file,
+    on_track_finished=None,
+    device_uid=None,
+    remote_player_id=None,
+):
     _log_debug(f'Play invocation initiated. Sonos target IP: {device_ip}')
     audio_url = audio_file['web_path']
 
@@ -318,7 +353,9 @@ def play(device_ip, audio_file, on_track_finished=None, device_uid=None):
                 _log_debug(
                     'Attaching event tracking hooks to AVTransport handler channel during resume sequence.'
                 )
-                listener = SonosTrackCompletionListener(sonos_player, on_track_finished)
+                listener = SonosTrackCompletionListener(
+                    sonos_player, on_track_finished, remote_player_id=remote_player_id
+                )
                 sub = sonos_player.avTransport.subscribe()
                 listener.start(sub)
                 _active_subscriptions[uid] = listener
@@ -357,7 +394,9 @@ def play(device_ip, audio_file, on_track_finished=None, device_uid=None):
             _log_debug(
                 'Subscribing listener mapping handler directly to UPnP network broadcast channel...'
             )
-            listener = SonosTrackCompletionListener(sonos_player, on_track_finished)
+            listener = SonosTrackCompletionListener(
+                sonos_player, on_track_finished, remote_player_id=remote_player_id
+            )
             sub = sonos_player.avTransport.subscribe()
             listener.start(sub)
             _active_subscriptions[uid] = listener
@@ -368,9 +407,15 @@ def play(device_ip, audio_file, on_track_finished=None, device_uid=None):
         sonos_player.play_from_queue(0)
         _log_debug('Sonos network packet transaction pipeline completed successfully.')
     except Exception as sonos_err:
-        log.error(
+        log.player(
             f'Sonos hardware interaction failed with network execution error: {sonos_err}'
         )
+        if remote_player_id is not None:
+            db.op.update_remote_player_status(
+                remote_player_id=remote_player_id,
+                is_online=False,
+                last_seen=time.time(),
+            )
 
 
 def get_status(remote_player):
@@ -421,6 +466,15 @@ def get_status(remote_player):
         else:
             player_state = 'stopped'
 
+        db.op.update_remote_player_status(
+            remote_player_id=remote_player.id,
+            is_online=True,
+            is_playing=is_playing,
+            volume=normalized_volume,
+            player_state=player_state,
+            last_seen=time.time(),
+        )
+
         return {
             'position_seconds': position_seconds,
             'is_playing': is_playing,
@@ -439,7 +493,12 @@ def get_status(remote_player):
                 'player_state': 'stopped',
             }
 
-        log.error(f'UPnP error from Sonos device {remote_player.name}: {upnp_error}')
+        log.player(f'UPnP error from Sonos device {remote_player.name}: {upnp_error}')
+        db.op.update_remote_player_status(
+            remote_player_id=remote_player.id,
+            is_online=False,
+            last_seen=time.time(),
+        )
         return {
             'position_seconds': 0,
             'is_playing': False,
@@ -456,8 +515,13 @@ def get_status(remote_player):
                 'player_state': 'stopped',
             }
 
-        log.error(
+        log.player(
             f'Failed to fetch status from Sonos device {remote_player.name}: {error_message}'
+        )
+        db.op.update_remote_player_status(
+            remote_player_id=remote_player.id,
+            is_online=False,
+            last_seen=time.time(),
         )
         return {
             'position_seconds': 0,

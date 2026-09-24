@@ -7,8 +7,12 @@ function DeviceGroup(props) {
         <C.SnowView>
             <C.SnowLabel center>{props.title}</C.SnowLabel>
             <C.SnowGrid {...props} items={props.items} renderItem={(remotePlayer) => {
+                let title = remotePlayer.name
+                if (remotePlayer.is_online === false) {
+                    title = `${remotePlayer.name}\n[offline]`
+                }
                 return (
-                    <C.SnowTextButton title={remotePlayer.name} onPress={navPush({
+                    <C.SnowTextButton title={title} onPress={navPush({
                         path: routes.deviceDetails,
                         params: {
                             remotePlayerId: remotePlayer.id
