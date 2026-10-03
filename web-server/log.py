@@ -113,6 +113,7 @@ access_filter = AccessLogFilter(
     ],
     ignored_routes=[
         '/api/heartbeat',
+        '/api/remote-player/status',
     ],
     redirect_logger=player_logger,
 )
