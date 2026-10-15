@@ -69,40 +69,31 @@ class AccessLogFilter(logging.Filter):
         self.redirect_logger = redirect_logger
 
     def filter(self, record: logging.LogRecord) -> bool:
+        method = None
+        target_path = None
+
         if isinstance(record.args, tuple) and len(record.args) >= 3:
             method = record.args[1]
-            request_target = record.args[2]
+            target_path = record.args[2]
+        else:
+            raw_message = record.getMessage()
+            target_path = raw_message
+            if '"OPTIONS ' in raw_message:
+                method = 'OPTIONS'
 
-            if method == 'OPTIONS':
-                return False
-
-            if isinstance(request_target, str):
-                if self.ignored_routes != None:
-                    for ignored_route in self.ignored_routes:
-                        if ignored_route in request_target:
-                            return False
-
-                for player_route in self.player_routes:
-                    if player_route in request_target:
-                        self.redirect_logger.handle(record)
-                        return False
-
-                return True
-
-        message = record.getMessage()
-
-        if '"OPTIONS ' in message:
+        if method == 'OPTIONS':
             return False
 
-        if self.ignored_routes != None:
+        if target_path and self.ignored_routes:
             for ignored_route in self.ignored_routes:
-                if ignored_route in message:
+                if ignored_route in target_path:
                     return False
 
-        for player_route in self.player_routes:
-            if player_route in message:
-                self.redirect_logger.handle(record)
-                return False
+        if target_path:
+            for player_route in self.player_routes:
+                if player_route in target_path:
+                    self.redirect_logger.handle(record)
+                    return False
 
         return True
 
