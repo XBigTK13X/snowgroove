@@ -40,7 +40,7 @@ export default function DeviceDetailsPage(props) {
         status = <C.SnowText center>This device is not being used.</C.SnowText>
     }
 
-    let killTitle = killed ? "Kill Session (Long Press)" : 'Cleared and Stopped'
+    let killTitle = killed === true ? 'Cleared and Stopped' : "Kill Session (Long Press)"
 
     return (
         <C.SnowView {...props}>

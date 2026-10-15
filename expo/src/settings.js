@@ -3,8 +3,8 @@ class Config {
         this.vondoomWebApiUrl = 'http://192.168.101.10:10063' // Desktop
         this.beastWebApiUrl = 'http://beast.9914.us:10063' // Prod
 
-        this.clientVersion = "1.3.6"
-        this.clientBuildDate = "October 14, 2026"
+        this.clientVersion = "1.3.8"
+        this.clientBuildDate = "October 15, 2026"
         this.clientDevBuildNumber = 1
 
         this.debounceMilliseconds = 700

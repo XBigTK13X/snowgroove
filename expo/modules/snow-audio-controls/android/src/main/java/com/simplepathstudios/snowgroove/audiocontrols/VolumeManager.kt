@@ -22,35 +22,42 @@ class VolumeManager(
             "snowgroove:volume_wake_lock",
         )
 
+    private val handler = Handler(Looper.getMainLooper())
     private var volumeObserver: ContentObserver? = null
-    private var lastObservedStreamVolume = -1
-    private var isProgrammaticVolumeChange = false
+
+    private var centerVolume = -1
     private var isPaused = false
 
     var musicSessionId: Int? = null
     var volumePercent: Double? = 0.0
+
+    private fun calculateCenterVolume(): Int {
+        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        return maxVolume / 2
+    }
+
+    private fun forceCenterStream() {
+        centerVolume = calculateCenterVolume()
+        val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+        if (currentVolume != centerVolume) {
+            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, centerVolume, 0)
+        }
+    }
 
     fun pause() {
         isPaused = true
     }
 
     fun resume() {
-        if (!isPaused) return
         isPaused = false
-
-        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-        val centerVolume = maxVolume / 2
-
-        isProgrammaticVolumeChange = true
-        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, centerVolume, 0)
-        lastObservedStreamVolume = centerVolume
+        forceCenterStream()
     }
 
     fun setInitialVolume(
         sessionId: Int?,
         volume: Double?,
     ) {
-        if ((volumePercent == 0.0 && volume ?: 0.0 > 0.0) || (musicSessionId != sessionId)) {
+        if ((volumePercent == 0.0 && (volume ?: 0.0) > 0.0) || (musicSessionId != sessionId)) {
             musicSessionId = sessionId
             volumePercent = volume
         }
@@ -63,43 +70,41 @@ class VolumeManager(
     fun registerObserver() {
         if (volumeObserver != null) return
 
-        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-        val centerVolume = maxVolume / 2
-
-        isProgrammaticVolumeChange = true
+        isPaused = false
+        centerVolume = calculateCenterVolume()
         audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, centerVolume, 0)
-        lastObservedStreamVolume = centerVolume
 
         val observer =
-            object : ContentObserver(Handler(Looper.getMainLooper())) {
+            object : ContentObserver(handler) {
                 override fun onChange(selfChange: Boolean) {
                     super.onChange(selfChange)
 
-                    if (isProgrammaticVolumeChange) {
-                        isProgrammaticVolumeChange = false
-                        SnowEvents.send("volumeChanged", mapOf("ignored" to volumePercent))
-                        return
-                    }
-
                     if (isPaused) {
-                        lastObservedStreamVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
                         return
                     }
 
-                    val currentStreamVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                    val delta = currentStreamVolume - lastObservedStreamVolume
-                    if (delta != 0) {
-                        val volumeStep = if (delta > 0) 0.05 else -0.05
-                        volumePercent = ((volumePercent ?: 0.0) + volumeStep).coerceIn(0.0, 1.0)
+                    val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
 
-                        isProgrammaticVolumeChange = true
-                        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, centerVolume, 0)
-                        lastObservedStreamVolume = centerVolume
-
-                        val sessionId = musicSessionId ?: return
-                        ApiClient.setRemoteVolume(sessionId, volumePercent ?: 0.0, wakeLock)
-                        SnowEvents.send("volumeChanged", mapOf("percent" to volumePercent, "remoteId" to sessionId))
+                    // If the current volume is centerVolume, this change event was triggered
+                    // by our programmatic recenter. Drop it without locking state.
+                    if (currentVolume == centerVolume) {
+                        return
                     }
+
+                    val delta = currentVolume - centerVolume
+                    val volumeStep = if (delta > 0) 0.05 else -0.05
+                    volumePercent = ((volumePercent ?: 0.0) + volumeStep).coerceIn(0.0, 1.0)
+
+                    // Snap the local stream back to center so subsequent rocker presses
+                    // never hit min/max rails and continue generating deltas.
+                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, centerVolume, 0)
+
+                    val sessionId = musicSessionId ?: return
+                    ApiClient.setRemoteVolume(sessionId, volumePercent ?: 0.0, wakeLock)
+                    SnowEvents.send(
+                        "volumeChanged",
+                        mapOf("percent" to volumePercent, "remoteId" to sessionId),
+                    )
                 }
             }
 

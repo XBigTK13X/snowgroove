@@ -200,6 +200,7 @@ class SnowgrooveService : Service() {
             player.setSession(null, musicSession)
         } else {
             player.setSession(targetPlayerId, musicSession)
+            volumeManager.setInitialVolume(musicSession.id, null)
             volumeManager.registerObserver()
         }
         queueManager.setSession(musicSession)

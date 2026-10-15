@@ -146,6 +146,8 @@ export function AudioContextProvider(props) {
 
     React.useEffect(() => {
         if (apiClient?.baseURL && apiClient?.authToken) {
+            setMusicSession(null)
+            musicSessionRef.current = null
             SnowAudioControls.configure(
                 apiClient,
                 config
