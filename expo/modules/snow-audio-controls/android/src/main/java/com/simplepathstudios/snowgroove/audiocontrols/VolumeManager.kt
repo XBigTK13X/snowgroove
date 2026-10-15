@@ -25,9 +25,26 @@ class VolumeManager(
     private var volumeObserver: ContentObserver? = null
     private var lastObservedStreamVolume = -1
     private var isProgrammaticVolumeChange = false
+    private var isPaused = false
 
     var musicSessionId: Int? = null
     var volumePercent: Double? = 0.0
+
+    fun pause() {
+        isPaused = true
+    }
+
+    fun resume() {
+        if (!isPaused) return
+        isPaused = false
+
+        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        val centerVolume = maxVolume / 2
+
+        isProgrammaticVolumeChange = true
+        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, centerVolume, 0)
+        lastObservedStreamVolume = centerVolume
+    }
 
     fun setInitialVolume(
         sessionId: Int?,
@@ -64,6 +81,11 @@ class VolumeManager(
                         return
                     }
 
+                    if (isPaused) {
+                        lastObservedStreamVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                        return
+                    }
+
                     val currentStreamVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
                     val delta = currentStreamVolume - lastObservedStreamVolume
                     if (delta != 0) {
@@ -92,6 +114,7 @@ class VolumeManager(
     fun unregisterObserver() {
         volumePercent = 0.0
         musicSessionId = null
+        isPaused = false
         volumeObserver?.let {
             context.contentResolver.unregisterContentObserver(it)
             volumeObserver = null

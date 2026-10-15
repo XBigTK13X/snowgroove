@@ -6,6 +6,7 @@ export default function DeviceDetailsPage(props) {
     const { navPush, currentRoute } = C.useSnowContext(props)
     const [remotePlayer, setRemotePlayer] = C.React.useState(null)
     const [canKill, setCanKill] = C.React.useState(null)
+    const [killed, setKilled] = C.React.useState(null)
 
     C.React.useEffect(() => {
         apiClient.getRemotePlayer(currentRoute?.routeParams?.remotePlayerId).then((response) => {
@@ -39,6 +40,8 @@ export default function DeviceDetailsPage(props) {
         status = <C.SnowText center>This device is not being used.</C.SnowText>
     }
 
+    let killTitle = killed ? "Kill Session (Long Press)" : 'Cleared and Stopped'
+
     return (
         <C.SnowView {...props}>
             <C.SnowText center>{remotePlayer.name}</C.SnowText>
@@ -51,14 +54,15 @@ export default function DeviceDetailsPage(props) {
                         })
                     })
                 }} />
-                <C.SnowTextButton focusStart title="Kill Session" onPress={() => {
+                {canKill ? <C.SnowTextButton focusStart title={killTitle} onLongPress={() => {
                     apiClient.killRemotePlayer(currentRoute?.routeParams?.remotePlayerId).then(() => {
                         apiClient.getRemotePlayer(currentRoute?.routeParams?.remotePlayerId).then((response) => {
                             setRemotePlayer(response.player)
                             setCanKill(response.can_kill)
+                            setKilled(true)
                         })
                     })
-                }} />
+                }} /> : null}
             </C.SnowGrid>
             <C.SnowText center>{remotePlayer.device_make}</C.SnowText>
             {status}

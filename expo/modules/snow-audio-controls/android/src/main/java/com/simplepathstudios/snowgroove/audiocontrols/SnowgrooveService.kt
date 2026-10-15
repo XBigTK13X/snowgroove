@@ -127,9 +127,11 @@ class SnowgrooveService : Service() {
         }
         if (action == "play") {
             player.resume()
+            volumeManager.resume()
         }
         if (action == "pause") {
             player.pause()
+            volumeManager.pause()
         }
     }
 
@@ -244,6 +246,7 @@ class SnowgrooveService : Service() {
             }
             val currentSong = queueManager.currentSong
             player.loadAndPlay(currentSong?.webPath)
+            volumeManager.resume()
             updateMediaSession()
             currentFingerprint = currentSong?.fingerprint ?: null
         }
@@ -255,6 +258,7 @@ class SnowgrooveService : Service() {
         }
         serviceScope.launch(Dispatchers.Main) {
             player.pause()
+            volumeManager.pause()
             updateMediaSession()
         }
     }
