@@ -307,8 +307,13 @@ class SnowgrooveService : Service() {
             SnowEvents.log("SnowgrooveService->setVolumeLevel", "percent: $percent")
         }
         serviceScope.launch(Dispatchers.Main) {
-            player.setVolume(percent)
-            volumeManager.setVolume(percent)
+            if (isRemote) {
+                volumeManager.setVolume(percent)
+            } else {
+                player.setVolume(percent)
+                currentStatus?.volume = percent
+                updateMediaSession()
+            }
         }
     }
 
@@ -382,11 +387,11 @@ class SnowgrooveService : Service() {
                                     currentSongIndex = (playerStatus.currentSongIndex ?: 0),
                                     volume = (playerStatus.volume ?: 0.0),
                                 )
-                            // Without this, onStatusUpdate freaks out about nullable types
                             currentStatus = computedStatus
                             if (currentStatus != lastStatus) {
-                                // TODO Maybe instead of this, have the volumeManager poll the remote device on button press?
-                                volumeManager.setInitialVolume(musicSession.id, playerStatus.volume)
+                                if (isRemote) {
+                                    volumeManager.setInitialVolume(musicSession.id, playerStatus.volume)
+                                }
                                 if (currentStatus?.currentSongIndex != lastStatus?.currentSongIndex &&
                                     currentStatus?.queueFingerprint == lastStatus?.queueFingerprint
                                 ) {

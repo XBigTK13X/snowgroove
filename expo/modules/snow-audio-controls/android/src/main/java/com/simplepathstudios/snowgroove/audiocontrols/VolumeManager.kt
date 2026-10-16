@@ -50,7 +50,9 @@ class VolumeManager(
 
     fun resume() {
         isPaused = false
-        forceCenterStream()
+        if (volumeObserver != null) {
+            forceCenterStream()
+        }
     }
 
     fun setInitialVolume(
@@ -65,14 +67,21 @@ class VolumeManager(
 
     fun setVolume(volume: Double?) {
         volumePercent = volume?.coerceIn(0.0, 1.0) ?: 0.0
+        val sessionId = musicSessionId ?: return
+        if (volumeObserver != null) {
+            ApiClient.setRemoteVolume(sessionId, volumePercent ?: 0.0, wakeLock)
+            SnowEvents.send(
+                "volumeChanged",
+                mapOf("percent" to volumePercent, "remoteId" to sessionId),
+            )
+        }
     }
 
     fun registerObserver() {
         if (volumeObserver != null) return
 
         isPaused = false
-        centerVolume = calculateCenterVolume()
-        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, centerVolume, 0)
+        forceCenterStream()
 
         val observer =
             object : ContentObserver(handler) {
@@ -85,8 +94,6 @@ class VolumeManager(
 
                     val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
 
-                    // If the current volume is centerVolume, this change event was triggered
-                    // by our programmatic recenter. Drop it without locking state.
                     if (currentVolume == centerVolume) {
                         return
                     }
@@ -95,8 +102,6 @@ class VolumeManager(
                     val volumeStep = if (delta > 0) 0.05 else -0.05
                     volumePercent = ((volumePercent ?: 0.0) + volumeStep).coerceIn(0.0, 1.0)
 
-                    // Snap the local stream back to center so subsequent rocker presses
-                    // never hit min/max rails and continue generating deltas.
                     audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, centerVolume, 0)
 
                     val sessionId = musicSessionId ?: return
