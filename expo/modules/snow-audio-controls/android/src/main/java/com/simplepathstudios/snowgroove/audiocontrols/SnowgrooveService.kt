@@ -43,8 +43,6 @@ class SnowgrooveService : Service() {
     private var currentArtworkUrl: String? = null
 
     private var cachedArtworkBitmap: Bitmap? = null
-    private var cachedTinyArtworkBitmap: Bitmap? = null
-    var useSmallCoverArt: Boolean = true
 
     private var progressJob: Job? = null
     private var currentStatus: PlayerStatus? = null
@@ -424,31 +422,6 @@ class SnowgrooveService : Service() {
             }
     }
 
-    private fun scaleBitmap(
-        sourceBitmap: Bitmap,
-        maxDimension: Int,
-    ): Bitmap {
-        val sourceWidth = sourceBitmap.width
-        val sourceHeight = sourceBitmap.height
-        if (sourceWidth <= maxDimension && sourceHeight <= maxDimension) {
-            return sourceBitmap
-        }
-
-        val aspectRatio = sourceWidth.toFloat() / sourceHeight.toFloat()
-        val targetWidth: Int
-        val targetHeight: Int
-
-        if (sourceWidth > sourceHeight) {
-            targetWidth = maxDimension
-            targetHeight = (maxDimension / aspectRatio).toInt().coerceAtLeast(1)
-        } else {
-            targetHeight = maxDimension
-            targetWidth = (maxDimension * aspectRatio).toInt().coerceAtLeast(1)
-        }
-
-        return Bitmap.createScaledBitmap(sourceBitmap, targetWidth, targetHeight, true)
-    }
-
     private suspend fun resolveArtworkBitmap(artworkUrl: String?): Bitmap? {
         if (artworkUrl.isNullOrEmpty()) {
             if (SnowConfig.DEBUG_ANDROID_AUDIO != null) {
@@ -456,7 +429,6 @@ class SnowgrooveService : Service() {
             }
             currentArtworkUrl = null
             cachedArtworkBitmap = null
-            cachedTinyArtworkBitmap = null
             return null
         }
         if (artworkUrl == currentArtworkUrl && cachedArtworkBitmap != null) {
@@ -471,12 +443,6 @@ class SnowgrooveService : Service() {
         val downloadedBitmap = ApiClient.fetchBitmap(artworkUrl)
         currentArtworkUrl = artworkUrl
         cachedArtworkBitmap = downloadedBitmap
-        cachedTinyArtworkBitmap =
-            if (downloadedBitmap != null) {
-                scaleBitmap(downloadedBitmap, 300)
-            } else {
-                null
-            }
         return downloadedBitmap
     }
 
@@ -494,7 +460,6 @@ class SnowgrooveService : Service() {
             )
         }
         val coverArt = resolveArtworkBitmap(currentSong?.thumbnailWebPath)
-        val sessionArtwork = if (useSmallCoverArt) cachedTinyArtworkBitmap else coverArt
         val durationMilliseconds = ((currentSong?.duration ?: 0.0) * 1000.0).toLong()
         val metadata =
             MediaMetadataCompat
@@ -504,9 +469,9 @@ class SnowgrooveService : Service() {
                 .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, currentSong?.album)
                 .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, durationMilliseconds)
                 .apply {
-                    if (sessionArtwork != null) {
-                        putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, sessionArtwork)
-                        putBitmap(MediaMetadataCompat.METADATA_KEY_ART, sessionArtwork)
+                    if (coverArt != null) {
+                        putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, coverArt)
+                        putBitmap(MediaMetadataCompat.METADATA_KEY_ART, coverArt)
                     }
                 }.build()
 
@@ -551,7 +516,6 @@ class SnowgrooveService : Service() {
         mediaSession.release()
         ApiClient.cleanup()
         cachedArtworkBitmap = null
-        cachedTinyArtworkBitmap = null
         super.onDestroy()
     }
 }
