@@ -27,6 +27,7 @@ class VolumeManager(
 
     private var centerVolume = -1
     private var isPaused = false
+    private var isSeeded = false
 
     var musicSessionId: Int? = null
     var volumePercent: Double? = 0.0
@@ -59,14 +60,19 @@ class VolumeManager(
         sessionId: Int?,
         volume: Double?,
     ) {
-        if ((volumePercent == 0.0 && (volume ?: 0.0) > 0.0) || (musicSessionId != sessionId)) {
+        if (musicSessionId != sessionId) {
             musicSessionId = sessionId
-            volumePercent = volume
+            isSeeded = false
+        }
+        if (!isSeeded && volume != null) {
+            volumePercent = volume.coerceIn(0.0, 1.0)
+            isSeeded = true
         }
     }
 
     fun setVolume(volume: Double?) {
         volumePercent = volume?.coerceIn(0.0, 1.0) ?: 0.0
+        isSeeded = true
         val sessionId = musicSessionId ?: return
         if (volumeObserver != null) {
             ApiClient.setRemoteVolume(sessionId, volumePercent ?: 0.0, wakeLock)
@@ -125,8 +131,9 @@ class VolumeManager(
         volumePercent = 0.0
         musicSessionId = null
         isPaused = false
-        volumeObserver?.let {
-            context.contentResolver.unregisterContentObserver(it)
+        isSeeded = false
+        volumeObserver?.let { observerInstance ->
+            context.contentResolver.unregisterContentObserver(observerInstance)
             volumeObserver = null
         }
     }
