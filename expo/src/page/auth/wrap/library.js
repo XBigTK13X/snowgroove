@@ -1,6 +1,5 @@
 import { C, useAppContext } from 'snowgroove'
 import Snow from '@snowsuite/expo-snowui'
-const snowuiPackageInfo = require('expo-snowui/package.json')
 
 export default function LibraryPage(props) {
     const { apiClient, routes, config, targetPlayer } = useAppContext()
