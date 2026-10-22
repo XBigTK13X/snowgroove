@@ -1,5 +1,5 @@
 import { C, useAppContext } from 'snowgroove'
-import Snow from 'expo-snowui'
+import Snow from '@snowsuite/expo-snowui'
 
 export default function DeviceDetailsPage(props) {
     const { apiClient, changeTargetPlayer, routes } = useAppContext()

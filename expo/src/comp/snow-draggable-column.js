@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react'
 import { Animated, PanResponder, Text, View, FlatList, Pressable, StyleSheet } from 'react-native'
-import Snow from 'expo-snowui'
+import Snow from '@snowsuite/expo-snowui'
 
 const styles = StyleSheet.create({
     container: {

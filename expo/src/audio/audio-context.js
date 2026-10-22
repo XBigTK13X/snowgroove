@@ -1,5 +1,5 @@
 import React from 'react'
-import { util } from 'expo-snowui'
+import { util } from '@snowsuite/expo-snowui'
 import { useAppContext } from '../app-context'
 import { SnowAudioControls } from '../../modules/snow-audio-controls'
 

@@ -1,6 +1,6 @@
 import pkg from "../../package.json";
 import React from 'react'
-import Snow from 'expo-snowui'
+import Snow from '@snowsuite/expo-snowui'
 import {
     config,
     AudioContextProvider,

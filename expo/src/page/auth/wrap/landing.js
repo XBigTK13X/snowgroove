@@ -1,5 +1,5 @@
 import { C, useAppContext, useAudioContext } from 'snowgroove'
-import Snow from 'expo-snowui'
+import Snow from '@snowsuite/expo-snowui'
 const snowuiPackageInfo = require('expo-snowui/package.json')
 
 export default function LandingPage(props) {
