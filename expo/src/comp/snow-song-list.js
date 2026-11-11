@@ -170,7 +170,7 @@ export function SnowSongList(props) {
                 }
 
                 return (
-                    <Snow.Grid yy={itemIndex} leftAlignRows style={{ width: '100%' }}>
+                    <Snow.Grid yy={itemIndex + 4} leftAlignRows style={{ width: '100%' }}>
                         <View
                             style={{
                                 flexDirection: 'row',
@@ -180,6 +180,7 @@ export function SnowSongList(props) {
                             }}
                         >
                             <Snow.ImageButton
+                                focusStart={itemIndex === 0}
                                 imageStyle={{ width: 50, height: 50 }}
                                 wrapperStyle={{ width: 60, height: 70, justifyContent: 'center' }}
                                 imageUrl={item.thumbnail_web_path}
